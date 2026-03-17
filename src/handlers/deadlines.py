@@ -1,0 +1,111 @@
+import logging
+import re
+
+import aiosqlite
+from telegram import Update
+from telegram.ext import ContextTypes
+
+from src.db import create_deadline, update_deadline_status
+from src.handlers.common import get_command_text, parse_date_text, reply_text
+from src.state import get_state
+
+
+LOGGER = logging.getLogger(__name__)
+DEADLINE_RE = re.compile(r"^\s*(?P<title>.+?)\s+due\s+(?P<due_date>.+?)\s*$", re.IGNORECASE)
+DONE_RE = re.compile(r"^/done_deadline_(?P<deadline_id>\d+)(?:@\w+)?$", re.IGNORECASE)
+DISMISS_RE = re.compile(r"^/dismiss_deadline_(?P<deadline_id>\d+)(?:@\w+)?$", re.IGNORECASE)
+
+
+async def deadline_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    try:
+        command_text = get_command_text(update)
+        match = DEADLINE_RE.match(command_text)
+        if match is None:
+            await reply_text(update, context, "Usage: /deadline <title> due <date>")
+            return
+
+        title = match.group("title").strip().strip('"')
+        due_date = parse_date_text(match.group("due_date"))
+        if not title or due_date is None:
+            await reply_text(update, context, "Could not parse that date. Usage: /deadline <title> due <date>")
+            return
+
+        chat_id = update.effective_chat.id
+        user_state = get_state(chat_id)
+
+        try:
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                db.row_factory = aiosqlite.Row
+                deadline = await create_deadline(db, title=title, due_date=due_date, project_id=user_state.active_project_id)
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to save deadline for chat_id=%s", chat_id)
+            await reply_text(update, context, "Could not save. Please try again. (ERR:DB)")
+            return
+
+        LOGGER.info("Saved deadline_id=%s for chat_id=%s", deadline["id"], chat_id)
+        await reply_text(
+            update,
+            context,
+            (
+                f'Deadline saved: "{title}" — {due_date}. Reminders: 7d, 3d, 1d before.\n'
+                f"/done_deadline_{deadline['id']}\n"
+                f"/dismiss_deadline_{deadline['id']}"
+            ),
+        )
+    except Exception:
+        LOGGER.exception("Unhandled deadline command failure")
+        await reply_text(update, context, "Something went wrong. Please try again.")
+
+
+async def done_deadline_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    try:
+        deadline_id = _extract_deadline_id(update, DONE_RE)
+        if deadline_id is None:
+            return
+
+        try:
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                db.row_factory = aiosqlite.Row
+                await update_deadline_status(db, deadline_id, "done")
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to mark deadline_id=%s done", deadline_id)
+            await reply_text(update, context, "Could not save. Please try again. (ERR:DB)")
+            return
+
+        LOGGER.info("Marked deadline_id=%s as done", deadline_id)
+        await reply_text(update, context, f"Deadline #{deadline_id} marked done.")
+    except Exception:
+        LOGGER.exception("Unhandled done deadline failure")
+        await reply_text(update, context, "Something went wrong. Please try again.")
+
+
+async def dismiss_deadline_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    try:
+        deadline_id = _extract_deadline_id(update, DISMISS_RE)
+        if deadline_id is None:
+            return
+
+        try:
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                db.row_factory = aiosqlite.Row
+                await update_deadline_status(db, deadline_id, "dismissed")
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to dismiss deadline_id=%s", deadline_id)
+            await reply_text(update, context, "Could not save. Please try again. (ERR:DB)")
+            return
+
+        LOGGER.info("Dismissed deadline_id=%s", deadline_id)
+        await reply_text(update, context, f"Deadline #{deadline_id} reminders dismissed.")
+    except Exception:
+        LOGGER.exception("Unhandled dismiss deadline failure")
+        await reply_text(update, context, "Something went wrong. Please try again.")
+
+
+def _extract_deadline_id(update: Update, pattern: re.Pattern[str]) -> int | None:
+    message = update.effective_message
+    text = message.text if message else ""
+    match = pattern.match(text or "")
+    if match is None:
+        LOGGER.debug("Dynamic deadline command did not match expected pattern: %r", text)
+        return None
+    return int(match.group("deadline_id"))

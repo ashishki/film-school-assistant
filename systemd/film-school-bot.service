@@ -1,0 +1,19 @@
+[Unit]
+Description=Film School Assistant Telegram Bot
+After=network.target
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=oc_her
+WorkingDirectory=/srv/openclaw-her/workspace/film-school-assistant
+ExecStart=/usr/bin/python3 src/bot.py
+Restart=on-failure
+RestartSec=10
+EnvironmentFile=/srv/openclaw-her/workspace/film-school-assistant/.env
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

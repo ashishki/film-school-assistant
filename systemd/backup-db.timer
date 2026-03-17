@@ -1,0 +1,10 @@
+[Unit]
+Description=Film School Assistant - Daily DB Backup Timer
+Requires=backup-db.service
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
