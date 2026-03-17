@@ -31,7 +31,7 @@
 | P0-08 | Write `docs/prompts/workflow_codex_implementer.md` | Strategist | `[x]` | P0-01 |
 | P0-09 | Write `docs/prompts/workflow_claude_reviewer.md` | Strategist | `[x]` | P0-01 |
 | P0-10 | Write `docs/prompts/workflow_codex_fixer.md` | Strategist | `[x]` | P0-01 |
-| P0-11 | Git init, `.gitignore`, initial commit | Codex | `[ ]` | P0-01 |
+| P0-11 | Git init, `.gitignore`, initial commit | Codex | `[x]` | P0-01 |
 
 ---
 
@@ -39,12 +39,12 @@
 
 | ID | Task | Owner | Status | Depends On |
 |---|---|---|---|---|
-| P1-01 | Create `src/config.py` (env var loader, Config dataclass, startup validation) | Codex | `[ ]` | P0-01 |
-| P1-02 | Create `src/schema.sql` (all tables from architecture.md §10) | Codex | `[ ]` | P0-01 |
-| P1-03 | Create `src/db.py` (aiosqlite, init_db(), CRUD for all entity types) | Codex | `[ ]` | P1-02 |
-| P1-04 | Create `scripts/init_db.sh` (creates data dirs, runs init_db) | Codex | `[ ]` | P1-03 |
-| P1-05 | Create `scripts/smoke_test_db.py` (standalone PASS/FAIL script) | Codex | `[ ]` | P1-03 |
-| P1-06 | Create `requirements.txt` (pinned: python-telegram-bot, aiosqlite, openai-whisper, python-dotenv) | Codex | `[ ]` | P1-01 |
+| P1-01 | Create `src/config.py` (env var loader, Config dataclass, startup validation) | Codex | `[x]` | P0-01 |
+| P1-02 | Create `src/schema.sql` (all tables from architecture.md §10) | Codex | `[x]` | P0-01 |
+| P1-03 | Create `src/db.py` (aiosqlite, init_db(), CRUD for all entity types) | Codex | `[x]` | P1-02 |
+| P1-04 | Create `scripts/init_db.sh` (creates data dirs, runs init_db) | Codex | `[x]` | P1-03 |
+| P1-05 | Create `scripts/smoke_test_db.py` (standalone PASS/FAIL script) | Codex | `[x]` | P1-03 |
+| P1-06 | Create `requirements.txt` (pinned: python-telegram-bot, aiosqlite, openai-whisper, python-dotenv) | Codex | `[x]` | P1-01 |
 
 **Phase 1 Review Criteria:**
 - All 11 tables from architecture.md §10 present in schema.sql with correct field names and types.
@@ -61,17 +61,17 @@
 
 | ID | Task | Owner | Status | Depends On |
 |---|---|---|---|---|
-| P2-01 | Create `src/bot.py` (startup, long-polling, allowed chat_id guard) | Codex | `[ ]` | P1-01, P1-03 |
-| P2-02 | Create `src/state.py` (user session state: active project, pending confirm) | Codex | `[ ]` | P2-01 |
-| P2-03 | Create `src/handlers/notes.py` (`/note` command handler) | Codex | `[ ]` | P2-01, P1-03 |
-| P2-04 | Create `src/handlers/ideas.py` (`/idea` command handler) | Codex | `[ ]` | P2-01, P1-03 |
-| P2-05 | Create `src/handlers/deadlines.py` (`/deadline` command handler, date parsing) | Codex | `[ ]` | P2-01, P1-03 |
-| P2-06 | Create `src/handlers/homework.py` (`/homework` command handler) | Codex | `[ ]` | P2-01, P1-03 |
-| P2-07 | Create `src/handlers/projects.py` (`/projects`, `/project <name>`, fuzzy match) | Codex | `[ ]` | P2-01, P1-03 |
-| P2-08 | Create `src/handlers/list_cmd.py` (`/list notes/ideas/deadlines/homework`) | Codex | `[ ]` | P2-01, P1-03 |
-| P2-09 | Create `src/handlers/confirm.py` (`/confirm`, `/edit`, `/discard` flow) | Codex | `[ ]` | P2-02 |
-| P2-10 | Create `src/handlers/help_cmd.py` (`/help` command) | Codex | `[ ]` | P2-01 |
-| P2-11 | Create `systemd/film-school-bot.service` | Codex | `[ ]` | P2-01 |
+| P2-01 | Create `src/bot.py` (startup, long-polling, allowed chat_id guard) | Codex | `[x]` | P1-01, P1-03 |
+| P2-02 | Create `src/state.py` (user session state: active project, pending confirm) | Codex | `[x]` | P2-01 |
+| P2-03 | Create `src/handlers/notes.py` (`/note` command handler) | Codex | `[x]` | P2-01, P1-03 |
+| P2-04 | Create `src/handlers/ideas.py` (`/idea` command handler) | Codex | `[x]` | P2-01, P1-03 |
+| P2-05 | Create `src/handlers/deadlines.py` (`/deadline` command handler, date parsing) | Codex | `[x]` | P2-01, P1-03 |
+| P2-06 | Create `src/handlers/homework.py` (`/homework` command handler) | Codex | `[x]` | P2-01, P1-03 |
+| P2-07 | Create `src/handlers/projects.py` (`/projects`, `/project <name>`, fuzzy match) | Codex | `[x]` | P2-01, P1-03 |
+| P2-08 | Create `src/handlers/list_cmd.py` (`/list notes/ideas/deadlines/homework`) | Codex | `[x]` | P2-01, P1-03 |
+| P2-09 | Create `src/handlers/confirm.py` (`/confirm`, `/edit`, `/discard` flow) | Codex | `[x]` | P2-02 |
+| P2-10 | Create `src/handlers/help_cmd.py` (`/help` command) | Codex | `[x]` | P2-01 |
+| P2-11 | Create `systemd/film-school-bot.service` | Codex | `[x]` | P2-01 |
 
 **Phase 2 Review Criteria:**
 - `TELEGRAM_ALLOWED_CHAT_ID` guard fires before any handler logic — message from unknown chat_id is silently dropped.
@@ -87,10 +87,10 @@
 
 | ID | Task | Owner | Status | Depends On |
 |---|---|---|---|---|
-| P3-01 | Create `scripts/send_reminders.py` (query active deadlines, send reminders, log) | Codex | `[ ]` | P1-03 |
-| P3-02 | Create `scripts/send_summary.py` (query week data, generate narrative, send) | Codex | `[ ]` | P1-03 |
-| P3-03 | Create `systemd/reminder.service` + `systemd/reminder.timer` (daily 08:00) | Codex | `[ ]` | P3-01 |
-| P3-04 | Create `systemd/summary.service` + `systemd/summary.timer` (Monday 09:00) | Codex | `[ ]` | P3-02 |
+| P3-01 | Create `scripts/send_reminders.py` (query active deadlines, send reminders, log) | Codex | `[x]` | P1-03 |
+| P3-02 | Create `scripts/send_summary.py` (query week data, generate narrative, send) | Codex | `[x]` | P1-03 |
+| P3-03 | Create `systemd/reminder.service` + `systemd/reminder.timer` (daily 08:00) | Codex | `[x]` | P3-01 |
+| P3-04 | Create `systemd/summary.service` + `systemd/summary.timer` (Monday 09:00) | Codex | `[x]` | P3-02 |
 
 **Phase 3 Review Criteria:**
 - `send_reminders.py` second run on same day does not re-send (idempotent via `reminder_log` UNIQUE constraint).
@@ -106,11 +106,11 @@
 
 | ID | Task | Owner | Status | Depends On |
 |---|---|---|---|---|
-| P4-01 | Create `src/voice.py` (download OGG from Telegram, convert to WAV via ffmpeg) | Codex | `[ ]` | P2-01 |
-| P4-02 | Create `src/transcriber.py` (local Whisper inference, returns transcript text) | Codex | `[ ]` | P4-01 |
-| P4-03 | Wire voice message handler into `src/bot.py` | Codex | `[ ]` | P4-01, P4-02 |
-| P4-04 | Wire voice → confirmation flow (transcript shown, confirmation required) | Codex | `[ ]` | P4-03, P2-09 |
-| P4-05 | Implement audio storage under `data/audio/` with `voice_inputs` DB row | Codex | `[ ]` | P4-01, P1-03 |
+| P4-01 | Create `src/voice.py` (download OGG from Telegram, convert to WAV via ffmpeg) | Codex | `[x]` | P2-01 |
+| P4-02 | Create `src/transcriber.py` (local Whisper inference, returns transcript text) | Codex | `[x]` | P4-01 |
+| P4-03 | Wire voice message handler into `src/bot.py` | Codex | `[x]` | P4-01, P4-02 |
+| P4-04 | Wire voice → confirmation flow (transcript shown, confirmation required) | Codex | `[x]` | P4-03, P2-09 |
+| P4-05 | Implement audio storage under `data/audio/` with `voice_inputs` DB row | Codex | `[x]` | P4-01, P1-03 |
 
 **Phase 4 Review Criteria:**
 - Audio files written to `data/audio/` only — never transmitted to external service.
@@ -127,11 +127,11 @@
 
 | ID | Task | Owner | Status | Depends On |
 |---|---|---|---|---|
-| P5-01 | `[!]` Verify OpenClaw API contract — inspect `/opt/openclaw/src` wire protocol | Manual | `[ ]` | — |
-| P5-02 | Create `src/openclaw_client.py` (wrap OpenClaw call, return structured JSON) | Codex | `[ ]` | P5-01 |
-| P5-03 | Create NL intent handler in `src/handlers/nl_handler.py` | Codex | `[ ]` | P5-02 |
-| P5-04 | Create `src/reviewer.py` (idea review via OpenClaw strong model) | Codex | `[ ]` | P5-02 |
-| P5-05 | Create `src/handlers/review.py` (`/review <id>` command handler) | Codex | `[ ]` | P5-04, P1-03 |
+| P5-01 | `[!]` Verify OpenClaw API contract — inspect `/opt/openclaw/src` wire protocol | Manual | `[x]` | — |
+| P5-02 | Create `src/openclaw_client.py` (wrap OpenClaw call, return structured JSON) | Codex | `[x]` | P5-01 |
+| P5-03 | Create NL intent handler in `src/handlers/nl_handler.py` | Codex | `[x]` | P5-02 |
+| P5-04 | Create `src/reviewer.py` (idea review via OpenClaw strong model) | Codex | `[x]` | P5-02 |
+| P5-05 | Create `src/handlers/review.py` (`/review <id>` command handler) | Codex | `[x]` | P5-04, P1-03 |
 
 **Phase 5 Review Criteria:**
 - P5-01 must be resolved manually before Phase 5 begins — orchestrator will stop at `[!]`.
@@ -147,12 +147,12 @@
 
 | ID | Task | Owner | Status | Depends On |
 |---|---|---|---|---|
-| P6-01 | Add structured logging throughout all `src/` modules | Codex | `[ ]` | All |
-| P6-02 | Add graceful error reply messages for all failure modes | Codex | `[ ]` | All |
-| P6-03 | Create `scripts/cleanup_audio.py` (delete audio older than AUDIO_RETENTION_DAYS) | Codex | `[ ]` | P4-05 |
-| P6-04 | Create `scripts/backup_db.sh` (copy DB with timestamp to `data/backups/`) | Codex | `[ ]` | P1-03 |
-| P6-05 | Create `systemd/cleanup-audio.service` + `systemd/cleanup-audio.timer` (daily) | Codex | `[ ]` | P6-03 |
-| P6-06 | Create `systemd/backup-db.service` + `systemd/backup-db.timer` (daily) | Codex | `[ ]` | P6-04 |
+| P6-01 | Add structured logging throughout all `src/` modules | Codex | `[x]` | All |
+| P6-02 | Add graceful error reply messages for all failure modes | Codex | `[x]` | All |
+| P6-03 | Create `scripts/cleanup_audio.py` (delete audio older than AUDIO_RETENTION_DAYS) | Codex | `[x]` | P4-05 |
+| P6-04 | Create `scripts/backup_db.sh` (copy DB with timestamp to `data/backups/`) | Codex | `[x]` | P1-03 |
+| P6-05 | Create `systemd/cleanup-audio.service` + `systemd/cleanup-audio.timer` (daily) | Codex | `[x]` | P6-03 |
+| P6-06 | Create `systemd/backup-db.service` + `systemd/backup-db.timer` (daily) | Codex | `[x]` | P6-04 |
 
 **Phase 6 Review Criteria:**
 - `logging` module used throughout — no `print()` for status/debug output.

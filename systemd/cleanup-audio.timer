@@ -1,0 +1,10 @@
+[Unit]
+Description=Film School Assistant - Daily Audio Cleanup Timer
+Requires=cleanup-audio.service
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

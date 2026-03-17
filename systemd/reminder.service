@@ -1,0 +1,16 @@
+[Unit]
+Description=Film School Assistant — Deadline Reminder
+After=network.target
+
+[Service]
+Type=oneshot
+User=oc_her
+WorkingDirectory=/srv/openclaw-her/workspace/film-school-assistant
+ExecStart=/usr/bin/python3 scripts/send_reminders.py
+EnvironmentFile=/srv/openclaw-her/workspace/film-school-assistant/.env
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
