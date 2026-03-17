@@ -6,6 +6,7 @@ After=network.target
 Type=oneshot
 User=oc_her
 WorkingDirectory=/srv/openclaw-her/workspace/film-school-assistant
+# ExecStart: update to your venv path, e.g. ExecStart=/path/to/.venv/bin/python3 ...
 ExecStart=/bin/bash scripts/backup_db.sh
 EnvironmentFile=/srv/openclaw-her/workspace/film-school-assistant/.env
 NoNewPrivileges=true

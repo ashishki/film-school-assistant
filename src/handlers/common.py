@@ -32,7 +32,14 @@ def format_project_scope(project_name: str | None) -> str:
 
 
 def parse_date_text(raw_value: str) -> str | None:
-    candidate = raw_value.strip()
+    return validate_and_parse_date(raw_value)
+
+
+def validate_and_parse_date(date_str: str | None) -> str | None:
+    if date_str is None:
+        return None
+
+    candidate = date_str.strip()
     if not candidate:
         return None
 
@@ -42,7 +49,7 @@ def parse_date_text(raw_value: str) -> str | None:
         pass
 
     try:
-        parsed = date_parser.parse(candidate, fuzzy=True)
+        parsed = date_parser.parse(candidate, default=datetime(2000, 1, 1), fuzzy=True)
     except (ValueError, OverflowError) as exc:
         LOGGER.debug("Failed to parse date %r: %s", candidate, exc)
         return None

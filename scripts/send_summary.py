@@ -15,7 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config import load_config
-from src.db import create_weekly_report, update_weekly_report_sent
+from src.db import create_weekly_report, get_weekly_report_by_week, update_weekly_report_sent
 
 
 LOGGER = logging.getLogger(__name__)
@@ -45,95 +45,124 @@ def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> No
         raise RuntimeError(f"Telegram API returned ok={payload.get('ok')}")
 
 
-def build_active_projects_section(project_activity: dict[str, dict[str, int]]) -> str:
-    if not project_activity:
-        return "No new activity."
-
-    parts: list[str] = []
-    for project_name, counts in sorted(project_activity.items()):
-        fragments: list[str] = []
-        if counts["notes"]:
-            fragments.append(f'{counts["notes"]} note{"s" if counts["notes"] != 1 else ""}')
-        if counts["ideas"]:
-            fragments.append(f'{counts["ideas"]} idea{"s" if counts["ideas"] != 1 else ""}')
-        if counts["homework"]:
-            fragments.append(f'{counts["homework"]} homework item{"s" if counts["homework"] != 1 else ""}')
-        parts.append(f'"{project_name}" ({", ".join(fragments)})')
-    return "; ".join(parts)
+def _truncate_content(value: object, limit: int = 60) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit].rstrip()}..."
 
 
-def build_ideas_section(new_ideas: list[dict[str, object]]) -> str:
-    if not new_ideas:
-        return "No new ideas."
-
-    reviewed = sum(1 for idea in new_ideas if idea.get("review_status") == "reviewed")
-    unreviewed = len(new_ideas) - reviewed
-    return f"{len(new_ideas)} ideas this week — {reviewed} reviewed, {unreviewed} unreviewed."
+def _format_bullets(lines: list[str], empty_text: str) -> str:
+    if not lines:
+        return empty_text
+    return "\n".join(lines)
 
 
-def build_urgent_section(upcoming_deadlines: list[dict[str, object]]) -> str:
-    urgent = [deadline for deadline in upcoming_deadlines if int(deadline["days_until"]) <= 7]
-    if not urgent:
-        return "Nothing urgent this week."
-
-    urgent_parts = []
-    for deadline in urgent:
-        days_until = int(deadline["days_until"])
-        if days_until == 0:
-            due_phrase = "due TODAY"
-        elif days_until == 1:
-            due_phrase = "due in 1 day"
-        else:
-            due_phrase = f"due in {days_until} days"
-        urgent_parts.append(f'"{deadline["title"]}" ({due_phrase}, {deadline["due_date"]})')
-    return "; ".join(urgent_parts)
-
-
-def build_stalled_section(stalled_projects: list[dict[str, object]]) -> str:
-    if not stalled_projects:
-        return "No stalled projects."
-    return "; ".join(
-        f'"{project["name"]}" (last activity {project["last_activity_at"][:10]})'
-        for project in stalled_projects
-    )
-
-
-def build_recommended_next(
-    upcoming_deadlines: list[dict[str, object]],
-    unreviewed_ideas: list[dict[str, object]],
+def _build_opening_sentence(
+    project_activity: dict[str, dict[str, int]],
+    new_notes: list[dict[str, object]],
+    new_ideas: list[dict[str, object]],
+    new_homework: list[dict[str, object]],
 ) -> str:
-    suggestions: list[str] = []
-    urgent = [deadline for deadline in upcoming_deadlines if int(deadline["days_until"]) <= 7]
-    if urgent:
-        top_deadline = sorted(urgent, key=lambda item: (int(item["days_until"]), str(item["due_date"])))[0]
-        suggestions.append(f'Prioritize "{top_deadline["title"]}" before {top_deadline["due_date"]}.')
-    if unreviewed_ideas:
-        first_idea = unreviewed_ideas[0]
-        idea_preview = str(first_idea["content"]).strip().replace("\n", " ")
-        if len(idea_preview) > 80:
-            idea_preview = f"{idea_preview[:77]}..."
-        suggestions.append(f'Review unreviewed idea #{first_idea["id"]}: "{idea_preview}".')
-    if not suggestions:
-        suggestions.append("Pick one active project and turn this week’s material into a concrete next draft.")
-    return " ".join(suggestions[:2])
+    total_items = len(new_notes) + len(new_ideas) + len(new_homework)
+    total_projects = len(project_activity)
+    if total_items == 0:
+        return "Quiet week — keep the momentum going."
+    return f"You logged {total_items} items this week across {total_projects} projects."
+
+
+def _build_urgent_items(
+    upcoming_deadlines: list[dict[str, object]],
+    week_end: date,
+) -> list[str]:
+    urgent: list[str] = []
+    for item in upcoming_deadlines:
+        due_date_raw = str(item.get("due_date") or "")
+        if not due_date_raw:
+            continue
+        if date.fromisoformat(due_date_raw) > week_end:
+            continue
+        urgent.append(f'• {item["title"]} — due {due_date_raw}')
+    return urgent
+
+
+def _build_creative_momentum(
+    new_notes: list[dict[str, object]],
+    new_ideas: list[dict[str, object]],
+) -> list[str]:
+    items = [
+        {"created_at": item.get("created_at"), "content": item.get("content")}
+        for item in new_notes + new_ideas
+    ]
+    items.sort(key=lambda item: str(item.get("created_at") or ""), reverse=True)
+    return [f"• {_truncate_content(item.get('content'))}" for item in items]
+
+
+def _build_overdue_or_stalled(
+    upcoming_deadlines: list[dict[str, object]],
+    stalled_projects: list[dict[str, object]],
+) -> list[str]:
+    lines: list[str] = []
+    overdue_items = [item for item in upcoming_deadlines if int(item.get("days_until") or 0) < 0]
+    overdue_items.sort(key=lambda item: str(item.get("due_date") or ""))
+    for item in overdue_items:
+        lines.append(f'• {item["title"]} (overdue since {item["due_date"]})')
+    for project in stalled_projects:
+        lines.append(f'• {project["name"]} (last activity {str(project["last_activity_at"])[:10]})')
+    return lines
+
+
+def _build_next_step(upcoming_deadlines: list[dict[str, object]]) -> str:
+    overdue_items = [item for item in upcoming_deadlines if int(item.get("days_until") or 0) < 0]
+    overdue_items.sort(key=lambda item: (str(item.get("due_date") or ""), str(item.get("title") or "")))
+    if overdue_items:
+        return f'Work on: {overdue_items[0]["title"]}'
+
+    upcoming_items = [item for item in upcoming_deadlines if int(item.get("days_until") or 0) >= 0]
+    upcoming_items.sort(key=lambda item: (int(item.get("days_until") or 0), str(item.get("due_date") or "")))
+    if upcoming_items:
+        return f'Work on: {upcoming_items[0]["title"]}'
+
+    return "Quiet week — keep the momentum going."
 
 
 def build_summary_text(
     week_start: date,
     week_end: date,
     project_activity: dict[str, dict[str, int]],
+    new_notes: list[dict[str, object]],
     new_ideas: list[dict[str, object]],
+    new_homework: list[dict[str, object]],
     upcoming_deadlines: list[dict[str, object]],
     stalled_projects: list[dict[str, object]],
-    unreviewed_ideas: list[dict[str, object]],
 ) -> str:
+    week_label = f"{week_start.isoformat()} – {week_end.isoformat()}"
+    opening_sentence = _build_opening_sentence(project_activity, new_notes, new_ideas, new_homework)
+    urgent_items = _build_urgent_items(upcoming_deadlines, week_end)
+    creative_momentum = _build_creative_momentum(new_notes, new_ideas)
+    overdue_or_stalled = _build_overdue_or_stalled(upcoming_deadlines, stalled_projects)
+    next_step = _build_next_step(upcoming_deadlines)
+
+    if (
+        opening_sentence == "Quiet week — keep the momentum going."
+        and not urgent_items
+        and not creative_momentum
+        and not overdue_or_stalled
+        and next_step == "Quiet week — keep the momentum going."
+    ):
+        return f"Weekly Digest — {week_label}\n\nQuiet week — keep the momentum going."
+
     return (
-        f"WEEK IN REVIEW — {week_start.isoformat()} – {week_end.isoformat()}\n\n"
-        f"URGENT: {build_urgent_section(upcoming_deadlines)}\n"
-        f"ACTIVE PROJECTS: {build_active_projects_section(project_activity)}\n"
-        f"RECENT IDEAS: {build_ideas_section(new_ideas)}\n"
-        f"STALLED: {build_stalled_section(stalled_projects)}\n"
-        f"RECOMMENDED NEXT: {build_recommended_next(upcoming_deadlines, unreviewed_ideas)}"
+        f"Weekly Digest — {week_label}\n\n"
+        f"{opening_sentence}\n\n"
+        f"🔴 Urgent (due this week):\n"
+        f"{_format_bullets(urgent_items, 'Nothing critical due this week.')}\n\n"
+        f"🎬 Creative Momentum:\n"
+        f"{_format_bullets(creative_momentum, 'No new notes or ideas this week.')}\n\n"
+        f"⏳ Stalled / Neglected:\n"
+        f"{_format_bullets(overdue_or_stalled, 'Nothing stalled.')}\n\n"
+        f"➡ Recommended next step:\n"
+        f"{next_step}"
     )
 
 
@@ -262,16 +291,22 @@ async def generate_and_send_summary() -> int:
 
     async with aiosqlite.connect(config.db_path) as db:
         db.row_factory = aiosqlite.Row
+        existing_report = await get_weekly_report_by_week(db, week_start.isoformat())
+        if existing_report is not None and existing_report["sent_at"] is not None:
+            LOGGER.info("Weekly summary already sent for week_start=%s", week_start.isoformat())
+            return int(existing_report["id"])
+
         snapshot = await fetch_snapshot(db, week_start, week_end)
         project_activity = compute_project_activity(snapshot)
         message_text = build_summary_text(
             week_start=week_start,
             week_end=week_end,
             project_activity=project_activity,
+            new_notes=snapshot["new_notes"],
             new_ideas=snapshot["new_ideas"],
+            new_homework=snapshot["new_homework"],
             upcoming_deadlines=snapshot["upcoming_deadlines"],
             stalled_projects=snapshot["stalled_projects"],
-            unreviewed_ideas=snapshot["unreviewed_ideas"],
         )
 
         report = await create_weekly_report(

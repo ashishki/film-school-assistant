@@ -200,3 +200,21 @@ sudo journalctl -u film-school-bot.service -f
 ## Development workflow
 
 See `docs/dev-cycle.md` and `docs/prompts/workflow_orchestrator.md` for the AI-assisted Implement → Review → Fix loop used to build this project.
+
+## Return after 3 months — Runbook
+
+Steps to bring the bot back online after a long absence:
+
+1. **Check server**: `ssh user@vps` — confirm it is reachable.
+2. **Check bot status**: `sudo systemctl status film-school-bot.service`
+3. **Check logs for errors**: `sudo journalctl -u film-school-bot.service -n 100`
+4. **Update dependencies** (if needed):
+   ```bash
+   cd /path/to/film-school-assistant
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+5. **Pull latest code**: `git pull`
+6. **Restart bot**: `sudo systemctl restart film-school-bot.service`
+7. **Verify reminders and summary timers**: `sudo systemctl status reminder.timer summary.timer`
+8. **Test**: Send `/help` to the bot — expect command list reply.

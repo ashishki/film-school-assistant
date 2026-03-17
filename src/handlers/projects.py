@@ -14,6 +14,7 @@ LOGGER = logging.getLogger(__name__)
 
 async def projects_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
+        state = get_state(update.effective_chat.id)
         async with aiosqlite.connect(context.bot_data["db_path"]) as db:
             db.row_factory = aiosqlite.Row
             projects = await list_projects(db)
@@ -25,7 +26,10 @@ async def projects_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         lines = ["Projects:"]
         for project in projects:
             slug = f" ({project['slug']})" if project.get("slug") else ""
-            lines.append(f"- {project['name']}{slug}")
+            is_active = project["id"] == state.active_project_id
+            marker = "* " if is_active else "- "
+            active_label = " (active)" if is_active else ""
+            lines.append(f"{marker}{project['name']}{slug}{active_label}")
 
         LOGGER.info("Listed %s projects", len(projects))
         await reply_text(update, context, "\n".join(lines))
@@ -39,6 +43,14 @@ async def project_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         raw_name = get_command_text(update)
         if not raw_name:
             await reply_text(update, context, "Usage: /project <name>")
+            return
+
+        if raw_name.strip().lower() == "clear":
+            state = get_state(update.effective_chat.id)
+            state.active_project_id = None
+            state.active_project_name = None
+            LOGGER.info("Cleared active project for chat_id=%s", update.effective_chat.id)
+            await reply_text(update, context, "Active project cleared.")
             return
 
         async with aiosqlite.connect(context.bot_data["db_path"]) as db:

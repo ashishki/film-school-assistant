@@ -359,14 +359,26 @@ async def create_weekly_report(
     content_json: str,
     message_text: str | None = None,
 ) -> dict[str, Any]:
-    return await _insert_and_fetch(
-        db,
+    cursor = await db.execute(
         """
-        INSERT INTO weekly_reports (week_start, generated_at, content_json, sent_at, message_text)
+        INSERT OR IGNORE INTO weekly_reports (week_start, generated_at, content_json, sent_at, message_text)
         VALUES (?, ?, ?, ?, ?)
         """,
         (week_start, _utcnow_iso(), content_json, None, message_text),
-        "weekly_reports",
+    )
+    await cursor.close()
+    await db.commit()
+    report = await get_weekly_report_by_week(db, week_start)
+    if report is None:
+        raise RuntimeError(f"Failed to fetch weekly report for week_start={week_start}")
+    return report
+
+
+async def get_weekly_report_by_week(db: aiosqlite.Connection, week_start: str) -> dict[str, Any] | None:
+    return await _fetch_one_dict(
+        db,
+        "SELECT * FROM weekly_reports WHERE week_start = ?",
+        (week_start,),
     )
 
 

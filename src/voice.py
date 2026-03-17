@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from pathlib import Path
 
 from telegram import Update
@@ -70,3 +71,14 @@ async def convert_to_wav(ogg_path: str) -> str:
 
     LOGGER.info("Converted voice input to file=%s", wav_name)
     return wav_path
+
+
+def delete_wav(wav_path: str) -> None:
+    wav_name = Path(wav_path).name
+    try:
+        os.unlink(wav_path)
+        LOGGER.info("Deleted temporary wav file=%s", wav_name)
+    except FileNotFoundError:
+        LOGGER.warning("Temporary wav file already missing: file=%s", wav_name)
+    except OSError:
+        LOGGER.warning("Failed to delete temporary wav file=%s", wav_name, exc_info=True)

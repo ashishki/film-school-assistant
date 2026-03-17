@@ -67,6 +67,7 @@
 | cleanup-audio.service | python scripts/cleanup_audio.py | oc_her | on-failure, no restart |
 
 All services run as oc_her, not root.
+Update each `ExecStart` to point at the virtualenv Python, for example `/path/to/.venv/bin/python3`.
 
 ---
 
@@ -92,8 +93,9 @@ All services run as oc_her, not root.
 ## Logging
 
 - Log level: INFO by default, DEBUG in dev
-- Log file: /srv/openclaw-her/workspace/film-school-assistant/logs/assistant.log
-- Rotation: logrotate or Python RotatingFileHandler
+- All log output goes to journald via systemd capture of stdout/stderr
+- View logs with: `sudo journalctl -u film-school-bot.service -f`
+- No file-based logger is configured
 - Never log: secrets, audio paths with personal content, raw transcripts at INFO level
 - Debug may log transcripts — disable in production
 
