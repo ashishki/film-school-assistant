@@ -33,6 +33,7 @@ from src.handlers.help_cmd import help_command
 from src.handlers.homework import homework_command
 from src.handlers.ideas import idea_command
 from src.handlers.list_cmd import list_command
+from src.handlers.common import validate_and_parse_date
 from src.handlers.nl_handler import nl_handler
 from src.handlers.notes import note_command
 from src.handlers.projects import project_command, projects_command
@@ -77,6 +78,11 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         LOGGER.warning("Received voice handler invocation without a voice message")
         return
 
+    state = get_state(chat.id)
+    if state.pending_entity is not None:
+        await message.reply_text("You have a pending item. /confirm, /edit, or /discard first.")
+        return
+
     await message.reply_text("Transcribing...")
 
     voice_info = message.voice
@@ -118,10 +124,13 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await message.reply_text("Transcription failed. Your audio has been saved for retry.")
         return
 
+    voice.delete_wav(wav_path)
+
     try:
-        state = get_state(chat.id)
         detected_type = _detect_entity_type(transcript_text)
         pending_entity = _build_pending_entity(detected_type, transcript_text, state.active_project_id)
+        if detected_type in {"deadline", "homework"} and not validate_and_parse_date(str(pending_entity.get("due_date") or "")):
+            pending_entity["due_date"] = None
 
         async with aiosqlite.connect(context.bot_data["db_path"]) as db:
             db.row_factory = aiosqlite.Row
@@ -231,7 +240,7 @@ def _build_pending_entity(detected_type: str, transcript_text: str, project_id: 
     if detected_type == "deadline":
         return {
             "title": transcript_text,
-            "due_date": "",
+            "due_date": None,
             "project_id": project_id,
             "source": "voice",
         }
@@ -239,7 +248,7 @@ def _build_pending_entity(detected_type: str, transcript_text: str, project_id: 
         return {
             "title": transcript_text,
             "description": transcript_text,
-            "due_date": "",
+            "due_date": None,
             "course": None,
             "project_id": project_id,
             "source": "voice",

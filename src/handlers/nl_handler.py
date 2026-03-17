@@ -9,7 +9,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.db import create_parsed_event
-from src.handlers.common import reply_text, resolve_project_match
+from src.handlers.common import reply_text, resolve_project_match, validate_and_parse_date
 from src.openclaw_client import LLMError, LLMSchemaError, complete_json
 from src.state import get_state
 
@@ -72,11 +72,24 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await reply_text(update, context, "Could not parse. Try a /command instead. (/help for list)")
             return
 
+        validated_due_date = validate_and_parse_date(due_date)
+        due_date_note = ""
+        if entity_type in {"deadline", "homework"} and validated_due_date is None:
+            if due_date:
+                due_date_note = "\nDue date: could not parse, left unset. Use /edit due <date>."
+            else:
+                due_date_note = "\nDue date: missing, left unset. Use /edit due <date>."
+
         try:
             async with aiosqlite.connect(context.bot_data["db_path"]) as db:
                 db.row_factory = aiosqlite.Row
                 project = await _resolve_project(db, project_hint)
-                pending_entity = _build_pending_entity(entity_type, content, due_date, project["id"] if project else None)
+                pending_entity = _build_pending_entity(
+                    entity_type,
+                    content,
+                    validated_due_date,
+                    project["id"] if project else None,
+                )
                 parsed_event = await create_parsed_event(
                     db,
                     entity_type=entity_type,
@@ -87,7 +100,7 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                             "project_hint": project_hint,
                             "project_id": project["id"] if project else None,
                             "project_name": project["name"] if project else None,
-                            "due_date": due_date,
+                            "due_date": validated_due_date,
                             "source_text": user_text,
                         }
                     ),
@@ -102,7 +115,7 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         state.pending_entity_type = entity_type
 
         project_label = project["name"] if project else "General"
-        due_line = f"\nDue date: {due_date}" if due_date else ""
+        due_line = f"\nDue date: {validated_due_date}" if validated_due_date else due_date_note
         await reply_text(
             update,
             context,
@@ -131,7 +144,7 @@ async def _resolve_project(db: aiosqlite.Connection, project_hint: str) -> dict 
     return result
 
 
-def _build_pending_entity(entity_type: str, content: str, due_date: str, project_id: int | None) -> dict[str, object]:
+def _build_pending_entity(entity_type: str, content: str, due_date: str | None, project_id: int | None) -> dict[str, object]:
     if entity_type == "note":
         return {
             "content": content,

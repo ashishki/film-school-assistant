@@ -32,7 +32,16 @@ async def idea_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             return
 
         LOGGER.info("Saved idea_id=%s for chat_id=%s", idea["id"], chat_id)
-        await reply_text(update, context, f'Idea saved as Idea #{idea["id"]}. Use /review {idea["id"]} for structured feedback.')
+        scope = (
+            f"(Project: {user_state.active_project_name})"
+            if user_state.active_project_name
+            else "(General)"
+        )
+        await reply_text(
+            update,
+            context,
+            f'Idea saved as Idea #{idea["id"]}. {scope} Use /review {idea["id"]} for structured feedback.',
+        )
     except Exception:
         LOGGER.exception("Unhandled idea command failure")
         await reply_text(update, context, "Something went wrong. Please try again.")

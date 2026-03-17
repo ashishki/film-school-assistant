@@ -16,6 +16,7 @@ HELP_TEXT = """Commands:
 /homework <title> due <date> [course:<name>] - Save a homework item
 /projects - List all projects
 /project <name> - Set active project context
+/project clear - Clear active project context
 /review <idea_id> - Get structured creative review of an idea
 /list notes [project:<name>] - List recent notes
 /list ideas [project:<name>] - List ideas

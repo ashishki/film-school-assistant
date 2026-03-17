@@ -109,9 +109,14 @@ CREATE TABLE IF NOT EXISTS review_history (
 
 CREATE TABLE IF NOT EXISTS weekly_reports (
     id INTEGER PRIMARY KEY,
-    week_start TEXT,
+    week_start TEXT UNIQUE,
     generated_at TEXT,
     content_json TEXT,
     sent_at TEXT,
     message_text TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_deadlines_status_due ON deadlines(status, due_date);
+CREATE INDEX IF NOT EXISTS idx_notes_project_created ON notes(project_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ideas_project_created ON ideas(project_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_homework_status_due ON homework(status, due_date);

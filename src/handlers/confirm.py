@@ -5,8 +5,8 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.db import confirm_parsed_event, create_deadline, create_homework, create_idea, create_note
-from src.handlers.common import reply_text
-from src.state import clear_pending, get_state
+from src.handlers.common import reply_text, validate_and_parse_date
+from src.state import UserState, clear_pending, get_state
 
 
 LOGGER = logging.getLogger(__name__)
@@ -20,6 +20,10 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         if not pending or not state.pending_entity_type:
             await reply_text(update, context, "Nothing to confirm.")
+            return
+
+        if state.pending_entity_type in {"deadline", "homework"} and not pending.get("due_date"):
+            await reply_text(update, context, "Due date is missing. Use /edit due <date> to set it before confirming.")
             return
 
         try:
@@ -45,11 +49,51 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def edit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        state = get_state(update.effective_chat.id)
+        chat = update.effective_chat
+        if chat is None:
+            return
+
+        state = get_state(chat.id)
         if not state.pending_entity:
             await reply_text(update, context, "Nothing to confirm.")
             return
-        await reply_text(update, context, "Edit not yet implemented. Use /discard and re-enter.")
+
+        args = context.args or []
+        if len(args) < 2:
+            await reply_text(update, context, _edit_usage_text())
+            return
+
+        field = args[0].lower()
+        value = " ".join(args[1:]).strip()
+        if not value:
+            await reply_text(update, context, _edit_usage_text())
+            return
+
+        pending = state.pending_entity
+        entity_type = state.pending_entity_type or ""
+
+        if field == "due":
+            if entity_type not in {"deadline", "homework"}:
+                await reply_text(update, context, _edit_usage_text())
+                return
+            due_date = validate_and_parse_date(value)
+            if due_date is None:
+                await reply_text(update, context, "Could not parse date. Try: /edit due 2026-04-15")
+                return
+            pending["due_date"] = due_date
+        elif field in {"title", "content"}:
+            target_key = _editable_text_field(entity_type, field)
+            if target_key is None:
+                await reply_text(update, context, _edit_usage_text())
+                return
+            pending[target_key] = value
+            if entity_type == "homework" and target_key == "title":
+                pending["description"] = value
+        else:
+            await reply_text(update, context, _edit_usage_text())
+            return
+
+        await reply_text(update, context, _build_pending_preview(state))
     except Exception:
         LOGGER.exception("Unhandled edit command failure")
         await reply_text(update, context, "Something went wrong. Please try again.")
@@ -124,3 +168,35 @@ def _entity_table_name(entity_type: str) -> str:
         "deadline": "deadlines",
         "homework": "homework",
     }[entity_type]
+
+
+def _edit_usage_text() -> str:
+    return "Usage: /edit due <date> | /edit title <text> | /edit content <text>"
+
+
+def _editable_text_field(entity_type: str, field: str) -> str | None:
+    if field == "title":
+        return "title" if entity_type in {"deadline", "homework"} else "content"
+    if field == "content":
+        return "title" if entity_type in {"deadline", "homework"} else "content"
+    return None
+
+
+def _build_pending_preview(state: UserState) -> str:
+    pending = state.pending_entity or {}
+    entity_type = state.pending_entity_type or "item"
+    text_value = pending.get("title") if entity_type in {"deadline", "homework"} else pending.get("content")
+    due_date = pending.get("due_date")
+    project_id = pending.get("project_id")
+
+    if project_id is None:
+        project_label = "General"
+    elif project_id == state.active_project_id and state.active_project_name:
+        project_label = state.active_project_name
+    else:
+        project_label = f"#{project_id}"
+
+    preview = [f"Pending {entity_type}: {text_value}", f"Project: {project_label}"]
+    if due_date:
+        preview.insert(1, f"Due date: {due_date}")
+    return "\n".join(preview)

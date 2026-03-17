@@ -38,17 +38,11 @@ def format_due_date(due_date: date) -> str:
 
 
 def build_message(deadline: dict[str, object], days_until: int, due_date: date) -> str:
-    if days_until == 0:
-        due_text = f'"{deadline["title"]}" is due TODAY ({format_due_date(due_date)}).'
-    elif days_until == 1:
-        due_text = f'"{deadline["title"]}" is due in 1 day ({format_due_date(due_date)}).'
-    else:
-        due_text = f'"{deadline["title"]}" is due in {days_until} days ({format_due_date(due_date)}).'
-
+    project_name = str(deadline.get("project_name") or "").strip()
+    project_line = f"\nProject: {project_name}" if project_name else ""
     return (
-        f"⏰ REMINDER: {due_text}\n"
-        f'Mark done: /done_deadline_{deadline["id"]}\n'
-        f'Dismiss reminders: /dismiss_deadline_{deadline["id"]}'
+        f'Reminder: "{deadline["title"]}" is due {format_due_date(due_date)} ({days_until} day(s) away).{project_line}\n'
+        f'Reply /done_deadline_{deadline["id"]} when complete, or /dismiss_deadline_{deadline["id"]} to dismiss.'
     )
 
 

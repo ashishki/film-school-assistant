@@ -11,14 +11,18 @@ from src.openclaw_client import LLMError, complete_json, get_model_name
 
 
 LOGGER = logging.getLogger(__name__)
+MISSING_REVIEW_PLACEHOLDER = "[Not provided — regenerate or add manually]"
 REVIEW_SYSTEM_PROMPT = (
     "You are a film school creative advisor. You provide structured, rigorous critique of film ideas.\n"
     "Rules:\n"
     '- No generic praise ("great idea", "interesting concept")\n'
     "- Identify the specific dramatic or emotional mechanism\n"
-    "- Weak points must be concrete failures of logic, structure, or originality\n"
+    "- Evaluate the cinematic stakes: what is visibly and dramatically at stake in the scene or project\n"
+    "- Evaluate point of view: whose perspective drives the story and whether that POV is consistent\n"
+    "- Evaluate the scene engine: what generates tension, surprise, or revelation from scene to scene\n"
+    "- Weak points must be concrete failures of logic, structure, originality, stakes, POV, or scene construction\n"
     "- Questions must be precise and filmmaking-relevant\n"
-    "- Next step must be one actionable thing\n"
+    '- Next step must be one concrete, production-feasible action (for example: "Write scene 3"), not a vague direction like "Explore themes"\n'
     'Return JSON: {"core_idea": "...", "dramatic_center": "...", "weak_points": "...", "questions": ["...", "...", "..."], "next_step": "..."}'
 )
 
@@ -61,10 +65,10 @@ async def review_idea(idea: dict, config) -> str:
 
 
 def _format_review(response: dict) -> str:
-    core_idea = str(response.get("core_idea", "")).strip()
-    dramatic_center = str(response.get("dramatic_center", "")).strip()
-    weak_points = str(response.get("weak_points", "")).strip()
-    next_step = str(response.get("next_step", "")).strip()
+    core_idea = _get_required_review_field(response, "core_idea")
+    dramatic_center = _get_required_review_field(response, "dramatic_center")
+    weak_points = _get_required_review_field(response, "weak_points")
+    next_step = _get_required_review_field(response, "next_step")
     questions_raw = response.get("questions", [])
     if not isinstance(questions_raw, list):
         raise LLMError("Review questions field is invalid.")
@@ -83,3 +87,17 @@ def _format_review(response: dict) -> str:
         f"  3. {questions[2]}\n"
         f"NEXT STEP: {next_step}"
     )
+
+
+def _get_required_review_field(response: dict, field_name: str) -> str:
+    value = response.get(field_name)
+    if value is None:
+        LOGGER.warning("Review field '%s' missing; substituting placeholder.", field_name)
+        return MISSING_REVIEW_PLACEHOLDER
+
+    cleaned = str(value).strip()
+    if not cleaned:
+        LOGGER.warning("Review field '%s' empty; substituting placeholder.", field_name)
+        return MISSING_REVIEW_PLACEHOLDER
+
+    return cleaned

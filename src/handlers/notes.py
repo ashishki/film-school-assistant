@@ -5,7 +5,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.db import create_note
-from src.handlers.common import format_project_scope, get_command_text, reply_text
+from src.handlers.common import get_command_text, reply_text
 from src.state import get_state
 
 
@@ -31,9 +31,13 @@ async def note_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             await reply_text(update, context, "Could not save. Please try again. (ERR:DB)")
             return
 
-        scope = format_project_scope(user_state.active_project_name)
+        scope = (
+            f"(Project: {user_state.active_project_name})"
+            if user_state.active_project_name
+            else "(General)"
+        )
         LOGGER.info("Saved note for chat_id=%s project_id=%s", chat_id, user_state.active_project_id)
-        await reply_text(update, context, f"Note saved. {scope}.")
+        await reply_text(update, context, f"Note saved. {scope}")
     except Exception:
         LOGGER.exception("Unhandled note command failure")
         await reply_text(update, context, "Something went wrong. Please try again.")
