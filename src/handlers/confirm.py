@@ -1,7 +1,7 @@
 import logging
 
 import aiosqlite
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from src.db import confirm_parsed_event, create_deadline, create_homework, create_idea, create_note
@@ -16,32 +16,13 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     try:
         chat_id = update.effective_chat.id
         state = get_state(chat_id)
-        pending = state.pending_entity
 
-        if not pending or not state.pending_entity_type:
-            await reply_text(update, context, "Nothing to confirm.")
+        if not state.pending_entity or not state.pending_entity_type:
+            await reply_text(update, context, "Нет записи для сохранения. Сначала надиктуй или напиши что-нибудь.")
             return
 
-        if state.pending_entity_type in {"deadline", "homework"} and not pending.get("due_date"):
-            await reply_text(update, context, "Due date is missing. Use /edit due <date> to set it before confirming.")
-            return
-
-        try:
-            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
-                db.row_factory = aiosqlite.Row
-                saved_type, saved_row = await _save_pending_entity(db, state.pending_entity_type, pending)
-
-                parsed_event_id = pending.get("parsed_event_id")
-                if parsed_event_id is not None:
-                    await confirm_parsed_event(db, parsed_event_id, saved_row["id"], _entity_table_name(saved_type))
-        except aiosqlite.Error:
-            LOGGER.exception("Failed to confirm pending entity for chat_id=%s", chat_id)
-            await reply_text(update, context, "Could not save. Please try again. (ERR:DB)")
-            return
-
-        clear_pending(chat_id)
-        LOGGER.info("Confirmed pending %s for chat_id=%s as id=%s", saved_type, chat_id, saved_row["id"])
-        await reply_text(update, context, f"Saved as {saved_type} #{saved_row['id']}")
+        result_text = await _do_confirm(chat_id, context)
+        await reply_text(update, context, result_text)
     except Exception:
         LOGGER.exception("Unhandled confirm command failure")
         await reply_text(update, context, "Something went wrong. Please try again.")
@@ -55,7 +36,7 @@ async def edit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         state = get_state(chat.id)
         if not state.pending_entity:
-            await reply_text(update, context, "Nothing to confirm.")
+            await reply_text(update, context, "Нет записи для сохранения. Сначала надиктуй или напиши что-нибудь.")
             return
 
         args = context.args or []
@@ -78,7 +59,12 @@ async def edit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 return
             due_date = validate_and_parse_date(value)
             if due_date is None:
-                await reply_text(update, context, "Could not parse date. Try: /edit due 2026-04-15")
+                await reply_text(
+                    update,
+                    context,
+                    "Не понял дату. Попробуй написать иначе:\n"
+                    "«следующая пятница», «20 апреля», «2026-04-20»",
+                )
                 return
             pending["due_date"] = due_date
         elif field in {"title", "content"}:
@@ -93,7 +79,7 @@ async def edit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             await reply_text(update, context, _edit_usage_text())
             return
 
-        await reply_text(update, context, _build_pending_preview(state))
+        await reply_text(update, context, _build_pending_preview(state), reply_markup=_pending_keyboard())
     except Exception:
         LOGGER.exception("Unhandled edit command failure")
         await reply_text(update, context, "Something went wrong. Please try again.")
@@ -104,15 +90,47 @@ async def discard_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         chat_id = update.effective_chat.id
         state = get_state(chat_id)
         if not state.pending_entity:
-            await reply_text(update, context, "Nothing to confirm.")
+            await reply_text(update, context, "Нечего удалять.")
             return
 
         clear_pending(chat_id)
         LOGGER.info("Discarded pending entity for chat_id=%s", chat_id)
-        await reply_text(update, context, "Discarded.")
+        await reply_text(update, context, "Запись удалена.")
     except Exception:
         LOGGER.exception("Unhandled discard command failure")
         await reply_text(update, context, "Something went wrong. Please try again.")
+
+
+async def _do_confirm(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> str:
+    state = get_state(chat_id)
+    pending = state.pending_entity
+    entity_type = state.pending_entity_type
+
+    if not pending or not entity_type:
+        return "Нет записи для сохранения. Сначала надиктуй или напиши что-нибудь."
+
+    if entity_type in {"deadline", "homework"} and not pending.get("due_date"):
+        return (
+            "Не хватает даты. Когда это нужно сдать?\n\n"
+            "Напиши например: «в пятницу» или «15 апреля»\n"
+            "или: /edit due 2026-04-20"
+        )
+
+    try:
+        async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+            db.row_factory = aiosqlite.Row
+            saved_type, saved_row = await _save_pending_entity(db, entity_type, pending)
+
+            parsed_event_id = pending.get("parsed_event_id")
+            if parsed_event_id is not None:
+                await confirm_parsed_event(db, parsed_event_id, saved_row["id"], _entity_table_name(saved_type))
+    except aiosqlite.Error:
+        LOGGER.exception("Failed to confirm pending entity for chat_id=%s", chat_id)
+        return "Could not save. Please try again. (ERR:DB)"
+
+    clear_pending(chat_id)
+    LOGGER.info("Confirmed pending %s for chat_id=%s as id=%s", saved_type, chat_id, saved_row["id"])
+    return _confirm_success_text(saved_type)
 
 
 async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pending: dict) -> tuple[str, dict]:
@@ -171,7 +189,21 @@ def _entity_table_name(entity_type: str) -> str:
 
 
 def _edit_usage_text() -> str:
-    return "Usage: /edit due <date> | /edit title <text> | /edit content <text>"
+    return (
+        "Что изменить?\n"
+        "• /edit due пятница — изменить дату\n"
+        "• /edit title Новый заголовок — изменить название\n"
+        "• /edit content Новый текст — изменить содержание"
+    )
+
+
+def _pending_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[
+            InlineKeyboardButton("✅ Сохранить", callback_data="confirm"),
+            InlineKeyboardButton("❌ Удалить", callback_data="discard"),
+        ]]
+    )
 
 
 def _editable_text_field(entity_type: str, field: str) -> str | None:
@@ -200,3 +232,12 @@ def _build_pending_preview(state: UserState) -> str:
     if due_date:
         preview.insert(1, f"Due date: {due_date}")
     return "\n".join(preview)
+
+
+def _confirm_success_text(entity_type: str) -> str:
+    return {
+        "note": "✅ Заметка сохранена.",
+        "idea": "✅ Идея сохранена.",
+        "deadline": "✅ Дедлайн сохранён.",
+        "homework": "✅ Домашнее задание сохранено.",
+    }[entity_type]

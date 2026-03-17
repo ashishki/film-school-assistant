@@ -1,6 +1,7 @@
 import logging
 import re
 from datetime import datetime
+from typing import Any
 
 import aiosqlite
 from dateutil import parser as date_parser
@@ -97,12 +98,17 @@ def extract_project_filter(text: str) -> tuple[str, str | None]:
     return item_type, project_name or None
 
 
-async def reply_text(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str) -> None:
+async def reply_text(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    text: str,
+    reply_markup: Any | None = None,
+) -> None:
     message = update.effective_message
     if message is None:
         LOGGER.debug("Skipping reply because update has no message")
         return
     try:
-        await context.bot.send_message(chat_id=message.chat_id, text=text)
+        await context.bot.send_message(chat_id=message.chat_id, text=text, reply_markup=reply_markup)
     except TelegramError:
         LOGGER.warning("Failed to send Telegram reply for chat_id=%s", message.chat_id, exc_info=True)

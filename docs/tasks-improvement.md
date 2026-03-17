@@ -79,3 +79,24 @@
 - README has a "Return after 3 months" runbook section
 
 ---
+
+## Phase I4 — Conversational UX for Bot-Naive Users
+
+| ID | Task | Owner | Status | Depends On |
+|---|---|---|---|---|
+| I4-01 | Recognize natural confirmation text: "да", "нет", "стоп", "сохрани", "удали", "ок" → route to confirm/discard when pending entity exists (`src/bot.py`) | Codex | `[x]` | — |
+| I4-02 | Inline keyboard buttons on pending preview: `[ ✅ Сохранить ]  [ ❌ Удалить ]`; handle `CallbackQuery` for confirm/discard (`src/handlers/confirm.py`, `src/bot.py`) | Codex | `[x]` | I4-01 |
+| I4-03 | Human-friendly error messages with examples: rewrite all error/blocked replies in `confirm.py` and `nl_handler.py` to plain language + concrete example of what to type | Codex | `[x]` | — |
+| I4-04 | Type selection buttons when NL entity type is ambiguous or None: show `[ 📝 Заметка ] [ 💡 Идея ] [ 📅 Дедлайн ] [ 📚 Домашнее ]` before building pending entity (`src/handlers/nl_handler.py`, `src/bot.py`) | Codex | `[x]` | I4-02 |
+| I4-05 | `/start` onboarding message: one welcoming message explaining "just write or dictate, I'll figure it out" — no command list (`src/bot.py`) | Codex | `[x]` | — |
+
+**Phase I4 Review Criteria:**
+- Sending "да", "ок", "сохрани", "давай" when pending entity exists → confirms and saves (same as /confirm)
+- Sending "нет", "стоп", "удали", "отмена" when pending entity exists → discards (same as /discard)
+- Pending entity preview message has inline buttons `[ ✅ Сохранить ]` and `[ ❌ Удалить ]`
+- Tapping `[ ✅ Сохранить ]` saves correctly; `[ ❌ Удалить ]` discards and replies confirmation
+- Error when due date missing says: "Не хватает даты. Когда это нужно сдать?\nНапиши например: «в пятницу» или «15 апреля»"
+- When NL produces ambiguous/None entity type, bot shows type selection inline keyboard before saving
+- `/start` replies with onboarding message (no command list dump), ends with invitation to try
+
+---
