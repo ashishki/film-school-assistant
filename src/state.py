@@ -11,6 +11,9 @@ class UserState:
     active_project_name: str | None = None
     pending_entity: dict | None = None
     pending_entity_type: str | None = None
+    pending_nl_content: str | None = None
+    pending_nl_due_date: str | None = None
+    pending_nl_project_hint: str | None = None
 
 
 _STATE_BY_CHAT_ID: dict[int, UserState] = {}
@@ -29,4 +32,7 @@ def clear_pending(chat_id: int) -> None:
     state = get_state(chat_id)
     state.pending_entity = None
     state.pending_entity_type = None
+    state.pending_nl_content = None
+    state.pending_nl_due_date = None
+    state.pending_nl_project_hint = None
     LOGGER.debug("Cleared pending entity for chat_id=%s", chat_id)
