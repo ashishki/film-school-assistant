@@ -66,29 +66,45 @@
 - **Priority:** High
 - **Dependencies:** None
 
-### T-F3: Add status filter to `/list`
+### T-F3: Add status filter to `/list` ✅ DONE 2026-03-23
 - **Description:** `/list homework` returns all statuses. Add optional `status:<value>` filter. e.g., `/list homework status:pending`, `/list deadlines status:active`.
 - **Priority:** Medium
 - **Dependencies:** None
 
-### T-F4: Add pagination to `/list`
+### T-F4: Add pagination to `/list` ✅ DONE 2026-03-23
 - **Description:** Hard limit of 20 items with no offset. Add `page:<n>` parameter or inline "Next" button for pagination.
 - **Priority:** Medium
 - **Dependencies:** None
 
-### T-F5: Add keyword search
+### T-F5: Add keyword search ✅ DONE 2026-03-23
 - **Description:** No way to search notes/ideas by content. Add `/search <keyword>` command that does SQLite LIKE query across notes and ideas.
 - **Priority:** Medium
 - **Dependencies:** None
 
-### T-F6: Add project archival / soft-delete
+### T-F6: Add project archival / soft-delete ✅ DONE 2026-03-23
 - **Description:** Projects are permanent. Add `status='archived'` and `/archive_project <name>` command. Archived projects excluded from active lists.
 - **Priority:** Medium
 - **Dependencies:** None
 
 ---
 
-## Category 4: Bugs / Issues
+## Category 4: Code Review Fixes (from Cycle 2 Deep Review)
+
+### T-C1: Fix project filter silently ignored for /list deadlines and /list homework
+- **Description:** list_deadlines() and list_homework() accept no project_id parameter. User passes `project:name` filter but it is silently ignored with no error. (CODE-1 P1)
+- **Priority:** High
+- **Dependencies:** None
+- **Files:** src/handlers/list_cmd.py, src/db.py
+
+### T-C2: Fix pagination inconsistency — deadlines/homework client-side slice vs server-side LIMIT
+- **Description:** Deadlines and homework paginated by Python slice after full DB fetch. Notes/ideas use SQL LIMIT/OFFSET. Move deadlines/homework pagination to DB layer. (CODE-4 P1)
+- **Priority:** High
+- **Dependencies:** T-C1 (will modify same db.py functions)
+- **Files:** src/handlers/list_cmd.py, src/db.py
+
+---
+
+## Category 5 (original 4): Bugs / Issues
 
 ### T-B1: Pending entity silently lost on bot restart
 - **Description:** In-memory state (pending_entity, pending_entity_type) is lost when bot restarts. User receives no notification. Entity in parsed_events remains with confirmed=0 permanently.

@@ -103,12 +103,22 @@ async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 items = await list_ideas(db, project_id=project_id, limit=_PAGE_SIZE, offset=offset)
                 text = _format_ideas(items, project_label)
             elif normalized_type == "deadlines":
-                items = await list_deadlines(db, status=status_filter)
-                items = items[offset : offset + _PAGE_SIZE]
+                items = await list_deadlines(
+                    db,
+                    status=status_filter,
+                    project_id=project_id,
+                    limit=_PAGE_SIZE,
+                    offset=offset,
+                )
                 text = _format_deadlines(items)
             else:
-                items = await list_homework(db, status=status_filter)
-                items = items[offset : offset + _PAGE_SIZE]
+                items = await list_homework(
+                    db,
+                    status=status_filter,
+                    project_id=project_id,
+                    limit=_PAGE_SIZE,
+                    offset=offset,
+                )
                 text = _format_homework(items)
 
         LOGGER.info("Listed %s items for type=%s", len(items), normalized_type)

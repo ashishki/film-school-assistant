@@ -23,16 +23,21 @@ Local Whisper STT. SQLite storage. Deployed on private VPS via systemd.
 
 ## 2. Current Status
 
-**Phase:** Implementation — High-priority features complete
+**Phase:** Phase 2 complete — Fix Queue active (2 P1s from Cycle 2 deep review)
 
-- [x] T-F1: /new_project command — DONE (2026-03-23)
-- [x] T-F2: /edit_note, /edit_idea, /edit_deadline commands — DONE (2026-03-23)
-- [ ] T-F3: Status filter for /list — next
-- [ ] T-B1: Pending entity lost on restart
-- [ ] T-O1: Script send backoff
+- [x] T-F1: /new_project — DONE
+- [x] T-F2: entity editing — DONE
+- [x] T-F3: status filter for /list — DONE
+- [x] T-F4: pagination for /list — DONE
+- [x] T-F5: /search command — DONE
+- [x] T-F6: /archive_project — DONE
+- [ ] **T-C1: Fix project filter silently ignored for deadlines/homework** ← FIX QUEUE
+- [ ] **T-C2: Fix pagination inconsistency (deadlines/homework client-side)** ← FIX QUEUE
+- [ ] T-B1: Pending entity lost on restart (Phase 3)
+- [ ] T-O1: Script send backoff (Phase 3)
 
 **Baseline:** 1 PASS (smoke_test_db.py) — CI green
-**System state:** Operational. Two high-priority features added.
+**System state:** Operational. Phase 2 features deployed. P1 fixes pending.
 
 ---
 
@@ -49,13 +54,16 @@ Local Whisper STT. SQLite storage. Deployed on private VPS via systemd.
 
 ## 4. Open Findings
 
-### FINDING-01 [HIGH]: No `/new_project` command
-Projects must be seeded via SQL. Normal users cannot create projects through the bot.
-**Ref:** T-F1 in tasks.md
+### FINDING-01 [RESOLVED]: /new_project added (T-F1)
+### FINDING-02 [RESOLVED]: Entity editing added (T-F2)
 
-### FINDING-02 [HIGH]: Entities immutable after save
-No way to edit a saved note/idea/deadline/homework via bot commands.
-**Ref:** T-F2 in tasks.md
+### FINDING-10 [HIGH — P1]: Project filter silently ignored for /list deadlines and /list homework
+User passes project:name filter but it has no effect. No error shown.
+**Ref:** T-C1 in tasks.md
+
+### FINDING-11 [HIGH — P1]: Pagination inconsistent — deadlines/homework load full table then slice
+Causes memory bloat on large datasets. Inconsistent with notes/ideas SQL LIMIT/OFFSET.
+**Ref:** T-C2 in tasks.md
 
 ### FINDING-03 [MEDIUM]: Pending entity silently lost on restart
 In-memory state is ephemeral. Voice/NL confirmations in progress are lost on bot restart with no user notification. Orphaned parsed_events rows accumulate.
