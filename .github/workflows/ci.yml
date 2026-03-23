@@ -1,0 +1,155 @@
+name: CI
+
+# Trigger on pushes and PRs to the main branch.
+# Adjust branch names here if your repo uses a different convention.
+on:
+  push:
+    branches: ["master", "main"]
+  pull_request:
+    branches: ["master", "main"]
+
+jobs:
+  test:
+    name: Tests + Lint
+    runs-on: ubuntu-latest
+
+    # -------------------------------------------------------------------------
+    # SERVICES
+    # Uncomment and configure the services your stack requires.
+    # Remove this block entirely for projects with no external service dependencies.
+    #
+    # See gdev-agent/.github/workflows/ci.yml for a working example with
+    # PostgreSQL + pgvector and Redis.
+    # -------------------------------------------------------------------------
+    # services:
+    #
+    #   postgres:
+    #     # Use pgvector image if you need vector similarity search.
+    #     # Use postgres:16 if you don't need pgvector.
+    #     image: pgvector/pgvector:pg16
+    #     env:
+    #       POSTGRES_USER: testuser
+    #       POSTGRES_PASSWORD: testpassword
+    #       POSTGRES_DB: testdb
+    #     options: >-
+    #       --health-cmd pg_isready
+    #       --health-interval 10s
+    #       --health-timeout 5s
+    #       --health-retries 5
+    #     ports:
+    #       - 5432:5432
+    #
+    #   redis:
+    #     image: redis:7-alpine
+    #     options: >-
+    #       --health-cmd "redis-cli ping"
+    #       --health-interval 10s
+    #       --health-timeout 5s
+    #       --health-retries 5
+    #     ports:
+    #       - 6379:6379
+
+    steps:
+      # -----------------------------------------------------------------------
+      # CHECKOUT
+      # Standard checkout. Always use actions/checkout@v4 or later.
+      # -----------------------------------------------------------------------
+      - uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # PYTHON SETUP
+      # Set {{PYTHON_VERSION}} to your target version (e.g., "3.11", "3.12").
+      # The cache: "pip" option caches the pip dependency cache across runs,
+      # which significantly speeds up CI on cache hits.
+      # -----------------------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # -----------------------------------------------------------------------
+      # INSTALL DEPENDENCIES
+      # Use requirements-dev.txt + editable install, NOT pip install -e ".[dev]".
+      # The extras_require approach requires setup.cfg or pyproject.toml to define
+      # the [dev] extra — this is fine if you have it, but requirements-dev.txt
+      # is simpler and more explicit.
+      #
+      # requirements.txt — runtime dependencies only
+      # requirements-dev.txt — includes requirements.txt + test/lint deps:
+      #   -r requirements.txt
+      #   pytest
+      #   pytest-asyncio (if using async tests)
+      #   ruff
+      #   httpx (if testing FastAPI with TestClient)
+      #   ... other dev deps
+      # -----------------------------------------------------------------------
+      - name: Install dependencies
+        run: pip install -r requirements.txt ruff pytest
+
+      # -----------------------------------------------------------------------
+      # LINT — RUFF CHECK
+      # ruff check catches style issues, unused imports, and a wide range of
+      # anti-patterns. Adjust the directory arguments to match your project layout.
+      # Common pattern: `ruff check app/ tests/`
+      # -----------------------------------------------------------------------
+      - name: Lint (ruff check)
+        run: ruff check src/ tests/
+
+      # -----------------------------------------------------------------------
+      # FORMAT CHECK — RUFF FORMAT
+      # ruff format --check verifies formatting without modifying files.
+      # This fails CI if code is not formatted correctly, enforcing consistent
+      # formatting across all contributors (human and AI).
+      # -----------------------------------------------------------------------
+      - name: Format check (ruff format)
+        run: ruff format --check src/ tests/
+
+      # -----------------------------------------------------------------------
+      # RUN TESTS
+      # -q: quiet output (summary only, not per-test dots)
+      # --tb=short: short traceback on failure (enough to diagnose, not overwhelming)
+      #
+      # Add required environment variables here. For secrets, use GitHub Actions
+      # secrets (Settings > Secrets and variables > Actions) and reference them
+      # as ${{ secrets.SECRET_NAME }}.
+      #
+      # For test-only values that are not real secrets (e.g., a test API key
+      # placeholder), you can set them inline as shown below.
+      #
+      # If your tests need a DATABASE_URL or REDIS_URL, construct them from
+      # the service configuration above:
+      #   DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
+      #   REDIS_URL: redis://localhost:6379/0
+      # -----------------------------------------------------------------------
+      - name: Run tests
+        env:
+          # ---- Placeholder test values (not real secrets) ----
+          # Replace with real secret references for values that must be secret:
+          # SOME_API_KEY: ${{ secrets.SOME_API_KEY }}
+          TELEGRAM_BOT_TOKEN: "test_token"
+          TELEGRAM_ALLOWED_CHAT_ID: "112375374"
+          LLM_API_KEY: "test_key"
+          # ---- Uncomment if using services above ----
+          # DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
+          # REDIS_URL: redis://localhost:6379/0
+        run: python3 scripts/smoke_test_db.py
+
+# -------------------------------------------------------------------------------
+# HOW TO USE THIS TEMPLATE
+#
+# 1. Replace {{PYTHON_VERSION}} with your Python version (e.g., "3.11").
+# 2. Replace src with your application source directory (e.g., "app").
+# 3. Uncomment the services block if your stack requires PostgreSQL, Redis, etc.
+#    Adjust image, env, and ports to match your stack.
+# 4. Add required environment variables to the "Run tests" step.
+# 5. For secrets, use GitHub Actions secrets — never hardcode real credentials.
+#
+# REFERENCE IMPLEMENTATION:
+# See https://github.com/ashishki/gdev-agent/.github/workflows/ci.yml for a
+# complete working example with PostgreSQL/pgvector and Redis services.
+#
+# IMPORTANT: CI is set up in Phase 1 alongside the first tests. Every commit
+# after Phase 1 must pass CI before being merged. This is enforced by the
+# IMPLEMENTATION_CONTRACT.md. Never defer CI setup to a later phase.
+# -------------------------------------------------------------------------------
