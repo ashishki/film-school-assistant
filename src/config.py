@@ -15,6 +15,7 @@ class Config:
     db_path: str = "data/assistant.db"
     audio_path: str = "data/audio/"
     audio_retention_days: int = 30
+    daily_llm_call_limit: int = 20
     reminder_buckets: tuple[int, ...] = (7, 3, 1, 0)
     log_level: str = "INFO"
 
@@ -54,6 +55,7 @@ def load_config() -> Config:
         db_path=os.environ.get("DB_PATH", "data/assistant.db"),
         audio_path=os.environ.get("AUDIO_PATH", "data/audio/"),
         audio_retention_days=int(os.environ.get("AUDIO_RETENTION_DAYS", "30")),
+        daily_llm_call_limit=int(os.environ.get("DAILY_LLM_CALL_LIMIT", "20")),
         reminder_buckets=reminder_buckets,
         log_level=os.environ.get("LOG_LEVEL", "INFO"),
     )

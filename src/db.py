@@ -106,6 +106,28 @@ async def init_db(db_path: str) -> None:
     LOGGER.info("Database initialized at %s", path)
 
 
+async def get_llm_calls_today(db: aiosqlite.Connection) -> int:
+    """Return count of LLM API calls made today (UTC)."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    cursor = await db.execute(
+        "SELECT COUNT(*) FROM llm_call_log WHERE date(called_at) = date(?)",
+        (today,),
+    )
+    row = await cursor.fetchone()
+    await cursor.close()
+    return int(row[0]) if row else 0
+
+
+async def log_llm_call(db: aiosqlite.Connection, model: str, call_type: str) -> None:
+    """Log an LLM API call for cost tracking."""
+    called_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    await db.execute(
+        "INSERT INTO llm_call_log (model, call_type, called_at) VALUES (?, ?, ?)",
+        (model, call_type, called_at),
+    )
+    await db.commit()
+
+
 async def create_project(db: aiosqlite.Connection, name: str, slug: str, description: str | None = None) -> dict[str, Any]:
     return await _insert_and_fetch(
         db,

@@ -4,7 +4,7 @@ import aiosqlite
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.db import get_idea
+from src.db import get_idea, get_llm_calls_today, log_llm_call
 from src.handlers.common import reply_text
 from src.reviewer import review_idea
 
@@ -28,6 +28,17 @@ async def review_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         async with aiosqlite.connect(context.bot_data["db_path"]) as db:
             db.row_factory = aiosqlite.Row
             idea = await get_idea(db, idea_id)
+            if idea is not None:
+                daily_llm_call_limit = context.bot_data["config"].daily_llm_call_limit
+                today_calls = await get_llm_calls_today(db)
+                if today_calls >= daily_llm_call_limit:
+                    await reply_text(
+                        update,
+                        context,
+                        f"Достигнут дневной лимит LLM запросов ({daily_llm_call_limit}). Попробуй завтра.",
+                    )
+                    return
+                await log_llm_call(db, "review", "review")
 
         if idea is None:
             await reply_text(update, context, f"Идея #{idea_id} не найдена.")
