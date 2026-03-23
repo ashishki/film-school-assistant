@@ -19,7 +19,6 @@ from src.db import get_reminder_log, list_active_deadlines_for_reminder, log_rem
 
 
 LOGGER = logging.getLogger(__name__)
-REMINDER_BUCKETS = (7, 3, 1, 0)
 TELEGRAM_API_TIMEOUT = 15
 TELEGRAM_MAX_RETRIES = 3
 
@@ -106,7 +105,7 @@ async def process_reminders() -> int:
             if days_until > 30:
                 continue
 
-            if days_until not in REMINDER_BUCKETS:
+            if days_until not in config.reminder_buckets:
                 continue
 
             reminder_log = await get_reminder_log(db, int(deadline["id"]))
