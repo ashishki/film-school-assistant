@@ -47,7 +47,7 @@
 - **Priority:** Low
 - **Dependencies:** None
 
-### T-R3: Add structured logging
+### T-R3: Add structured logging ✅ DONE 2026-03-23
 - **Description:** Current logging uses %-formatting. Replace with structured JSON logging (e.g., structlog or json formatter) to enable production monitoring.
 - **Priority:** Low
 - **Dependencies:** None
@@ -142,7 +142,7 @@
 - **Priority:** Medium
 - **Dependencies:** T-T1
 
-### T-T4: Test reminder idempotency under concurrent timer invocations
+### T-T4: Test reminder idempotency under concurrent timer invocations ✅ DONE 2026-03-23 (covered by T-T1 Block B)
 - **Description:** Verify UNIQUE(deadline_id, days_before) in reminder_log correctly prevents duplicate sends if timer fires twice in one day.
 - **Priority:** Low
 - **Dependencies:** T-T1

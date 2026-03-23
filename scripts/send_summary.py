@@ -24,10 +24,26 @@ TELEGRAM_API_TIMEOUT = 15
 TELEGRAM_MAX_RETRIES = 3
 
 
+class _JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        log_dict = {
+            "ts": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info:
+            log_dict["exc"] = self.formatException(record.exc_info)
+        return json.dumps(log_dict, ensure_ascii=False)
+
+
 def configure_logging(level_name: str) -> None:
+    handler = logging.StreamHandler()
+    handler.setFormatter(_JsonFormatter())
     logging.basicConfig(
         level=getattr(logging, level_name.upper(), logging.INFO),
-        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        handlers=[handler],
+        force=True,
     )
 
 

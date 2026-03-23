@@ -26,7 +26,7 @@ Telegram (user input)
        │
        ├──► [ src/handlers/ ] — one handler per command/flow
        │         notes.py, ideas.py, homework.py, deadlines.py,
-       │         projects.py, list_cmd.py, confirm.py,
+       │         projects.py, list_cmd.py, search_cmd.py, confirm.py,
        │         nl_handler.py, review.py, help_cmd.py, common.py
        │
        ├──► [ src/state.py ] — in-memory session state per chat_id
