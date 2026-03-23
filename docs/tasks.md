@@ -13,17 +13,17 @@
 - **Priority:** Low
 - **Dependencies:** None
 
-### T-A2: Fill docs/dev-cycle.md with actual log entries
+### T-A2: Fill docs/dev-cycle.md with actual log entries ✅ DONE 2026-03-23
 - **Description:** dev-cycle.md contains only template structure. First real dev cycle entry must be written after first Playbook task completes.
 - **Priority:** Medium
 - **Dependencies:** First implemented task from Category 3
 
-### T-A3: Complete docs/ops-security.md
+### T-A3: Complete docs/ops-security.md ✅ DONE 2026-03-23
 - **Description:** ops-security.md is incomplete — missing monitoring section, journalctl commands, SLA definition, incident response steps, log retention policy, secret rotation guide.
 - **Priority:** Medium
 - **Dependencies:** None
 
-### T-A4: Document database migration guide
+### T-A4: Document database migration guide ✅ DONE 2026-03-23
 - **Description:** No procedure exists for schema changes. Must define: when to use migrations, how to apply them safely on a live SQLite DB, how to test before deploying.
 - **Priority:** Medium
 - **Dependencies:** None
