@@ -25,6 +25,7 @@
 | `/project <name>` | Fuzzy match on project name/slug | Sets active project context in session state |
 | `/projects` | No args | Lists all projects |
 | `/list notes\|ideas\|deadlines\|homework [project:<name>]` | Optional project filter | Returns up to 20 items per type |
+| `/search notes\|ideas\|deadlines\|homework <query> [project:<name>]` | Entity type + keyword query + optional project filter | Returns matching items within the selected entity type |
 | `/review <idea_id>` | Integer ID | Sends idea to Sonnet LLM, returns structured critique, stores review_history |
 | `/done_deadline_<id>` | ID embedded in command | Sets deadline status → 'done' |
 | `/dismiss_deadline_<id>` | ID embedded in command | Sets deadline status → 'dismissed' |
@@ -109,7 +110,6 @@ NEXT STEP: ...
 | Editing saved entities | High | Once confirmed, entities are immutable in the bot. User must discard + recreate. |
 | `/list` filtering by status | Medium | e.g., `/list homework status:pending`. Currently shows all. |
 | Pagination for `/list` | Medium | Hard limit of 20; no offset or "next page" support. |
-| Search within entity type | Medium | No keyword search in notes/ideas. Only project filter. |
 | Project deletion / archival | Medium | Projects are permanent. No soft-delete. |
 | Configurable reminder buckets | Low | REMINDER_BUCKETS=(7,3,1,0) hardcoded in send_reminders.py |
 | Multi-entity voice extraction | Low | Voice containing two entities (e.g., deadline + note) creates only one. |

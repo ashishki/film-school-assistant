@@ -58,6 +58,19 @@ CONFIRM_WORDS = {"да", "ок", "окей", "давай", "сохрани", "с
 DISCARD_WORDS = {"нет", "стоп", "удали", "удалить", "отмена", "отменить", "выброси", "no", "nope", "cancel"}
 
 
+class _JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        log_dict = {
+            "ts": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info:
+            log_dict["exc"] = self.formatException(record.exc_info)
+        return json.dumps(log_dict, ensure_ascii=False)
+
+
 async def chat_guard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     allowed_chat_id = context.bot_data["allowed_chat_id"]
     chat = update.effective_chat
@@ -309,9 +322,12 @@ async def inline_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 def configure_logging(level_name: str) -> None:
+    handler = logging.StreamHandler()
+    handler.setFormatter(_JsonFormatter())
     logging.basicConfig(
         level=getattr(logging, level_name.upper(), logging.INFO),
-        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        handlers=[handler],
+        force=True,
     )
 
 

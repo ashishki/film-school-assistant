@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
@@ -18,6 +19,19 @@ from src.config import load_config
 LOGGER = logging.getLogger(__name__)
 TELEGRAM_API_TIMEOUT = 15
 TELEGRAM_MAX_RETRIES = 3
+
+
+class _JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        log_dict = {
+            "ts": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info:
+            log_dict["exc"] = self.formatException(record.exc_info)
+        return json.dumps(log_dict, ensure_ascii=False)
 
 
 def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> None:
@@ -54,7 +68,9 @@ def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> No
 
 
 def main() -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
+    handler = logging.StreamHandler()
+    handler.setFormatter(_JsonFormatter())
+    logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
 
     try:
         config = load_config()
