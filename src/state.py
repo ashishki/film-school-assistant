@@ -1,8 +1,9 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 LOGGER = logging.getLogger(__name__)
+MAX_HISTORY_MESSAGES: int = 20
 
 
 @dataclass
@@ -14,6 +15,15 @@ class UserState:
     pending_nl_content: str | None = None
     pending_nl_due_date: str | None = None
     pending_nl_project_hint: str | None = None
+    conversation_history: list[dict] = field(default_factory=list)
+
+    def add_message(self, role: str, content: str) -> None:
+        self.conversation_history.append({"role": role, "content": content})
+        if len(self.conversation_history) > MAX_HISTORY_MESSAGES:
+            self.conversation_history = self.conversation_history[-MAX_HISTORY_MESSAGES:]
+
+    def reset_history(self) -> None:
+        self.conversation_history = []
 
 
 _STATE_BY_CHAT_ID: dict[int, UserState] = {}
