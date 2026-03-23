@@ -1,6 +1,5 @@
-# Audit Index — {{PROJECT_NAME}} (Template)
+# Audit Index — Film School Assistant
 
-_Copy to `docs/audit/AUDIT_INDEX.md` in your project. Replace `{{PROJECT_NAME}}`._
 _Append-only. One row per review cycle._
 
 ---
@@ -9,7 +8,7 @@ _Append-only. One row per review cycle._
 
 | Cycle | Phase | Date | Scope | Stop-Ship | P0 | P1 | P2 |
 |-------|-------|------|-------|-----------|----|----|-----|
-| 1 | Phase N (T##–T##) | YYYY-MM-DD | [description] | No | 0 | 0 | 0 |
+| 1 | High-priority features (T-F1, T-F2) | 2026-03-23 | /new_project + entity editing | No | 0 | 0 | 1 |
 
 ---
 
@@ -17,10 +16,12 @@ _Append-only. One row per review cycle._
 
 | Cycle | File | Phase | Health |
 |-------|------|-------|--------|
-| 1 | docs/audit/PHASE_N_REVIEW.md | Phase N | ✅ Green |
+| 1 | — (light review only, no deep review file) | T-F1 + T-F2 | ✅ Green |
 
 ---
 
 ## Notes
 
-- Add cycle notes here.
+- Cycle 1: two light reviews (T-F1, T-F2), both PASS. No phase-boundary deep review yet.
+- P2 open: FINDING-09 — pre-existing f-string in db.py:60 `_insert_and_fetch`. Internal constant, not user input. Low risk.
+- Deep review triggers at next true phase boundary.
