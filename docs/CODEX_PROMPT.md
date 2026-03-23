@@ -23,27 +23,17 @@ Local Whisper STT. SQLite storage. Deployed on private VPS via systemd.
 
 ## 2. Current Status
 
-**Phase:** Phase 3 complete — Deep review PASS (P0:0 P1:0 P2:1 maintenance note)
+**Phase:** Phase 5 — Conversational Chat Interface (COMPLETE)
 
-- [x] T-F1: /new_project — DONE
-- [x] T-F2: entity editing — DONE
-- [x] T-F3: status filter for /list — DONE
-- [x] T-F4: pagination for /list — DONE
-- [x] T-F5: /search command — DONE
-- [x] T-F6: /archive_project — DONE
-- [x] T-C1: Fix project filter ignored for deadlines/homework — DONE
-- [x] T-C2: Fix pagination inconsistency — DONE
-- [x] T-B1/T-O4: Pending entity restart notification — DONE
-- [x] T-O1: Script send backoff — DONE
-- [x] T-O2: Systemd failure alerting — DONE
-- [x] T-T1: Expanded smoke tests — DONE
-- [x] T-T2: Voice pipeline integration test — DONE
-- [x] T-A2: dev-cycle.md entries — DONE
-- [x] T-A3: ops-security.md complete — DONE
-- [x] T-A4: db-migration-guide.md — DONE
+**Phases 1–5 complete:** All 31 tasks done. Phase 5 deep review PASS (P0:0 P1:0 P2:3 P3:1).
 
-**Baseline:** smoke_test_db.py PASS, test_voice_pipeline.py PASS — CI green
-**System state:** Operational. All reliability tasks complete.
+- [x] T-CH1: Tool schema and executor — DONE
+- [x] T-CH2: Conversation history in state — DONE
+- [x] T-CH3: Chat handler with tool-use loop — DONE
+- [x] T-CH4: Wire chat handler into bot.py — DONE
+
+**Baseline:** smoke_test_db.py PASS, ruff clean — CI green
+**System state:** Operational. Phase 5 complete. Agentic profile now ON.
 
 ---
 
@@ -53,7 +43,7 @@ Local Whisper STT. SQLite storage. Deployed on private VPS via systemd.
 |---|---|---|
 | RAG | OFF | No vector retrieval; direct SQLite queries only |
 | Tool-Use | ON | Anthropic API (Haiku + Sonnet), Whisper, Telegram API, FFmpeg |
-| Agentic | OFF | Deterministic command dispatch; no autonomous loops |
+| Agentic | ON | Tool-calling loop in chat_handler; Claude selects and executes tools |
 | Planning | OFF | No planning horizon; weekly summary is text synthesis only |
 
 ---
@@ -86,19 +76,7 @@ Should be extracted to src/telegram_client.py in a future refactor.
 
 ## 5. Next Recommended Task
 
-**T-T3: Add CI workflow** — already exists at .github/workflows/ci.yml (lint + smoke test). Mark DONE.
-
-**After T-T3:** Remaining low-priority tasks:
-- T-R2: Move REMINDER_BUCKETS to config/env
-- T-B2: Guard summary LLM call with sent_at check (resolves FINDING-07)
-- T-B3: ffmpeg orphan record cleanup
-- T-R1: Standardize error language (Russian/English)
-- T-R3: Structured JSON logging
-- T-A1: Archive stale docs/architecture.md
-- T-A5: LLM prompt changelog
-- T-O3: LLM cost guardrail
-- T-T4: Reminder idempotency test (T-T1 done)
-- P3-1: Add search_cmd.py to ARCHITECTURE.md
+**Phase 5 COMPLETE** — All T-CH1–T-CH4 done. Deep review: P0:0 P1:0 P2:3 P3:1 — Stop-Ship: No.
 
 ---
 

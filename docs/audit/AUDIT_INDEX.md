@@ -12,6 +12,7 @@ _Append-only. One row per review cycle._
 | 2 | Phase 2 UX features (T-F3–T-F6) | 2026-03-23 | status filter, pagination, search, archival | No | 0 | 2 | 2 |
 | 3 | Phase 3 Reliability (T-B1/T-O1/T-O2/T-T1/T-T2/T-A2-4) | 2026-03-23 | restart notify, backoff, systemd alerts, tests, docs | No | 0 | 0 | 1 |
 | 4 | Phase 4 Cleanup (T-R1/T-R2/T-R3/T-B3/T-A1/T-A5/T-O3/P3-1) | 2026-03-23 | Russian msgs, config, JSON logs, LLM guardrail, docs | No | 0 | 0 | 1 |
+| 5 | Phase 5 Chat Interface (T-CH1–T-CH4) | 2026-03-23 | tool schemas, conversation history, chat handler, bot wiring | No | 0 | 0 | 3 |
 
 ---
 
@@ -23,6 +24,7 @@ _Append-only. One row per review cycle._
 | 2 | docs/archive/PHASE_2_REVIEW.md | T-F3–T-F6 | ⚠️ Green (P1:2) |
 | 3 | docs/audit/PHASE_3_REVIEW.md | Phase 3 Reliability | ✅ Green (P2:1 maintenance note) |
 | 4 | docs/audit/PHASE_4_REVIEW.md | Phase 4 Cleanup | ✅ Green (P3:1 cosmetic) |
+| 5 | docs/audit/PHASE_5_REVIEW.md | Phase 5 Chat Interface | ✅ Green (P2:3 cosmetic/docs) |
 
 ---
 

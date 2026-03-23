@@ -27,7 +27,10 @@ Telegram (user input)
        ├──► [ src/handlers/ ] — one handler per command/flow
        │         notes.py, ideas.py, homework.py, deadlines.py,
        │         projects.py, list_cmd.py, search_cmd.py, confirm.py,
-       │         nl_handler.py, review.py, help_cmd.py, common.py
+       │         nl_handler.py, review.py, help_cmd.py, common.py,
+       │         chat_handler.py (agentic tool-calling loop)
+       │
+       ├──► [ src/tools.py ] — TOOLS schema list + execute_tool dispatcher
        │
        ├──► [ src/state.py ] — in-memory session state per chat_id
        │
@@ -92,16 +95,21 @@ Pending entity exists in state
   → clear_pending, reply "Discarded"
 ```
 
-### 3.4 Free-Text NL
+### 3.4 Free-Text Chat (Phase 5+)
 
 ```
 Non-command text message, no pending entity
-  → natural_confirm_handler (group=1): route if message is confirm/discard word
-  → nl_handler (group=2): Haiku call → extract entity_type + content
-  → if entity_type=None: store in state, show type-selection inline keyboard
-  → user clicks type button → resolve project, build pending_entity, show confirm
-  → confirmation flow (3.3)
+  → natural_confirm_handler (group=1): intercept confirm/discard if pending entity exists
+  → chat_handler_wrapper (group=2): route to handle_chat()
+      → check daily LLM limit (get_llm_calls_today)
+      → build messages list from conversation_history + user message
+      → AsyncAnthropic.messages.create with TOOLS (Haiku model)
+      → if stop_reason == "tool_use": execute tools via execute_tool(), append tool results, loop
+      → loop guard: MAX_TOOL_ROUNDS = 5; if exceeded, return last assistant message
+      → update conversation_history via add_message()
+      → reply with final text
 ```
+Note: chat handler saves entities directly (no confirmation step). Voice path retains confirmation flow (3.3).
 
 ### 3.5 Scheduled Scripts (systemd timers)
 
@@ -150,7 +158,7 @@ Non-command text message, no pending entity
 |---|---|---|
 | **RAG** | **OFF** | No retrieval over a corpus. Data access is direct SQLite queries. No vector index, no embedding pipeline. |
 | **Tool-Use** | **ON** | Anthropic API calls (Haiku, Sonnet), Whisper inference, Telegram Bot API, FFmpeg subprocess. LLM is called with structured prompts; tool-use is implicit in the architecture. |
-| **Agentic** | **OFF** | No autonomous multi-step loops. All flows are deterministic, user-triggered. NL routing adds one LLM step but does not loop or self-direct. |
+| **Agentic** | **ON** | Multi-step tool-calling loop in chat_handler.py: Claude selects tools, executes them via execute_tool(), and loops until end_turn or MAX_TOOL_ROUNDS (5) guard fires. User-triggered but self-directing within each exchange. |
 | **Planning** | **OFF** | No planning horizon or task decomposition inside the bot. Weekly summary synthesis is LLM text generation, not planning. |
 
 ---

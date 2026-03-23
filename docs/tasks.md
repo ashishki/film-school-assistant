@@ -175,6 +175,60 @@
 
 ---
 
+---
+
+## Phase 5: Conversational Chat Interface (Tool Calling)
+
+**Goal:** Replace single-shot NL intent extraction with a multi-turn Claude tool-calling loop.
+The user types freely in Russian; Claude picks the right tool, executes it, responds conversationally.
+Slash commands remain fully functional as power-user shortcuts.
+
+### T-CH1: Tool schema and executor
+- **Description:** Create `src/tools.py` with TOOLS list (Anthropic tool_use format) and async `execute_tool()` dispatcher. Tools cover all capture + query operations currently spread across handlers.
+- **Priority:** High
+- **Dependencies:** None
+- **Files:** `src/tools.py` (new)
+- **Tools to define:** `save_note`, `save_idea`, `save_deadline`, `save_homework`, `list_items`, `search`, `create_project`, `set_active_project`, `list_projects`, `get_status`
+- **AC-1:** All 10 tool schemas are valid (name, description, input_schema with required/optional fields)
+- **AC-2:** `execute_tool(tool_name, tool_input, db, config, user_state)` dispatches to correct `db.*` function for each tool
+- **AC-3:** Returns human-readable Russian string result for every tool
+- **AC-4:** Unknown tool name returns error string, does not raise
+
+### T-CH2: Conversation history in state
+- **Description:** Extend `src/state.py` UserState with `conversation_history: list[dict]`. Rolling window of last N messages. Helpers: `add_message(role, content)` and `reset_history()`.
+- **Priority:** High
+- **Dependencies:** None
+- **Files:** `src/state.py`
+- **AC-1:** `conversation_history` initialized as empty list
+- **AC-2:** `add_message` appends `{"role": role, "content": content}`
+- **AC-3:** History capped at `MAX_HISTORY_MESSAGES = 20` — oldest messages dropped when exceeded
+- **AC-4:** `reset_history()` clears the list
+
+### T-CH3: Chat handler with tool-use loop
+- **Description:** New `src/handlers/chat_handler.py`. Sends user message + history to Claude with TOOLS. If `stop_reason == "tool_use"`: execute tools, append ToolResultBlock, call Claude again for final response. Max 5 tool-use rounds per exchange (loop guard). Each full exchange counts as 1 unit against daily LLM limit (not each tool call).
+- **Priority:** High
+- **Dependencies:** T-CH1, T-CH2
+- **Files:** `src/handlers/chat_handler.py` (new)
+- **System prompt:** Film school assistant, responds in Russian, uses tools for all data operations, does not hallucinate entities it did not just fetch
+- **AC-1:** Plain question with no tool needed → Claude responds directly (1 LLM call)
+- **AC-2:** "сохрани заметку: нужно больше b-roll" → `save_note` called, saved to DB, confirmation in response
+- **AC-3:** "покажи дедлайны" → `list_items` called with `type=deadlines`, results in response
+- **AC-4:** Daily limit exceeded → Russian error, no LLM call made
+- **AC-5:** Loop guard fires (>5 rounds) → logs warning, returns last assistant message
+
+### T-CH4: Wire chat handler into bot.py
+- **Description:** Route free-text messages to `chat_handler` instead of `nl_handler`. Add `/chat_reset` command. Voice messages keep existing transcribe → pending_entity flow. Slash commands unchanged.
+- **Priority:** High
+- **Dependencies:** T-CH3
+- **Files:** `src/bot.py`, `src/handlers/help_cmd.py`
+- **AC-1:** Free text → `chat_handler.handle_chat()`
+- **AC-2:** Voice messages still go through transcriber → pending_entity → `/confirm` flow
+- **AC-3:** `/chat_reset` clears `user_state.conversation_history`, replies in Russian
+- **AC-4:** All existing slash commands work unchanged
+- **AC-5:** `/help` updated to mention conversational mode and `/chat_reset`
+
+---
+
 ## Priority Summary
 
 | ID | Title | Priority |
