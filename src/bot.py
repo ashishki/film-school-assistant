@@ -29,6 +29,7 @@ from src import transcriber, voice
 from src.config import load_config
 from src.db import create_parsed_event, create_transcript, create_voice_input, init_db, update_voice_input_processed
 from src.handlers.confirm import _build_pending_preview, _do_confirm, _pending_keyboard, confirm_command, discard_command, edit_command
+from src.handlers.edit_cmd import edit_deadline_command, edit_idea_command, edit_note_command
 from src.handlers.deadlines import deadline_command, dismiss_deadline_command, done_deadline_command
 from src.handlers.help_cmd import help_command
 from src.handlers.homework import homework_command
@@ -330,6 +331,9 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("confirm", confirm_command))
     application.add_handler(CommandHandler("edit", edit_command))
     application.add_handler(CommandHandler("discard", discard_command))
+    application.add_handler(CommandHandler("edit_deadline", edit_deadline_command))
+    application.add_handler(CommandHandler("edit_note", edit_note_command))
+    application.add_handler(CommandHandler("edit_idea", edit_idea_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.Regex(r"^/done_deadline_\d+(?:@\w+)?$"), done_deadline_command))
     application.add_handler(MessageHandler(filters.Regex(r"^/dismiss_deadline_\d+(?:@\w+)?$"), dismiss_deadline_command))

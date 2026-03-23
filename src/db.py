@@ -226,6 +226,34 @@ async def update_deadline_status(db: aiosqlite.Connection, deadline_id: int, sta
     await db.commit()
 
 
+async def update_deadline_title(db: aiosqlite.Connection, deadline_id: int, title: str) -> bool:
+    cursor = await db.execute("UPDATE deadlines SET title = ? WHERE id = ?", (title, deadline_id))
+    await db.commit()
+    return (cursor.rowcount or 0) > 0
+
+
+async def update_deadline_due_date(db: aiosqlite.Connection, deadline_id: int, due_date: str) -> bool:
+    cursor = await db.execute("UPDATE deadlines SET due_date = ? WHERE id = ?", (due_date, deadline_id))
+    await db.commit()
+    return (cursor.rowcount or 0) > 0
+
+
+async def get_note(db: aiosqlite.Connection, note_id: int) -> dict[str, Any] | None:
+    return await _fetch_one_dict(db, "SELECT * FROM notes WHERE id = ?", (note_id,))
+
+
+async def update_note_content(db: aiosqlite.Connection, note_id: int, content: str) -> bool:
+    cursor = await db.execute("UPDATE notes SET content = ? WHERE id = ?", (content, note_id))
+    await db.commit()
+    return (cursor.rowcount or 0) > 0
+
+
+async def update_idea_content(db: aiosqlite.Connection, idea_id: int, content: str) -> bool:
+    cursor = await db.execute("UPDATE ideas SET content = ? WHERE id = ?", (content, idea_id))
+    await db.commit()
+    return (cursor.rowcount or 0) > 0
+
+
 async def create_voice_input(
     db: aiosqlite.Connection,
     telegram_file_id: str,
