@@ -131,7 +131,7 @@
 - **Priority:** Medium
 - **Dependencies:** None
 
-### T-T2: Add integration test for voice pipeline (mocked Telegram)
+### T-T2: Add integration test for voice pipeline (mocked Telegram) ✅ DONE 2026-03-23
 - **Description:** No automated test for the voice flow (download → convert → transcribe → extract → confirm). Add test with a recorded WAV fixture and mocked Telegram API.
 - **Priority:** Medium
 - **Dependencies:** None
