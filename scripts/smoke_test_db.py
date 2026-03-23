@@ -24,7 +24,9 @@ from src.db import (
     get_idea,
     get_note,
     get_project_by_slug,
+    get_reminder_log,
     init_db,
+    log_reminder,
     list_all_projects,
     list_deadlines,
     list_homework,
@@ -33,6 +35,7 @@ from src.db import (
     search_ideas,
     search_notes,
     update_deadline_due_date,
+    update_deadline_status,
     update_deadline_title,
     update_idea_content,
     update_note_content,
@@ -282,6 +285,50 @@ async def run_smoke_test() -> None:
             missing_tables = EXPECTED_TABLES - actual_tables
             if missing_tables:
                 raise AssertionError(f"Missing tables: {sorted(missing_tables)}")
+
+            # T-T1: deadline status update
+            await update_deadline_status(db, deadline["id"], "completed")
+            updated_deadline = await get_deadline(db, deadline["id"])
+            assert updated_deadline is not None, "get_deadline must return the updated row"
+            assert updated_deadline["status"] == "completed", "deadline status must be updated to completed"
+            await update_deadline_status(db, deadline["id"], "active")
+
+            # T-T1: reminder_log dedup
+            reminder_deadline = await create_deadline(db, "Reminder test deadline", "2026-06-01")
+            await log_reminder(db, reminder_deadline["id"], "test reminder", days_before=3)
+            reminder_rows = await get_reminder_log(db, reminder_deadline["id"])
+            assert len(reminder_rows) == 1, "first log_reminder call must create one reminder_log row"
+
+            duplicate_reminder_raised = False
+            try:
+                await log_reminder(db, reminder_deadline["id"], "duplicate reminder", days_before=3)
+            except aiosqlite.IntegrityError:
+                duplicate_reminder_raised = True
+            assert duplicate_reminder_raised, "duplicate log_reminder must raise IntegrityError"
+
+            reminder_rows_after_duplicate = await get_reminder_log(db, reminder_deadline["id"])
+            assert len(reminder_rows_after_duplicate) == 1, \
+                "duplicate log_reminder must not create an extra reminder_log row"
+
+            # T-T1: parsed_event confirmation
+            homework_event = await create_parsed_event(
+                db,
+                entity_type="homework",
+                extracted_json='{"title":"Lens test homework"}',
+            )
+            assert homework_event["confirmed"] == 0, "new parsed_event must start with confirmed=0"
+            await confirm_parsed_event(db, homework_event["id"], entity_id=1, entity_table="homework")
+            cursor = await db.execute(
+                "SELECT confirmed, entity_id, entity_table FROM parsed_events WHERE id=?",
+                (homework_event["id"],),
+            )
+            confirmed_homework_event = await cursor.fetchone()
+            await cursor.close()
+            assert confirmed_homework_event is not None, "confirmed parsed_event row must exist"
+            assert confirmed_homework_event["confirmed"] == 1, "confirmed parsed_event must set confirmed=1"
+            assert confirmed_homework_event["entity_id"] == 1, "confirmed parsed_event must set entity_id=1"
+            assert confirmed_homework_event["entity_table"] == "homework", \
+                "confirmed parsed_event must set entity_table='homework'"
 
         recent_events = get_recent_unconfirmed_events(DB_PATH, hours=2)
         recent_event_ids = {item["id"] for item in recent_events}
