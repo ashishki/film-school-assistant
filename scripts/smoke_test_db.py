@@ -22,6 +22,7 @@ from src.db import (
     get_note,
     get_project_by_slug,
     init_db,
+    list_deadlines,
     list_homework,
     list_notes,
     update_deadline_due_date,
@@ -147,6 +148,46 @@ async def run_smoke_test() -> None:
             # T-F2: edit idea with unknown id returns False
             missing_idea = await update_idea_content(db, 99999, "Ghost idea")
             assert not missing_idea, "update_idea_content must return False for unknown id"
+
+            # T-F3: list_homework(status='pending') returns only pending items
+            hw_done = await create_homework(db, "Done assignment", "2026-03-20", course="History")
+            await db.execute("UPDATE homework SET status = 'done' WHERE id = ?", (hw_done["id"],))
+            await db.commit()
+
+            pending_items = await list_homework(db, status="pending")
+            assert all(item["status"] == "pending" for item in pending_items), \
+                "list_homework(status='pending') must return only pending items"
+            pending_ids = {item["id"] for item in pending_items}
+            assert hw_done["id"] not in pending_ids, \
+                "done homework must not appear in pending list"
+
+            all_hw = await list_homework(db)
+            assert len(all_hw) >= 2, \
+                "list_homework() with no filter must return all homework items"
+            all_hw_ids = {item["id"] for item in all_hw}
+            assert hw_done["id"] in all_hw_ids, \
+                "done homework must appear in unfiltered list"
+            assert homework["id"] in all_hw_ids, \
+                "pending homework must appear in unfiltered list"
+
+            # T-F3: list_deadlines(status='active') returns only active items
+            dl_done = await create_deadline(db, "Past submission", "2026-01-01")
+            await db.execute("UPDATE deadlines SET status = 'done' WHERE id = ?", (dl_done["id"],))
+            await db.commit()
+
+            active_items = await list_deadlines(db, status="active")
+            assert all(item["status"] == "active" for item in active_items), \
+                "list_deadlines(status='active') must return only active items"
+            active_ids = {item["id"] for item in active_items}
+            assert dl_done["id"] not in active_ids, \
+                "done deadline must not appear in active list"
+
+            all_dl = await list_deadlines(db)
+            assert len(all_dl) >= 2, \
+                "list_deadlines() with no filter must return all deadline items"
+            all_dl_ids = {item["id"] for item in all_dl}
+            assert dl_done["id"] in all_dl_ids, \
+                "done deadline must appear in unfiltered list"
 
             cursor = await db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
             table_rows = await cursor.fetchall()
