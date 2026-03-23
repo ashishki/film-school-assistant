@@ -24,6 +24,15 @@ from src.db import (
     list_homework,
     list_notes,
 )
+import re
+
+
+def _make_slug(name: str) -> str:
+    slug = name.lower().strip()
+    slug = slug.replace(" ", "-")
+    slug = re.sub(r"[^a-z0-9\-]", "", slug)
+    slug = re.sub(r"-{2,}", "-", slug)
+    return slug.strip("-")
 
 
 logging.basicConfig(level=logging.INFO)
@@ -74,6 +83,24 @@ async def run_smoke_test() -> None:
             for value in (project, note, idea, deadline, homework, fetched_project, fetched_note, fetched_idea, fetched_deadline, fetched_homework):
                 if not isinstance(value, dict):
                     raise AssertionError("CRUD function returned non-dict result")
+
+            # T-F1: slug generation
+            assert _make_slug("Film Noir") == "film-noir", "_make_slug('Film Noir') must return 'film-noir'"
+            assert _make_slug("Film  Noir") == "film-noir", "_make_slug collapses multiple spaces"
+
+            # T-F1: create_project stores correct slug and status
+            film_noir = await create_project(db, "Film Noir", _make_slug("Film Noir"))
+            assert film_noir["slug"] == "film-noir", "slug must be 'film-noir'"
+            assert film_noir["status"] == "active", "status must be 'active'"
+
+            # T-F1: duplicate name must raise IntegrityError (not crash silently)
+            duplicate_raised = False
+            try:
+                await create_project(db, "Film Noir", _make_slug("Film Noir"))
+            except aiosqlite.IntegrityError:
+                duplicate_raised = True
+            if not duplicate_raised:
+                raise AssertionError("Duplicate create_project must raise IntegrityError")
 
             cursor = await db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
             table_rows = await cursor.fetchall()
