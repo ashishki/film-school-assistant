@@ -234,17 +234,30 @@ async def create_homework(
     )
 
 
-async def list_homework(db: aiosqlite.Connection, status: str | None = None) -> list[dict[str, Any]]:
-    if status is None:
-        return await _fetch_all_dicts(
-            db,
-            "SELECT * FROM homework ORDER BY due_date ASC, created_at DESC",
-        )
-    return await _fetch_all_dicts(
-        db,
-        "SELECT * FROM homework WHERE status = ? ORDER BY due_date ASC, created_at DESC",
-        (status,),
-    )
+async def list_homework(
+    db: aiosqlite.Connection,
+    status: str | None = None,
+    project_id: int | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    conditions = []
+    params: list[Any] = []
+
+    if status is not None:
+        conditions.append("status = ?")
+        params.append(status)
+    if project_id is not None:
+        conditions.append("project_id = ?")
+        params.append(project_id)
+
+    query = "SELECT * FROM homework"
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY due_date ASC, created_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+
+    return await _fetch_all_dicts(db, query, tuple(params))
 
 
 async def create_deadline(
@@ -269,17 +282,30 @@ async def get_deadline(db: aiosqlite.Connection, deadline_id: int) -> dict[str, 
     return await _fetch_one_dict(db, "SELECT * FROM deadlines WHERE id = ?", (deadline_id,))
 
 
-async def list_deadlines(db: aiosqlite.Connection, status: str | None = None) -> list[dict[str, Any]]:
-    if status is None:
-        return await _fetch_all_dicts(
-            db,
-            "SELECT * FROM deadlines ORDER BY due_date ASC, created_at DESC",
-        )
-    return await _fetch_all_dicts(
-        db,
-        "SELECT * FROM deadlines WHERE status = ? ORDER BY due_date ASC, created_at DESC",
-        (status,),
-    )
+async def list_deadlines(
+    db: aiosqlite.Connection,
+    status: str | None = None,
+    project_id: int | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    conditions = []
+    params: list[Any] = []
+
+    if status is not None:
+        conditions.append("status = ?")
+        params.append(status)
+    if project_id is not None:
+        conditions.append("project_id = ?")
+        params.append(project_id)
+
+    query = "SELECT * FROM deadlines"
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY due_date ASC, created_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+
+    return await _fetch_all_dicts(db, query, tuple(params))
 
 
 async def update_deadline_status(db: aiosqlite.Connection, deadline_id: int, status: str) -> None:

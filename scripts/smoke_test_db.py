@@ -237,6 +237,15 @@ async def run_smoke_test() -> None:
             assert dl_done["id"] not in active_ids, \
                 "done deadline must not appear in active list"
 
+            other_project = await create_project(db, "Animation", "animation")
+            other_deadline = await create_deadline(db, "Storyboard delivery", "2026-04-20", project_id=other_project["id"])
+            filtered_deadlines = await list_deadlines(db, project_id=project["id"], limit=20, offset=0)
+            filtered_deadline_ids = {item["id"] for item in filtered_deadlines}
+            assert deadline["id"] in filtered_deadline_ids, \
+                "list_deadlines(project_id=...) must include deadlines for the selected project"
+            assert other_deadline["id"] not in filtered_deadline_ids, \
+                "list_deadlines(project_id=...) must exclude deadlines from other projects"
+
             all_dl = await list_deadlines(db)
             assert len(all_dl) >= 2, \
                 "list_deadlines() with no filter must return all deadline items"
