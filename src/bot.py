@@ -36,6 +36,7 @@ from src.db import (
     init_db,
     update_voice_input_processed,
 )
+from src.handlers.chat_handler import handle_chat
 from src.handlers.confirm import _build_pending_preview, _do_confirm, _pending_keyboard, confirm_command, discard_command, edit_command
 from src.handlers.edit_cmd import edit_deadline_command, edit_idea_command, edit_note_command
 from src.handlers.deadlines import deadline_command, dismiss_deadline_command, done_deadline_command
@@ -45,7 +46,7 @@ from src.handlers.ideas import idea_command
 from src.handlers.list_cmd import list_command
 from src.handlers.common import validate_and_parse_date
 from src.handlers.nl_handler import _build_pending_entity as build_nl_pending_entity
-from src.handlers.nl_handler import _resolve_project, nl_handler
+from src.handlers.nl_handler import _resolve_project
 from src.handlers.notes import note_command
 from src.handlers.projects import archive_project_command, new_project_command, project_command, projects_command
 from src.handlers.review import review_handler
@@ -238,6 +239,34 @@ async def natural_confirm_handler(update: Update, context: ContextTypes.DEFAULT_
         raise ApplicationHandlerStop
 
 
+async def chat_handler_wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = update.effective_message
+    chat = update.effective_chat
+    if message is None or chat is None or not message.text:
+        return
+    config = context.bot_data["config"]
+    state = get_state(chat.id)
+    text = message.text.strip()
+    try:
+        async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+            db.row_factory = aiosqlite.Row
+            result = await handle_chat(text, db, config, state)
+        await message.reply_text(result)
+    except Exception:
+        LOGGER.exception("chat_handler_wrapper failed for chat_id=%s", chat.id)
+        await message.reply_text("Что-то пошло не так. Попробуй ещё раз.")
+
+
+async def chat_reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message = update.effective_message
+    chat = update.effective_chat
+    if message is None or chat is None:
+        return
+    state = get_state(chat.id)
+    state.reset_history()
+    await message.reply_text("История разговора очищена.")
+
+
 async def inline_action_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     if query is None or query.message is None:
@@ -395,8 +424,9 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.Regex(r"^/done_deadline_\d+(?:@\w+)?$"), done_deadline_command))
     application.add_handler(MessageHandler(filters.Regex(r"^/dismiss_deadline_\d+(?:@\w+)?$"), dismiss_deadline_command))
+    application.add_handler(CommandHandler("chat_reset", chat_reset_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_confirm_handler), group=1)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, nl_handler), group=2)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler_wrapper), group=2)
     application.add_error_handler(error_handler)
 
     LOGGER.info("Bot application configured")
