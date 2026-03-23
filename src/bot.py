@@ -39,7 +39,7 @@ from src.handlers.common import validate_and_parse_date
 from src.handlers.nl_handler import _build_pending_entity as build_nl_pending_entity
 from src.handlers.nl_handler import _resolve_project, nl_handler
 from src.handlers.notes import note_command
-from src.handlers.projects import new_project_command, project_command, projects_command
+from src.handlers.projects import archive_project_command, new_project_command, project_command, projects_command
 from src.handlers.review import review_handler
 from src.handlers.search_cmd import search_command
 from src.state import clear_pending, get_state
@@ -327,6 +327,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("projects", projects_command))
     application.add_handler(CommandHandler("project", project_command))
     application.add_handler(CommandHandler("new_project", new_project_command))
+    application.add_handler(CommandHandler("archive_project", archive_project_command))
     application.add_handler(CommandHandler("list", list_command))
     application.add_handler(CommandHandler("search", search_command))
     application.add_handler(CommandHandler("review", review_handler))
