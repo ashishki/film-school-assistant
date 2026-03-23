@@ -47,17 +47,26 @@ async def _fetch_all_dicts(db: aiosqlite.Connection, query: str, params: tuple[A
     return _rows_to_dicts(rows)
 
 
+_ALLOWED_TABLES = frozenset({
+    "projects", "notes", "ideas", "homework", "deadlines",
+    "voice_inputs", "transcripts", "parsed_events",
+    "reminder_log", "review_history", "weekly_reports",
+})
+
+
 async def _insert_and_fetch(
     db: aiosqlite.Connection,
     query: str,
     params: tuple[Any, ...],
     table_name: str,
 ) -> dict[str, Any]:
+    if table_name not in _ALLOWED_TABLES:
+        raise ValueError(f"Unknown table: {table_name!r}")
     cursor = await db.execute(query, params)
     row_id = cursor.lastrowid
     await cursor.close()
     await db.commit()
-    created = await _fetch_one_dict(db, f"SELECT * FROM {table_name} WHERE id = ?", (row_id,))
+    created = await _fetch_one_dict(db, f"SELECT * FROM {table_name} WHERE id = ?", (row_id,))  # noqa: S608 — table_name whitelisted above
     if created is None:
         raise RuntimeError(f"Failed to fetch created row from {table_name}")
     return created
@@ -183,7 +192,12 @@ async def create_homework(
     )
 
 
-async def list_homework(db: aiosqlite.Connection, status: str = "pending") -> list[dict[str, Any]]:
+async def list_homework(db: aiosqlite.Connection, status: str | None = None) -> list[dict[str, Any]]:
+    if status is None:
+        return await _fetch_all_dicts(
+            db,
+            "SELECT * FROM homework ORDER BY due_date ASC, created_at DESC",
+        )
     return await _fetch_all_dicts(
         db,
         "SELECT * FROM homework WHERE status = ? ORDER BY due_date ASC, created_at DESC",
@@ -213,7 +227,12 @@ async def get_deadline(db: aiosqlite.Connection, deadline_id: int) -> dict[str, 
     return await _fetch_one_dict(db, "SELECT * FROM deadlines WHERE id = ?", (deadline_id,))
 
 
-async def list_deadlines(db: aiosqlite.Connection, status: str = "active") -> list[dict[str, Any]]:
+async def list_deadlines(db: aiosqlite.Connection, status: str | None = None) -> list[dict[str, Any]]:
+    if status is None:
+        return await _fetch_all_dicts(
+            db,
+            "SELECT * FROM deadlines ORDER BY due_date ASC, created_at DESC",
+        )
     return await _fetch_all_dicts(
         db,
         "SELECT * FROM deadlines WHERE status = ? ORDER BY due_date ASC, created_at DESC",

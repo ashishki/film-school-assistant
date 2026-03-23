@@ -1,4 +1,5 @@
 import logging
+import re
 
 import aiosqlite
 from telegram import Update
@@ -10,16 +11,43 @@ from src.handlers.common import extract_project_filter, get_command_text, reply_
 
 LOGGER = logging.getLogger(__name__)
 
+_STATUS_FILTER_RE = re.compile(r"\bstatus:(\S+)", re.IGNORECASE)
+
+_VALID_HOMEWORK_STATUSES = {"pending", "done"}
+_VALID_DEADLINE_STATUSES = {"active", "done"}
+
+
+def _extract_status_filter(text: str) -> tuple[str, str | None]:
+    """Return (text_without_status_token, status_value_or_None)."""
+    match = _STATUS_FILTER_RE.search(text)
+    if match is None:
+        return text, None
+    status_value = match.group(1).lower()
+    cleaned = (text[: match.start()] + text[match.end() :]).strip()
+    return cleaned, status_value
+
 
 async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         command_text = get_command_text(update)
+        command_text, status_filter = _extract_status_filter(command_text)
         item_type, project_name = extract_project_filter(command_text)
         normalized_type = item_type.strip().lower()
 
         if normalized_type not in {"notes", "ideas", "deadlines", "homework"}:
-            await reply_text(update, context, "Usage: /list notes|ideas|deadlines|homework [project:<name>]")
+            await reply_text(update, context, "Usage: /list notes|ideas|deadlines|homework [project:<name>] [status:<value>]")
             return
+
+        if status_filter is not None:
+            if normalized_type == "homework" and status_filter not in _VALID_HOMEWORK_STATUSES:
+                await reply_text(update, context, "Неверный статус")
+                return
+            if normalized_type == "deadlines" and status_filter not in _VALID_DEADLINE_STATUSES:
+                await reply_text(update, context, "Неверный статус")
+                return
+            if normalized_type in {"notes", "ideas"}:
+                await reply_text(update, context, "Неверный статус")
+                return
 
         async with aiosqlite.connect(context.bot_data["db_path"]) as db:
             db.row_factory = aiosqlite.Row
@@ -47,10 +75,10 @@ async def list_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 items = await list_ideas(db, project_id=project_id)
                 text = _format_ideas(items, project_label)
             elif normalized_type == "deadlines":
-                items = await list_deadlines(db)
+                items = await list_deadlines(db, status=status_filter)
                 text = _format_deadlines(items)
             else:
-                items = await list_homework(db)
+                items = await list_homework(db, status=status_filter)
                 text = _format_homework(items)
 
         LOGGER.info("Listed %s items for type=%s", len(items), normalized_type)
