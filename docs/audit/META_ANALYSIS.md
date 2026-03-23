@@ -1,44 +1,46 @@
-# META_ANALYSIS — Cycle 2
+# META_ANALYSIS — Cycle 5
 
-_Date: 2026-03-23 · Phase: Phase 2 (T-F3–T-F6) · Type: full_
+_Date: 2026-03-23 · Type: full (phase boundary)_
+
+---
 
 ## Project State
 
-Phase 2 (T-F3–T-F6) complete. Baseline: 1 PASS (smoke_test_db.py). CI green.
+Phase 5 (T-CH1–T-CH4) complete. Baseline: smoke_test_db.py PASS, ruff all checks passed. CI green.
+Next: Phase 5 deep review → archive → next phase (TBD).
 
-## Acceptance Criteria Verification
+## Open Findings (carry-forward from CODEX_PROMPT.md)
 
-**T-F3 ✅** — Status filter, backward compat, invalid status error. Tests: smoke_test_db.py lines 207–226.
-**T-F4 ✅** — Pagination page:N, invalid page error, empty page message. Tests: lines 163–181.
-**T-F5 ✅** — /search LIKE across notes+ideas, short query error, no results message. Tests: lines 193–205.
-**T-F6 ✅** — /archive_project soft-delete, excluded from /projects, already-archived error. Tests: lines 116–130.
+| ID | Sev | Description | Files | Status |
+|----|-----|-------------|-------|--------|
+| FINDING-06 | MEDIUM | SQLite WAL mode not verified | src/db.py | Open |
+| FINDING-07 | LOW | Summary LLM call not guarded by sent_at check | scripts/send_summary.py | Open |
+| ARCH-P2-1 | LOW | Telegram retry logic duplicated | send_reminders.py, send_summary.py, notify_failure.py | Open |
 
-## Security Audit
+## PROMPT_1 Scope (architecture)
 
-- No secrets hardcoded ✓
-- SQL parameterized (+ table whitelist added in Phase 2) ✓
-- chat_guard INV-1 intact ✓
-- No forbidden actions detected ✓
+- **chat_handler** (src/handlers/chat_handler.py): new component — Agentic loop, async Claude API, tool-use rounds
+- **tools** (src/tools.py): new component — TOOLS schema list (10 tools) + execute_tool async dispatcher
+- **state** (src/state.py): extended — conversation_history field, add_message(), reset_history()
+- **bot.py**: modified — chat_handler_wrapper, chat_reset_command, nl_handler routing replaced by chat_handler_wrapper
+- **help_cmd.py**: modified — HELP_TEXT updated to include conversational mode and /chat_reset
 
-## CODEX_PROMPT.md
+## PROMPT_2 Scope (code, priority order)
 
-Updated at commit a9abfdf. Needs patch: T-F3/T-F4/T-F5/T-F6 mark as DONE, update next task.
+1. `src/handlers/chat_handler.py` (new — agentic loop, async LLM calls, tool dispatch, daily limit)
+2. `src/tools.py` (new — tool schema definitions, execute_tool dispatcher)
+3. `src/state.py` (changed — conversation_history, new methods)
+4. `src/bot.py` (changed — handler routing changed, new commands)
+5. `src/handlers/help_cmd.py` (changed — help text updated)
 
-## Open Findings (Unchanged)
+## Cycle Type
 
-| ID | Sev | Description |
-|----|-----|-------------|
-| FINDING-03 | MEDIUM | Pending entity lost on restart (T-B1) |
-| FINDING-04 | MEDIUM | No retry/backoff in scripts (T-O1) |
-| FINDING-05 | MEDIUM | No systemd monitoring (T-O2) |
-| FINDING-06 | MEDIUM | SQLite WAL mode unverified |
-| FINDING-07 | LOW | Summary LLM double-call (T-B2) |
+Full — Phase 5 boundary. All 4 tasks (T-CH1–T-CH4) committed and passing.
 
-## PROMPT_2 Scope
+## Notes for PROMPT_3
 
-Priority files for code review:
-1. src/handlers/search_cmd.py (new)
-2. src/handlers/list_cmd.py (pagination + filter)
-3. src/handlers/projects.py (archive_project_command)
-4. src/db.py (search_notes, search_ideas, update_project_status, list_all_projects)
-5. src/bot.py (handler registration)
+- Focus: agentic loop guard (MAX_TOOL_ROUNDS), daily limit check, LLM cost logging
+- Chat handler bypasses voice/NL confirmation flow (INV-3) — intentional for chat path; verify voice path unaffected
+- Tool executor saves entities directly without confirmation — deliberate design for conversational mode
+- ARCHITECTURE.md doc patch needed: Agentic capability profile was OFF; now ON after Phase 5
+- nl_handler still imported in bot.py (for inline_action_handler type button flow) — not dead code

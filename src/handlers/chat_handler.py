@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 import aiosqlite
@@ -44,8 +45,6 @@ async def handle_chat(
     messages: list[dict[str, Any]] = user_state.conversation_history[:] + [
         {"role": "user", "content": message_text}
     ]
-
-    import os
 
     api_key = os.environ.get("LLM_API_KEY", "")
     if not api_key:
