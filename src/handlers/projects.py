@@ -1,10 +1,11 @@
 import logging
+import re
 
 import aiosqlite
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.db import list_projects
+from src.db import create_project, list_projects
 from src.handlers.common import get_command_text, reply_text, resolve_project_match
 from src.state import get_state
 
@@ -36,6 +37,42 @@ async def projects_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     except Exception:
         LOGGER.exception("Unhandled projects command failure")
         await reply_text(update, context, "Something went wrong. Please try again.")
+
+
+def _make_slug(name: str) -> str:
+    slug = name.lower().strip()
+    slug = slug.replace(" ", "-")
+    slug = re.sub(r"[^a-z0-9\-]", "", slug)
+    slug = re.sub(r"-{2,}", "-", slug)
+    return slug.strip("-")
+
+
+async def new_project_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    try:
+        raw_name = get_command_text(update)
+        if not raw_name:
+            await reply_text(update, context, "Использование: /new_project <название>")
+            return
+
+        name = raw_name.strip()
+        slug = _make_slug(name)
+        if not slug:
+            await reply_text(update, context, "Некорректное название проекта.")
+            return
+
+        async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+            db.row_factory = aiosqlite.Row
+            try:
+                project = await create_project(db, name, slug)
+            except aiosqlite.IntegrityError:
+                await reply_text(update, context, f"Проект с таким названием уже существует: «{name}».")
+                return
+
+        LOGGER.info("Created project slug=%s id=%s", project["slug"], project["id"])
+        await reply_text(update, context, f"Проект создан: «{project['name']}» (slug: {project['slug']}).")
+    except Exception:
+        LOGGER.exception("Unhandled new_project command failure")
+        await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")
 
 
 async def project_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
