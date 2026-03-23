@@ -1,0 +1,8 @@
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# E402: module-level import not at top of file
+# Ignored project-wide: scripts and src/bot.py use sys.path.insert() before
+# package imports — a standard standalone-script pattern in this repo.
+ignore = ["E402"]

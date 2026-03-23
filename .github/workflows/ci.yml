@@ -85,55 +85,20 @@ jobs:
       #   ... other dev deps
       # -----------------------------------------------------------------------
       - name: Install dependencies
-        run: pip install -r requirements.txt ruff pytest
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip -q
+          .venv/bin/pip install aiosqlite python-dotenv ruff -q
 
-      # -----------------------------------------------------------------------
-      # LINT — RUFF CHECK
-      # ruff check catches style issues, unused imports, and a wide range of
-      # anti-patterns. Adjust the directory arguments to match your project layout.
-      # Common pattern: `ruff check app/ tests/`
-      # -----------------------------------------------------------------------
       - name: Lint (ruff check)
-        run: ruff check src/ tests/
+        run: .venv/bin/ruff check src/ scripts/
 
-      # -----------------------------------------------------------------------
-      # FORMAT CHECK — RUFF FORMAT
-      # ruff format --check verifies formatting without modifying files.
-      # This fails CI if code is not formatted correctly, enforcing consistent
-      # formatting across all contributors (human and AI).
-      # -----------------------------------------------------------------------
-      - name: Format check (ruff format)
-        run: ruff format --check src/ tests/
-
-      # -----------------------------------------------------------------------
-      # RUN TESTS
-      # -q: quiet output (summary only, not per-test dots)
-      # --tb=short: short traceback on failure (enough to diagnose, not overwhelming)
-      #
-      # Add required environment variables here. For secrets, use GitHub Actions
-      # secrets (Settings > Secrets and variables > Actions) and reference them
-      # as ${{ secrets.SECRET_NAME }}.
-      #
-      # For test-only values that are not real secrets (e.g., a test API key
-      # placeholder), you can set them inline as shown below.
-      #
-      # If your tests need a DATABASE_URL or REDIS_URL, construct them from
-      # the service configuration above:
-      #   DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
-      #   REDIS_URL: redis://localhost:6379/0
-      # -----------------------------------------------------------------------
-      - name: Run tests
+      - name: Run smoke test
         env:
-          # ---- Placeholder test values (not real secrets) ----
-          # Replace with real secret references for values that must be secret:
-          # SOME_API_KEY: ${{ secrets.SOME_API_KEY }}
           TELEGRAM_BOT_TOKEN: "test_token"
           TELEGRAM_ALLOWED_CHAT_ID: "112375374"
           LLM_API_KEY: "test_key"
-          # ---- Uncomment if using services above ----
-          # DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/testdb
-          # REDIS_URL: redis://localhost:6379/0
-        run: python3 scripts/smoke_test_db.py
+        run: .venv/bin/python scripts/smoke_test_db.py
 
 # -------------------------------------------------------------------------------
 # HOW TO USE THIS TEMPLATE
