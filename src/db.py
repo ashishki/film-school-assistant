@@ -99,8 +99,22 @@ async def get_project_by_slug(db: aiosqlite.Connection, slug: str) -> dict[str, 
     return await _fetch_one_dict(db, "SELECT * FROM projects WHERE slug = ?", (slug,))
 
 
-async def list_projects(db: aiosqlite.Connection) -> list[dict[str, Any]]:
+async def list_projects(db: aiosqlite.Connection, status: str = "active") -> list[dict[str, Any]]:
+    return await _fetch_all_dicts(
+        db,
+        "SELECT * FROM projects WHERE status = ? ORDER BY created_at DESC",
+        (status,),
+    )
+
+
+async def list_all_projects(db: aiosqlite.Connection) -> list[dict[str, Any]]:
     return await _fetch_all_dicts(db, "SELECT * FROM projects ORDER BY created_at DESC")
+
+
+async def update_project_status(db: aiosqlite.Connection, project_id: int, status: str) -> bool:
+    cursor = await db.execute("UPDATE projects SET status = ? WHERE id = ?", (status, project_id))
+    await db.commit()
+    return (cursor.rowcount or 0) > 0
 
 
 async def create_note(

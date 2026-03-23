@@ -5,7 +5,7 @@ import aiosqlite
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.db import create_project, list_projects
+from src.db import create_project, list_projects, update_project_status
 from src.handlers.common import get_command_text, reply_text, resolve_project_match
 from src.state import get_state
 
@@ -21,15 +21,15 @@ async def projects_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             projects = await list_projects(db)
 
         if not projects:
-            await reply_text(update, context, "No projects found.")
+            await reply_text(update, context, "Активных проектов нет.")
             return
 
-        lines = ["Projects:"]
+        lines = ["Проекты:"]
         for project in projects:
             slug = f" ({project['slug']})" if project.get("slug") else ""
             is_active = project["id"] == state.active_project_id
             marker = "* " if is_active else "- "
-            active_label = " (active)" if is_active else ""
+            active_label = " (активный)" if is_active else ""
             lines.append(f"{marker}{project['name']}{slug}{active_label}")
 
         LOGGER.info("Listed %s projects", len(projects))
@@ -79,7 +79,7 @@ async def project_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     try:
         raw_name = get_command_text(update)
         if not raw_name:
-            await reply_text(update, context, "Usage: /project <name>")
+            await reply_text(update, context, "Использование: /project <название>")
             return
 
         if raw_name.strip().lower() == "clear":
@@ -87,7 +87,7 @@ async def project_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             state.active_project_id = None
             state.active_project_name = None
             LOGGER.info("Cleared active project for chat_id=%s", update.effective_chat.id)
-            await reply_text(update, context, "Active project cleared.")
+            await reply_text(update, context, "Активный проект сброшен.")
             return
 
         async with aiosqlite.connect(context.bot_data["db_path"]) as db:
@@ -95,13 +95,13 @@ async def project_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             status, result = await resolve_project_match(db, raw_name)
 
         if status == "missing":
-            await reply_text(update, context, 'Project not found. Use /projects to see available projects.')
+            await reply_text(update, context, "Проект не найден")
             return
 
         if status == "ambiguous":
             assert isinstance(result, list)
             names = ", ".join(project["name"] for project in result)
-            await reply_text(update, context, f"Project name is ambiguous. Matches: {names}.")
+            await reply_text(update, context, f"Название проекта неоднозначно. Совпадения: {names}.")
             return
 
         assert isinstance(result, dict)
@@ -110,7 +110,47 @@ async def project_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         state.active_project_name = result["name"]
 
         LOGGER.info("Set active project_id=%s for chat_id=%s", result["id"], update.effective_chat.id)
-        await reply_text(update, context, f"Active project set to: {result['name']}")
+        await reply_text(update, context, f"Активный проект: {result['name']}")
     except Exception:
         LOGGER.exception("Unhandled project command failure")
-        await reply_text(update, context, "Something went wrong. Please try again.")
+        await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")
+
+
+async def archive_project_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    try:
+        raw_name = get_command_text(update)
+        if not raw_name:
+            await reply_text(update, context, "Использование: /archive_project <название>")
+            return
+
+        async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+            db.row_factory = aiosqlite.Row
+            status, result = await resolve_project_match(db, raw_name)
+
+            if status == "missing":
+                await reply_text(update, context, "Проект не найден")
+                return
+
+            if status == "ambiguous":
+                assert isinstance(result, list)
+                names = ", ".join(project["name"] for project in result)
+                await reply_text(update, context, f"Название проекта неоднозначно. Совпадения: {names}.")
+                return
+
+            assert isinstance(result, dict)
+            if result.get("status") == "archived":
+                await reply_text(update, context, "Проект уже в архиве")
+                return
+
+            await update_project_status(db, result["id"], "archived")
+
+        state = get_state(update.effective_chat.id)
+        if state.active_project_id == result["id"]:
+            state.active_project_id = None
+            state.active_project_name = None
+
+        LOGGER.info("Archived project_id=%s for chat_id=%s", result["id"], update.effective_chat.id)
+        await reply_text(update, context, f"Проект отправлен в архив: «{result['name']}».")
+    except Exception:
+        LOGGER.exception("Unhandled archive_project command failure")
+        await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")

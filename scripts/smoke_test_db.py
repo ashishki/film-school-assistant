@@ -22,15 +22,18 @@ from src.db import (
     get_note,
     get_project_by_slug,
     init_db,
+    list_all_projects,
     list_deadlines,
     list_homework,
     list_notes,
+    list_projects,
     search_ideas,
     search_notes,
     update_deadline_due_date,
     update_deadline_title,
     update_idea_content,
     update_note_content,
+    update_project_status,
 )
 import re
 
@@ -109,6 +112,22 @@ async def run_smoke_test() -> None:
                 duplicate_raised = True
             if not duplicate_raised:
                 raise AssertionError("Duplicate create_project must raise IntegrityError")
+
+            # T-F6: archive project is a soft-delete and active listing hides it
+            archived_project = await create_project(db, "Archive Me", _make_slug("Archive Me"))
+            archived_updated = await update_project_status(db, archived_project["id"], "archived")
+            assert archived_updated, "update_project_status must return True for existing id"
+
+            active_projects = await list_projects(db)
+            active_project_ids = {item["id"] for item in active_projects}
+            assert archived_project["id"] not in active_project_ids, \
+                "list_projects() must exclude archived projects by default"
+
+            all_projects = await list_all_projects(db)
+            archived_rows = [item for item in all_projects if item["id"] == archived_project["id"]]
+            assert len(archived_rows) == 1, "list_all_projects() must include archived projects"
+            assert archived_rows[0]["status"] == "archived", \
+                "archived project status must remain 'archived'"
 
             # T-F2: edit deadline title
             title_updated = await update_deadline_title(db, deadline["id"], "Updated Final Cut")
