@@ -116,6 +116,13 @@ CREATE TABLE IF NOT EXISTS weekly_reports (
     message_text TEXT
 );
 
+CREATE TABLE IF NOT EXISTS llm_call_log (
+    id INTEGER PRIMARY KEY,
+    model TEXT NOT NULL,
+    call_type TEXT NOT NULL,
+    called_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_deadlines_status_due ON deadlines(status, due_date);
 CREATE INDEX IF NOT EXISTS idx_notes_project_created ON notes(project_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_ideas_project_created ON ideas(project_id, created_at);

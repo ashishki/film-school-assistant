@@ -8,7 +8,7 @@ import aiosqlite
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from src.db import create_parsed_event
+from src.db import create_parsed_event, get_llm_calls_today, log_llm_call
 from src.handlers.common import reply_text, resolve_project_match, validate_and_parse_date
 from src.handlers.confirm import _build_pending_preview, _pending_keyboard
 from src.openclaw_client import LLMError, LLMSchemaError, complete_json
@@ -39,6 +39,24 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
         user_text = message.text.strip()
         if not user_text:
+            return
+
+        daily_llm_call_limit = context.bot_data["config"].daily_llm_call_limit
+        try:
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                db.row_factory = aiosqlite.Row
+                today_calls = await get_llm_calls_today(db)
+                if today_calls >= daily_llm_call_limit:
+                    await reply_text(
+                        update,
+                        context,
+                        f"Достигнут дневной лимит LLM запросов ({daily_llm_call_limit}). Попробуй завтра.",
+                    )
+                    return
+                await log_llm_call(db, "intent", "extraction")
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to read/write LLM call log for chat_id=%s", chat.id)
+            await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
             return
 
         try:

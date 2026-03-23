@@ -8,7 +8,7 @@
 
 ## Category 1: Alignment (Docs vs Code Mismatches)
 
-### T-A1: Replace stale Phase-status section in old architecture.md
+### T-A1: Replace stale Phase-status section in old architecture.md ✅ DONE 2026-03-23 (archived to docs/archive/architecture_v1_2026-03-17.md)
 - **Description:** Old docs/architecture.md has a "Phase status" section describing future phases as planned. This is replaced by the new ARCHITECTURE.md from this Playbook run. Old file should be archived or removed.
 - **Priority:** Low
 - **Dependencies:** None
@@ -28,7 +28,7 @@
 - **Priority:** Medium
 - **Dependencies:** None
 
-### T-A5: Document LLM prompt changelog
+### T-A5: Document LLM prompt changelog ✅ DONE 2026-03-23
 - **Description:** REVIEW_SYSTEM_PROMPT and EXTRACTION_SYSTEM_PROMPT are versioned in code but have no changelog. Changes are untraceable.
 - **Priority:** Low
 - **Dependencies:** None
@@ -162,13 +162,13 @@
 - **Priority:** Medium
 - **Dependencies:** None
 
-### T-O3: Add LLM cost guardrail
+### T-O3: Add LLM cost guardrail ✅ DONE 2026-03-23
 - **Description:** No rate limiting on Anthropic API calls. Add a simple per-day call counter to config or DB to prevent runaway costs (especially for `/review` in a potential multi-user future).
 - **Priority:** Low
 - **Dependencies:** None
 - **Tags:** tool:*
 
-### T-O4: Notify user on bot restart if pending entity existed
+### T-O4: Notify user on bot restart if pending entity existed ✅ DONE 2026-03-23 (completed as T-B1/T-O4)
 - **Description:** On startup, query parsed_events WHERE confirmed=0 AND created_at > now()-1h. If found, send Telegram message: "Bot restarted. Your pending [entity_type] was not saved. Please re-send."
 - **Priority:** Medium
 - **Dependencies:** T-B1
