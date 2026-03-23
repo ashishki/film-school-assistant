@@ -90,13 +90,13 @@
 
 ## Category 4: Code Review Fixes (from Cycle 2 Deep Review)
 
-### T-C1: Fix project filter silently ignored for /list deadlines and /list homework
+### T-C1: Fix project filter silently ignored for /list deadlines and /list homework ✅ DONE 2026-03-23
 - **Description:** list_deadlines() and list_homework() accept no project_id parameter. User passes `project:name` filter but it is silently ignored with no error. (CODE-1 P1)
 - **Priority:** High
 - **Dependencies:** None
 - **Files:** src/handlers/list_cmd.py, src/db.py
 
-### T-C2: Fix pagination inconsistency — deadlines/homework client-side slice vs server-side LIMIT
+### T-C2: Fix pagination inconsistency — deadlines/homework client-side slice vs server-side LIMIT ✅ DONE 2026-03-23
 - **Description:** Deadlines and homework paginated by Python slice after full DB fetch. Notes/ideas use SQL LIMIT/OFFSET. Move deadlines/homework pagination to DB layer. (CODE-4 P1)
 - **Priority:** High
 - **Dependencies:** T-C1 (will modify same db.py functions)
@@ -106,7 +106,7 @@
 
 ## Category 5 (original 4): Bugs / Issues
 
-### T-B1: Pending entity silently lost on bot restart
+### T-B1: Pending entity silently lost on bot restart ✅ DONE 2026-03-23
 - **Description:** In-memory state (pending_entity, pending_entity_type) is lost when bot restarts. User receives no notification. Entity in parsed_events remains with confirmed=0 permanently.
 - **Priority:** Medium
 - **Dependencies:** None
@@ -151,7 +151,7 @@
 
 ## Category 6: Ops / Runtime Improvements
 
-### T-O1: Add Telegram backoff on send failures in scripts
+### T-O1: Add Telegram backoff on send failures in scripts ✅ DONE 2026-03-23
 - **Description:** send_reminders.py and send_summary.py use requests.post() with no retry/backoff on Telegram API failures. Add exponential backoff (3 attempts) matching openclaw_client.py pattern.
 - **Priority:** Medium
 - **Dependencies:** None

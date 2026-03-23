@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import sys
+import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from src.db import create_weekly_report, get_weekly_report_by_week, update_weekl
 
 LOGGER = logging.getLogger(__name__)
 TELEGRAM_API_TIMEOUT = 15
+TELEGRAM_MAX_RETRIES = 3
 
 
 def configure_logging(level_name: str) -> None:
@@ -34,15 +36,39 @@ def utcnow_iso() -> str:
 
 
 def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> None:
-    response = requests.post(
-        f"https://api.telegram.org/bot{bot_token}/sendMessage",
-        json={"chat_id": chat_id, "text": message_text},
-        timeout=TELEGRAM_API_TIMEOUT,
-    )
-    response.raise_for_status()
-    payload = response.json()
-    if not payload.get("ok"):
-        raise RuntimeError(f"Telegram API returned ok={payload.get('ok')}")
+    last_error: Exception | None = None
+
+    for attempt in range(1, TELEGRAM_MAX_RETRIES + 1):
+        try:
+            response = requests.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                json={"chat_id": chat_id, "text": message_text},
+                timeout=TELEGRAM_API_TIMEOUT,
+            )
+            if response.status_code >= 500:
+                response.raise_for_status()
+            response.raise_for_status()
+            payload = response.json()
+            if not payload.get("ok"):
+                raise RuntimeError(f"Telegram API returned ok={payload.get('ok')}")
+            return
+        except (requests.ConnectionError, requests.Timeout) as exc:
+            last_error = exc
+        except requests.HTTPError as exc:
+            last_error = exc
+            response = exc.response
+            if response is None or response.status_code < 500:
+                LOGGER.error("Telegram send failed after attempt=%s: %s", attempt, exc)
+                raise
+        if attempt >= TELEGRAM_MAX_RETRIES:
+            break
+        LOGGER.warning("Telegram send attempt=%s failed, retrying: %s", attempt, last_error)
+        time.sleep(0.5 * attempt)
+
+    if last_error is None:
+        last_error = RuntimeError("Telegram send failed without an exception.")
+    LOGGER.error("Telegram send failed after attempt=%s: %s", TELEGRAM_MAX_RETRIES, last_error)
+    raise last_error
 
 
 def _truncate_content(value: object, limit: int = 60) -> str:
