@@ -126,7 +126,7 @@
 
 ## Category 5: Testing / Validation
 
-### T-T1: Expand smoke_test_db.py to cover all CRUD operations
+### T-T1: Expand smoke_test_db.py to cover all CRUD operations ✅ DONE 2026-03-23
 - **Description:** Current smoke test creates entities but does not test updates, deletes, or FK constraints. Add test cases for: deadline status update, reminder_log dedup, parsed_events confirmation.
 - **Priority:** Medium
 - **Dependencies:** None
