@@ -23,18 +23,16 @@ Local Whisper STT. SQLite storage. Deployed on private VPS via systemd.
 
 ## 2. Current Status
 
-**Phase:** Adoption Mode — Phase 1 complete (STRATEGIST artifacts generated)
+**Phase:** Implementation — High-priority features complete
 
-- [x] Codebase analyzed
-- [x] Capability profiles decided
-- [x] ARCHITECTURE.md written
-- [x] spec.md written
-- [x] tasks.md written
-- [x] IMPLEMENTATION_CONTRACT.md written
-- [x] CODEX_PROMPT.md written (this file)
-- [ ] First implementation task not yet started
+- [x] T-F1: /new_project command — DONE (2026-03-23)
+- [x] T-F2: /edit_note, /edit_idea, /edit_deadline commands — DONE (2026-03-23)
+- [ ] T-F3: Status filter for /list — next
+- [ ] T-B1: Pending entity lost on restart
+- [ ] T-O1: Script send backoff
 
-**System state:** Operational. Bot is deployed and running. No known critical bugs.
+**Baseline:** 1 PASS (smoke_test_db.py) — CI green
+**System state:** Operational. Two high-priority features added.
 
 ---
 
@@ -79,9 +77,12 @@ Bot (aiosqlite) and scripts (sqlite3) write concurrently. WAL mode is unverified
 send_summary.py checks sent_at before sending Telegram message but calls Sonnet LLM unconditionally. Double-cost on duplicate timer invocation.
 **Ref:** T-B2 in tasks.md
 
-### FINDING-08 [LOW]: No CI pipeline
-No lint, format check, or automated test run on commits.
-**Ref:** T-T3 in tasks.md
+### FINDING-08 [RESOLVED]: CI pipeline added
+CI workflow added with ruff + smoke test. Pre-existing E402 handled via pyproject.toml.
+
+### FINDING-09 [LOW — pre-existing]: f-string in _insert_and_fetch SQL
+db.py:60 uses f"SELECT * FROM {table_name}" where table_name is internal constant. Not user input, not injectable, but violates strict SEC-1 letter. P3.
+
 
 ---
 
