@@ -41,6 +41,7 @@ from src.handlers.nl_handler import _resolve_project, nl_handler
 from src.handlers.notes import note_command
 from src.handlers.projects import new_project_command, project_command, projects_command
 from src.handlers.review import review_handler
+from src.handlers.search_cmd import search_command
 from src.state import clear_pending, get_state
 
 
@@ -327,6 +328,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("project", project_command))
     application.add_handler(CommandHandler("new_project", new_project_command))
     application.add_handler(CommandHandler("list", list_command))
+    application.add_handler(CommandHandler("search", search_command))
     application.add_handler(CommandHandler("review", review_handler))
     application.add_handler(CommandHandler("confirm", confirm_command))
     application.add_handler(CommandHandler("edit", edit_command))
