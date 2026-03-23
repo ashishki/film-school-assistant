@@ -19,10 +19,15 @@ from src.db import (
     create_project,
     get_deadline,
     get_idea,
+    get_note,
     get_project_by_slug,
     init_db,
     list_homework,
     list_notes,
+    update_deadline_due_date,
+    update_deadline_title,
+    update_idea_content,
+    update_note_content,
 )
 import re
 
@@ -101,6 +106,47 @@ async def run_smoke_test() -> None:
                 duplicate_raised = True
             if not duplicate_raised:
                 raise AssertionError("Duplicate create_project must raise IntegrityError")
+
+            # T-F2: edit deadline title
+            title_updated = await update_deadline_title(db, deadline["id"], "Updated Final Cut")
+            assert title_updated, "update_deadline_title must return True for existing id"
+            fetched_dl_after_title = await get_deadline(db, deadline["id"])
+            assert fetched_dl_after_title["title"] == "Updated Final Cut", "deadline title must be updated"
+
+            # T-F2: edit deadline due_date
+            date_updated = await update_deadline_due_date(db, deadline["id"], "2026-05-01")
+            assert date_updated, "update_deadline_due_date must return True for existing id"
+            fetched_dl_after_date = await get_deadline(db, deadline["id"])
+            assert fetched_dl_after_date["due_date"] == "2026-05-01", "deadline due_date must be updated"
+
+            # T-F2: edit deadline with unknown id returns False
+            missing_dl = await update_deadline_title(db, 99999, "Ghost")
+            assert not missing_dl, "update_deadline_title must return False for unknown id"
+
+            # T-F2: get_note returns correct row
+            fetched_note_by_id = await get_note(db, note["id"])
+            assert fetched_note_by_id is not None, "get_note must return the row"
+            assert fetched_note_by_id["content"] == "Opening frame note", "note content must match"
+
+            # T-F2: edit note content
+            note_updated = await update_note_content(db, note["id"], "Revised opening frame")
+            assert note_updated, "update_note_content must return True for existing id"
+            fetched_note_after = await get_note(db, note["id"])
+            assert fetched_note_after["content"] == "Revised opening frame", "note content must be updated"
+
+            # T-F2: edit note with unknown id returns False
+            missing_note = await update_note_content(db, 99999, "Ghost note")
+            assert not missing_note, "update_note_content must return False for unknown id"
+
+            # T-F2: edit idea content
+            idea_updated = await update_idea_content(db, idea["id"], "Revised silence before image")
+            assert idea_updated, "update_idea_content must return True for existing id"
+            fetched_idea_after = await get_idea(db, idea["id"])
+            assert fetched_idea_after["content"] == "Revised silence before image", "idea content must be updated"
+
+            # T-F2: edit idea with unknown id returns False
+            missing_idea = await update_idea_content(db, 99999, "Ghost idea")
+            assert not missing_idea, "update_idea_content must return False for unknown id"
 
             cursor = await db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
             table_rows = await cursor.fetchall()
