@@ -157,7 +157,7 @@
 - **Dependencies:** None
 - **Tags:** tool:*
 
-### T-O2: Add monitoring / alerting for systemd timer failures
+### T-O2: Add monitoring / alerting for systemd timer failures ✅ DONE 2026-03-23
 - **Description:** If reminder.timer or summary.timer fails silently, user gets no feedback. Options: (a) Telegram message on failure via OnFailure= unit; (b) simple health check script.
 - **Priority:** Medium
 - **Dependencies:** None
