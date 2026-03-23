@@ -34,7 +34,7 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         state = get_state(chat.id)
         if state.pending_entity is not None:
             LOGGER.info("Skipping NL parse because a pending entity exists for chat_id=%s", chat.id)
-            await reply_text(update, context, "You have a pending item. Reply /confirm, /edit, or /discard.")
+            await reply_text(update, context, "Есть незавершённая запись. Сначала /confirm, /edit или /discard.")
             return
 
         user_text = message.text.strip()
@@ -146,7 +146,7 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                 )
         except aiosqlite.Error:
             LOGGER.exception("Failed to persist NL parsed event for chat_id=%s", chat.id)
-            await reply_text(update, context, "Could not save. Please try again. (ERR:DB)")
+            await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
             return
 
         pending_entity["parsed_event_id"] = parsed_event["id"]
@@ -160,7 +160,7 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         LOGGER.info("Prepared pending NL entity type=%s parsed_event_id=%s for chat_id=%s", entity_type, parsed_event["id"], chat.id)
     except Exception:
         LOGGER.exception("Unhandled NL handler failure")
-        await reply_text(update, context, "Something went wrong. Please try again.")
+        await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")
 
 
 def _normalize_entity_type(raw_value: object) -> str | None:

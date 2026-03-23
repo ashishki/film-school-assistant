@@ -16,7 +16,7 @@ async def note_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     try:
         text = get_command_text(update)
         if not text:
-            await reply_text(update, context, "Usage: /note <text>")
+            await reply_text(update, context, "Использование: /note <текст>")
             return
 
         chat_id = update.effective_chat.id
@@ -28,16 +28,16 @@ async def note_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 await create_note(db, content=text, project_id=user_state.active_project_id)
         except aiosqlite.Error:
             LOGGER.exception("Failed to save note for chat_id=%s", chat_id)
-            await reply_text(update, context, "Could not save. Please try again. (ERR:DB)")
+            await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
             return
 
         scope = (
-            f"(Project: {user_state.active_project_name})"
+            f"(Проект: {user_state.active_project_name})"
             if user_state.active_project_name
-            else "(General)"
+            else "(Общее)"
         )
         LOGGER.info("Saved note for chat_id=%s project_id=%s", chat_id, user_state.active_project_id)
-        await reply_text(update, context, f"Note saved. {scope}")
+        await reply_text(update, context, f"Заметка сохранена. {scope}")
     except Exception:
         LOGGER.exception("Unhandled note command failure")
-        await reply_text(update, context, "Something went wrong. Please try again.")
+        await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")

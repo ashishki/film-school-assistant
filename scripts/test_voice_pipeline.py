@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sqlite3
 import sys
 import tempfile
 import logging
@@ -152,6 +153,61 @@ FILE_ID = "test_file_id_abc123"
 TRANSCRIPT = "Записал идею про новый фильм"
 
 
+class _AsyncCursor:
+    def __init__(self, cursor: sqlite3.Cursor):
+        self._cursor = cursor
+
+    @property
+    def lastrowid(self):
+        return self._cursor.lastrowid
+
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+
+    async def fetchone(self):
+        return self._cursor.fetchone()
+
+    async def fetchall(self):
+        return self._cursor.fetchall()
+
+    async def close(self):
+        self._cursor.close()
+
+
+class _AsyncConnection:
+    def __init__(self, path: str | Path):
+        self._conn = sqlite3.connect(str(path))
+
+    @property
+    def row_factory(self):
+        return self._conn.row_factory
+
+    @row_factory.setter
+    def row_factory(self, value):
+        self._conn.row_factory = value
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self._conn.close()
+
+    async def executescript(self, script: str):
+        self._conn.executescript(script)
+
+    async def execute(self, query: str, params=()):
+        return _AsyncCursor(self._conn.execute(query, params))
+
+    async def commit(self):
+        self._conn.commit()
+
+
+def _sqlite_connect(path: str | Path, **kwargs):
+    del kwargs
+    return _AsyncConnection(path)
+
+
 def _make_update():
     """Build a minimal fake Update with a voice message."""
     voice = MagicMock()
@@ -190,56 +246,57 @@ async def run_test() -> None:
         db_path = f.name
 
     try:
-        # Initialize the database schema
-        await db_module.init_db(db_path)
+        with patch("aiosqlite.connect", new=_sqlite_connect):
+            # Initialize the database schema
+            await db_module.init_db(db_path)
 
-        update = _make_update()
-        context = _make_context(db_path)
+            update = _make_update()
+            context = _make_context(db_path)
 
-        # Clear any leftover state
-        clear_pending(CHAT_ID)
+            # Clear any leftover state
+            clear_pending(CHAT_ID)
 
-        # Patch: voice.download_voice → return a fake OGG path (file doesn't need to exist)
-        fake_ogg = str(Path(context.bot_data["config"].audio_path) / f"{FILE_ID}.ogg")
-        # Patch: voice.convert_to_wav → return a fake WAV path
-        fake_wav = fake_ogg.replace(".ogg", ".wav")
+            # Patch: voice.download_voice → return a fake OGG path (file doesn't need to exist)
+            fake_ogg = str(Path(context.bot_data["config"].audio_path) / f"{FILE_ID}.ogg")
+            # Patch: voice.convert_to_wav → return a fake WAV path
+            fake_wav = fake_ogg.replace(".ogg", ".wav")
 
-        with (
-            patch("src.bot.voice.download_voice", new=AsyncMock(return_value=fake_ogg)),
-            patch("src.bot.voice.convert_to_wav", new=AsyncMock(return_value=fake_wav)),
-            patch("src.bot.voice.delete_wav", return_value=None),
-            patch("src.bot.transcriber.transcribe", return_value=TRANSCRIPT),
-        ):
-            await voice_handler(update, context)
+            with (
+                patch("src.bot.voice.download_voice", new=AsyncMock(return_value=fake_ogg)),
+                patch("src.bot.voice.convert_to_wav", new=AsyncMock(return_value=fake_wav)),
+                patch("src.bot.voice.delete_wav", return_value=None),
+                patch("src.bot.transcriber.transcribe", return_value=TRANSCRIPT),
+            ):
+                await voice_handler(update, context)
 
-        # Assertions:
-        # 1. State has pending_entity set
-        state = get_state(CHAT_ID)
-        assert state.pending_entity is not None, "pending_entity must be set after voice_handler"
-        assert state.pending_entity_type is not None, "pending_entity_type must be set after voice_handler"
+            # Assertions:
+            # 1. State has pending_entity set
+            state = get_state(CHAT_ID)
+            assert state.pending_entity is not None, "pending_entity must be set after voice_handler"
+            assert state.pending_entity_type is not None, "pending_entity_type must be set after voice_handler"
 
-        # 2. voice_inputs row created
-        async with aiosqlite.connect(db_path) as db:
-            db.row_factory = aiosqlite.Row
-            cursor = await db.execute("SELECT * FROM voice_inputs WHERE telegram_file_id=?", (FILE_ID,))
-            voice_row = await cursor.fetchone()
-            await cursor.close()
-            assert voice_row is not None, "voice_inputs row must be created"
-            assert voice_row["processed_at"] is not None, "voice_inputs.processed_at must be set"
+            # 2. voice_inputs row created
+            async with aiosqlite.connect(db_path) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("SELECT * FROM voice_inputs WHERE telegram_file_id=?", (FILE_ID,))
+                voice_row = await cursor.fetchone()
+                await cursor.close()
+                assert voice_row is not None, "voice_inputs row must be created"
+                assert voice_row["processed_at"] is not None, "voice_inputs.processed_at must be set"
 
-            # 3. transcript row created
-            cursor = await db.execute("SELECT * FROM transcripts WHERE voice_input_id=?", (voice_row["id"],))
-            transcript_row = await cursor.fetchone()
-            await cursor.close()
-            assert transcript_row is not None, "transcripts row must be created"
-            assert transcript_row["raw_text"] == TRANSCRIPT, "transcript raw_text must match"
+                # 3. transcript row created
+                cursor = await db.execute("SELECT * FROM transcripts WHERE voice_input_id=?", (voice_row["id"],))
+                transcript_row = await cursor.fetchone()
+                await cursor.close()
+                assert transcript_row is not None, "transcripts row must be created"
+                assert transcript_row["raw_text"] == TRANSCRIPT, "transcript raw_text must match"
 
-            # 4. parsed_event row created
-            cursor = await db.execute("SELECT * FROM parsed_events WHERE transcript_id=?", (transcript_row["id"],))
-            event_row = await cursor.fetchone()
-            await cursor.close()
-            assert event_row is not None, "parsed_events row must be created"
-            assert event_row["confirmed"] == 0, "parsed_event must start unconfirmed"
+                # 4. parsed_event row created
+                cursor = await db.execute("SELECT * FROM parsed_events WHERE transcript_id=?", (transcript_row["id"],))
+                event_row = await cursor.fetchone()
+                await cursor.close()
+                assert event_row is not None, "parsed_events row must be created"
+                assert event_row["confirmed"] == 0, "parsed_event must start unconfirmed"
 
         print("PASS")
         sys.exit(0)

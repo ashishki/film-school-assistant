@@ -36,7 +36,7 @@ async def projects_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await reply_text(update, context, "\n".join(lines))
     except Exception:
         LOGGER.exception("Unhandled projects command failure")
-        await reply_text(update, context, "Something went wrong. Please try again.")
+        await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")
 
 
 def _make_slug(name: str) -> str:
