@@ -56,12 +56,12 @@
 
 ## Category 3: Missing Features
 
-### T-F1: Add `/new_project <name>` command  [tool:*]
+### T-F1: Add `/new_project <name>` command  [tool:*] ✅ DONE 2026-03-23
 - **Description:** Projects cannot be created via the bot. User must use SQL directly. This blocks normal onboarding. Implement handler that calls db.create_project() and confirms to user.
 - **Priority:** High
 - **Dependencies:** None
 
-### T-F2: Add entity editing after save
+### T-F2: Add entity editing after save ✅ DONE 2026-03-23
 - **Description:** Saved entities (notes, ideas, homework, deadlines) cannot be modified via the bot. Implement `/edit_note <id> <new_content>` or a generic edit flow. Minimum viable: edit deadline due_date and title.
 - **Priority:** High
 - **Dependencies:** None
