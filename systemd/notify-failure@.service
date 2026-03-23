@@ -1,18 +1,14 @@
 [Unit]
-Description=Film School Assistant - Database Backup
+Description=Notify Telegram on failure of %i
 After=network.target
-OnFailure=notify-failure@%n.service
 
 [Service]
 Type=oneshot
 User=oc_her
 WorkingDirectory=/srv/openclaw-her/workspace/film-school-assistant
-# ExecStart: update to your venv path, e.g. ExecStart=/path/to/.venv/bin/python3 ...
-ExecStart=/bin/bash scripts/backup_db.sh
+ExecStart=/usr/bin/python3 scripts/notify_failure.py
 EnvironmentFile=/srv/openclaw-her/workspace/film-school-assistant/.env
+Environment=FAILED_UNIT=%i
 NoNewPrivileges=true
 StandardOutput=journal
 StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
