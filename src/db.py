@@ -1,6 +1,7 @@
 import logging
 import os
-from datetime import datetime, timezone
+import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,28 @@ def get_db_path(config: Config | None = None) -> str:
 
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _utcnow_minus_hours_iso(hours: int) -> str:
+    return (datetime.now(timezone.utc) - timedelta(hours=hours)).replace(microsecond=0).isoformat()
+
+
+def get_recent_unconfirmed_events(db_path: str, hours: int = 2) -> list[dict[str, Any]]:
+    cutoff = _utcnow_minus_hours_iso(hours)
+    with sqlite3.connect(db_path) as db:
+        db.row_factory = sqlite3.Row
+        cursor = db.execute(
+            """
+            SELECT *
+            FROM parsed_events
+            WHERE confirmed = ? AND created_at > ?
+            ORDER BY created_at DESC
+            """,
+            (0, cutoff),
+        )
+        rows = cursor.fetchall()
+        cursor.close()
+    return [dict(row) for row in rows]
 
 
 def _row_to_dict(row: aiosqlite.Row | None) -> dict[str, Any] | None:

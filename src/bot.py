@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import sys
+from collections import Counter
 from pathlib import Path
 
 import aiosqlite
@@ -27,7 +28,14 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src import transcriber, voice
 from src.config import load_config
-from src.db import create_parsed_event, create_transcript, create_voice_input, init_db, update_voice_input_processed
+from src.db import (
+    create_parsed_event,
+    create_transcript,
+    create_voice_input,
+    get_recent_unconfirmed_events,
+    init_db,
+    update_voice_input_processed,
+)
 from src.handlers.confirm import _build_pending_preview, _do_confirm, _pending_keyboard, confirm_command, discard_command, edit_command
 from src.handlers.edit_cmd import edit_deadline_command, edit_idea_command, edit_note_command
 from src.handlers.deadlines import deadline_command, dismiss_deadline_command, done_deadline_command
@@ -306,12 +314,42 @@ def configure_logging(level_name: str) -> None:
     )
 
 
+async def notify_restart_if_pending(application: Application) -> None:
+    db_path = application.bot_data["db_path"]
+    allowed_chat_id = application.bot_data["allowed_chat_id"]
+
+    try:
+        recent_events = await asyncio.to_thread(get_recent_unconfirmed_events, db_path, 2)
+    except Exception:
+        LOGGER.exception("Failed to query recent unconfirmed parsed events during startup")
+        return
+
+    if not recent_events:
+        return
+
+    counts = Counter(str(event.get("entity_type") or "unknown") for event in recent_events)
+    summary = ", ".join(f"[{entity_type}, {count}]" for entity_type, count in sorted(counts.items()))
+    text = f"Бот перезапустился. Незавершённые записи потеряны: {summary}. Повторите ввод."
+
+    try:
+        await application.bot.send_message(chat_id=allowed_chat_id, text=text)
+    except TelegramError:
+        LOGGER.warning("Failed to send restart pending-entity notification", exc_info=True)
+        return
+
+    LOGGER.info(
+        "Sent restart pending-entity notification to chat_id=%s for %s unconfirmed events",
+        allowed_chat_id,
+        len(recent_events),
+    )
+
+
 def build_application() -> Application:
     config = load_config()
     configure_logging(config.log_level)
     asyncio.run(init_db(config.db_path))
 
-    application = ApplicationBuilder().token(config.telegram_bot_token).build()
+    application = ApplicationBuilder().token(config.telegram_bot_token).post_init(notify_restart_if_pending).build()
     application.bot_data["config"] = config
     application.bot_data["db_path"] = config.db_path
     application.bot_data["allowed_chat_id"] = config.telegram_allowed_chat_id
