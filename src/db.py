@@ -121,17 +121,31 @@ async def create_note(
     )
 
 
-async def list_notes(db: aiosqlite.Connection, project_id: int | None = None, limit: int = 20) -> list[dict[str, Any]]:
+async def list_notes(db: aiosqlite.Connection, project_id: int | None = None, limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
     if project_id is None:
         return await _fetch_all_dicts(
             db,
-            "SELECT * FROM notes ORDER BY created_at DESC LIMIT ?",
-            (limit,),
+            "SELECT * FROM notes ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
         )
     return await _fetch_all_dicts(
         db,
-        "SELECT * FROM notes WHERE project_id = ? ORDER BY created_at DESC LIMIT ?",
-        (project_id, limit),
+        "SELECT * FROM notes WHERE project_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        (project_id, limit, offset),
+    )
+
+
+async def search_notes(db: aiosqlite.Connection, keyword: str) -> list[dict[str, Any]]:
+    return await _fetch_all_dicts(
+        db,
+        """
+        SELECT *
+        FROM notes
+        WHERE content LIKE ?
+        ORDER BY created_at DESC
+        LIMIT 20
+        """,
+        (f"%{keyword}%",),
     )
 
 
@@ -157,13 +171,27 @@ async def get_idea(db: aiosqlite.Connection, idea_id: int) -> dict[str, Any] | N
     return await _fetch_one_dict(db, "SELECT * FROM ideas WHERE id = ?", (idea_id,))
 
 
-async def list_ideas(db: aiosqlite.Connection, project_id: int | None = None) -> list[dict[str, Any]]:
+async def list_ideas(db: aiosqlite.Connection, project_id: int | None = None, limit: int = 20, offset: int = 0) -> list[dict[str, Any]]:
     if project_id is None:
-        return await _fetch_all_dicts(db, "SELECT * FROM ideas ORDER BY created_at DESC")
+        return await _fetch_all_dicts(db, "SELECT * FROM ideas ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset))
     return await _fetch_all_dicts(
         db,
-        "SELECT * FROM ideas WHERE project_id = ? ORDER BY created_at DESC",
-        (project_id,),
+        "SELECT * FROM ideas WHERE project_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        (project_id, limit, offset),
+    )
+
+
+async def search_ideas(db: aiosqlite.Connection, keyword: str) -> list[dict[str, Any]]:
+    return await _fetch_all_dicts(
+        db,
+        """
+        SELECT *
+        FROM ideas
+        WHERE content LIKE ?
+        ORDER BY created_at DESC
+        LIMIT 20
+        """,
+        (f"%{keyword}%",),
     )
 
 

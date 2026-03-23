@@ -25,6 +25,8 @@ from src.db import (
     list_deadlines,
     list_homework,
     list_notes,
+    search_ideas,
+    search_notes,
     update_deadline_due_date,
     update_deadline_title,
     update_idea_content,
@@ -168,6 +170,20 @@ async def run_smoke_test() -> None:
             # T-F2: edit idea with unknown id returns False
             missing_idea = await update_idea_content(db, 99999, "Ghost idea")
             assert not missing_idea, "update_idea_content must return False for unknown id"
+
+            # T-F5: search_notes/search_ideas search content across all projects
+            search_note = await create_note(db, "черновик сцены в метро")
+            search_idea = await create_idea(db, "черновик финального образа")
+            note_matches = await search_notes(db, "черн")
+            idea_matches = await search_ideas(db, "черн")
+            assert search_note["id"] in {item["id"] for item in note_matches}, \
+                "search_notes('черн') must return the created note"
+            assert search_idea["id"] in {item["id"] for item in idea_matches}, \
+                "search_ideas('черн') must return the created idea"
+            assert await search_notes(db, "xyz_no_match") == [], \
+                "search_notes('xyz_no_match') must return empty list"
+            assert await search_ideas(db, "xyz_no_match") == [], \
+                "search_ideas('xyz_no_match') must return empty list"
 
             # T-F3: list_homework(status='pending') returns only pending items
             hw_done = await create_homework(db, "Done assignment", "2026-03-20", course="History")
