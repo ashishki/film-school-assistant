@@ -125,3 +125,52 @@ If audio directory fills disk:
 1. Check AUDIO_RETENTION_DAYS setting
 2. Manually run cleanup_audio.py
 3. Review audio volume — consider lowering retention window
+
+---
+
+## Monitoring
+
+**Systemd timer health:**
+- Check all timers: `systemctl list-timers --no-pager`
+- Check specific timer: `systemctl status reminder.timer`
+- Last run result: `systemctl status reminder.service`
+- Live logs: `journalctl -u reminder.service -f`
+- Last 50 log lines: `journalctl -u reminder.service -n 50`
+- All bot logs today: `journalctl -u film-school-bot.service --since today`
+
+**Failure alerts:**
+All oneshot services (reminder, summary, backup-db, cleanup-audio) have `OnFailure=notify-failure@%n.service`.
+If a timer fails, scripts/notify_failure.py sends a Telegram message:
+  "⚠️ Systemd unit failed: <unit>\nCheck: journalctl -u <unit> -n 50"
+
+**SLA:**
+- Reminders: delivered within 1 hour of midnight local time (timer fires at 08:00)
+- Weekly summary: delivered by 09:00 Monday
+- No uptime guarantee — single VPS, no HA
+
+---
+
+## Log Retention
+
+Logs are stored in journald. Default retention applies (systemd journal size limits).
+To check current journal size: `journalctl --disk-usage`
+To vacuum old logs: `journalctl --vacuum-time=30d`
+No application-level log files are written. All logs go to stdout/stderr captured by systemd.
+
+---
+
+## Secret Rotation
+
+**Rotate Telegram bot token:**
+1. Generate new token via BotFather (/revoke, then /token)
+2. Update token in .env or secrets file
+3. Restart bot: `systemctl restart film-school-bot.service`
+4. Verify: send /start in Telegram chat
+
+**Rotate Anthropic API key:**
+1. Generate new key in Anthropic console
+2. Update LLM_API_KEY in .env
+3. Restart bot: `systemctl restart film-school-bot.service`
+4. Verify: send a voice message to trigger LLM intent detection
+
+**Rotation frequency:** Rotate any key immediately if exposed. Otherwise no mandatory rotation schedule.
