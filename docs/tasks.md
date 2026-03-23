@@ -42,7 +42,7 @@
 - **Priority:** Low
 - **Dependencies:** None
 
-### T-R2: Move hardcoded REMINDER_BUCKETS to config/env
+### T-R2: Move hardcoded REMINDER_BUCKETS to config/env ✅ DONE 2026-03-23
 - **Description:** `REMINDER_BUCKETS = (7, 3, 1, 0)` is hardcoded in scripts/send_reminders.py. Should be configurable via env var or config.py.
 - **Priority:** Low
 - **Dependencies:** None
@@ -112,7 +112,7 @@
 - **Dependencies:** None
 - **Options:** (a) On startup, query unconfirmed parsed_events and notify user; (b) Persist pending state to DB.
 
-### T-B2: Summary LLM call not skipped if report already exists
+### T-B2: Summary LLM call not skipped if report already exists ✅ DONE 2026-03-23 (N/A — build_summary_text is pure Python, no LLM call)
 - **Description:** send_summary.py checks `sent_at` before sending the Telegram message, but calls the Sonnet LLM unconditionally. If the timer fires twice in one day, LLM cost is incurred twice.
 - **Priority:** Low
 - **Dependencies:** None

@@ -324,6 +324,7 @@ async def generate_and_send_summary() -> int:
 
         snapshot = await fetch_snapshot(db, week_start, week_end)
         project_activity = compute_project_activity(snapshot)
+        # Note: build_summary_text is pure Python - no LLM call. T-B2 N/A.
         message_text = build_summary_text(
             week_start=week_start,
             week_end=week_end,
