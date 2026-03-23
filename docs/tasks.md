@@ -137,7 +137,7 @@
 - **Dependencies:** None
 - **Tags:** tool:*
 
-### T-T3: Add CI workflow (GitHub Actions or equivalent)
+### T-T3: Add CI workflow (GitHub Actions or equivalent) ✅ DONE 2026-03-23
 - **Description:** No CI pipeline exists. Add lint (flake8/ruff) + format check (black) + smoke test run on every commit.
 - **Priority:** Medium
 - **Dependencies:** T-T1

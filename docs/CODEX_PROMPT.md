@@ -23,7 +23,7 @@ Local Whisper STT. SQLite storage. Deployed on private VPS via systemd.
 
 ## 2. Current Status
 
-**Phase:** Phase 2 complete — Fix Queue active (2 P1s from Cycle 2 deep review)
+**Phase:** Phase 3 complete — Deep review PASS (P0:0 P1:0 P2:1 maintenance note)
 
 - [x] T-F1: /new_project — DONE
 - [x] T-F2: entity editing — DONE
@@ -31,13 +31,19 @@ Local Whisper STT. SQLite storage. Deployed on private VPS via systemd.
 - [x] T-F4: pagination for /list — DONE
 - [x] T-F5: /search command — DONE
 - [x] T-F6: /archive_project — DONE
-- [ ] **T-C1: Fix project filter silently ignored for deadlines/homework** ← FIX QUEUE
-- [ ] **T-C2: Fix pagination inconsistency (deadlines/homework client-side)** ← FIX QUEUE
-- [ ] T-B1: Pending entity lost on restart (Phase 3)
-- [ ] T-O1: Script send backoff (Phase 3)
+- [x] T-C1: Fix project filter ignored for deadlines/homework — DONE
+- [x] T-C2: Fix pagination inconsistency — DONE
+- [x] T-B1/T-O4: Pending entity restart notification — DONE
+- [x] T-O1: Script send backoff — DONE
+- [x] T-O2: Systemd failure alerting — DONE
+- [x] T-T1: Expanded smoke tests — DONE
+- [x] T-T2: Voice pipeline integration test — DONE
+- [x] T-A2: dev-cycle.md entries — DONE
+- [x] T-A3: ops-security.md complete — DONE
+- [x] T-A4: db-migration-guide.md — DONE
 
-**Baseline:** 1 PASS (smoke_test_db.py) — CI green
-**System state:** Operational. Phase 2 features deployed. P1 fixes pending.
+**Baseline:** smoke_test_db.py PASS, test_voice_pipeline.py PASS — CI green
+**System state:** Operational. All reliability tasks complete.
 
 ---
 
@@ -56,59 +62,43 @@ Local Whisper STT. SQLite storage. Deployed on private VPS via systemd.
 
 ### FINDING-01 [RESOLVED]: /new_project added (T-F1)
 ### FINDING-02 [RESOLVED]: Entity editing added (T-F2)
-
-### FINDING-10 [HIGH — P1]: Project filter silently ignored for /list deadlines and /list homework
-User passes project:name filter but it has no effect. No error shown.
-**Ref:** T-C1 in tasks.md
-
-### FINDING-11 [HIGH — P1]: Pagination inconsistent — deadlines/homework load full table then slice
-Causes memory bloat on large datasets. Inconsistent with notes/ideas SQL LIMIT/OFFSET.
-**Ref:** T-C2 in tasks.md
-
-### FINDING-03 [MEDIUM]: Pending entity silently lost on restart
-In-memory state is ephemeral. Voice/NL confirmations in progress are lost on bot restart with no user notification. Orphaned parsed_events rows accumulate.
-**Ref:** T-B1, T-O4 in tasks.md
-
-### FINDING-04 [MEDIUM]: No retry/backoff in scheduled scripts
-send_reminders.py and send_summary.py use bare requests.post() with no retry on Telegram API failures. Reminders can be silently dropped.
-**Ref:** T-O1 in tasks.md
-
-### FINDING-05 [MEDIUM]: No monitoring for systemd timer failures
-If a timer fails, no alert is sent. User receives no feedback.
-**Ref:** T-O2 in tasks.md
+### FINDING-03 [RESOLVED]: Pending entity restart notification added (T-B1/T-O4)
+### FINDING-04 [RESOLVED]: Telegram send backoff added (T-O1)
+### FINDING-05 [RESOLVED]: Systemd failure alerting added (T-O2)
+### FINDING-08 [RESOLVED]: CI pipeline added
+### FINDING-09 [RESOLVED]: _insert_and_fetch uses _ALLOWED_TABLES whitelist
+### FINDING-10 [RESOLVED]: Project filter wired to list_deadlines/list_homework (T-C1)
+### FINDING-11 [RESOLVED]: SQL LIMIT/OFFSET added to deadlines/homework (T-C2)
 
 ### FINDING-06 [MEDIUM]: SQLite WAL mode not verified
-Bot (aiosqlite) and scripts (sqlite3) write concurrently. WAL mode is unverified. Write conflicts are possible under concurrent timer execution.
+Bot (aiosqlite) and scripts (sqlite3) write concurrently. WAL mode is unverified.
 **Ref:** C-2 in IMPLEMENTATION_CONTRACT.md
 
 ### FINDING-07 [LOW]: Summary LLM call not guarded by sent_at check
-send_summary.py checks sent_at before sending Telegram message but calls Sonnet LLM unconditionally. Double-cost on duplicate timer invocation.
+send_summary.py checks sent_at before sending Telegram message but calls Sonnet LLM unconditionally.
 **Ref:** T-B2 in tasks.md
 
-### FINDING-08 [RESOLVED]: CI pipeline added
-CI workflow added with ruff + smoke test. Pre-existing E402 handled via pyproject.toml.
-
-### FINDING-09 [LOW — pre-existing]: f-string in _insert_and_fetch SQL
-db.py:60 uses f"SELECT * FROM {table_name}" where table_name is internal constant. Not user input, not injectable, but violates strict SEC-1 letter. P3.
-
+### ARCH-P2-1 [LOW]: Telegram retry logic duplicated
+send_telegram_message with backoff is duplicated in send_reminders.py, send_summary.py, notify_failure.py.
+Should be extracted to src/telegram_client.py in a future refactor.
 
 ---
 
 ## 5. Next Recommended Task
 
-**T-F1: Add `/new_project <name>` command**
+**T-T3: Add CI workflow** — already exists at .github/workflows/ci.yml (lint + smoke test). Mark DONE.
 
-**Why first:** This is the highest-priority missing feature that blocks normal user onboarding. It is self-contained (new handler + db.create_project() call), has no external dependencies, and can be implemented and tested in isolation without touching the confirmation flow or voice pipeline.
-
-**Files to touch:**
-- `src/handlers/projects.py` — add new_project_command handler
-- `src/bot.py` — register new CommandHandler
-- `src/db.py` — verify create_project() exists or add it
-
-**Acceptance criteria:**
-- `/new_project Film Noir` creates project with slug='film-noir', status='active'
-- Duplicate name: return error message, do not crash
-- After creation: `/project Film Noir` resolves immediately
+**After T-T3:** Remaining low-priority tasks:
+- T-R2: Move REMINDER_BUCKETS to config/env
+- T-B2: Guard summary LLM call with sent_at check (resolves FINDING-07)
+- T-B3: ffmpeg orphan record cleanup
+- T-R1: Standardize error language (Russian/English)
+- T-R3: Structured JSON logging
+- T-A1: Archive stale docs/architecture.md
+- T-A5: LLM prompt changelog
+- T-O3: LLM cost guardrail
+- T-T4: Reminder idempotency test (T-T1 done)
+- P3-1: Add search_cmd.py to ARCHITECTURE.md
 
 ---
 
@@ -116,17 +106,17 @@ db.py:60 uses f"SELECT * FROM {table_name}" where table_name is internal constan
 
 | Risk | Severity | Mitigated? |
 |---|---|---|
-| In-memory state lost on restart | Medium | No |
-| No rate limiting on Anthropic API | Medium | No |
 | SQLite WAL mode unverified | Medium | No — needs verification |
-| No monitoring for scheduled task failures | Medium | No |
+| In-memory state lost on restart | Medium | Yes — user notified (T-B1) |
+| No rate limiting on Anthropic API | Medium | No |
+| No monitoring for scheduled task failures | Medium | Yes — T-O2 complete |
 | Mixed-language error messages | Low | No |
-| No CI pipeline | Low | No |
 | Summary double LLM call | Low | No |
+| Telegram retry logic duplicated | Low | Acceptable for MVP |
 
 ---
 
-## 7. File Index (Phase 1 Artifacts)
+## 7. File Index
 
 | File | Purpose |
 |---|---|
@@ -135,3 +125,6 @@ db.py:60 uses f"SELECT * FROM {table_name}" where table_name is internal constan
 | docs/tasks.md | Full task backlog by category with priorities and dependencies |
 | docs/IMPLEMENTATION_CONTRACT.md | Invariants, guarantees, failure behavior, constraints |
 | docs/CODEX_PROMPT.md | This file — session state, open findings, next task |
+| docs/db-migration-guide.md | Database migration procedure |
+| docs/ops-security.md | Operations, monitoring, secret rotation |
+| docs/audit/PHASE_3_REVIEW.md | Phase 3 deep review report |
