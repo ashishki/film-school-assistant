@@ -12,11 +12,14 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.db import (
+    confirm_parsed_event,
     create_deadline,
     create_homework,
     create_idea,
     create_note,
+    create_parsed_event,
     create_project,
+    get_recent_unconfirmed_events,
     get_deadline,
     get_idea,
     get_note,
@@ -69,6 +72,8 @@ async def run_smoke_test() -> None:
         os.remove(DB_PATH)
 
     try:
+        recent_unconfirmed_id: int | None = None
+        confirmed_event_id: int | None = None
         await init_db(DB_PATH)
         async with aiosqlite.connect(DB_PATH) as db:
             db.row_factory = aiosqlite.Row
@@ -253,6 +258,22 @@ async def run_smoke_test() -> None:
             assert dl_done["id"] in all_dl_ids, \
                 "done deadline must appear in unfiltered list"
 
+            # T-B1/T-O4: restart notification source query returns only recent unconfirmed parsed_events
+            recent_unconfirmed = await create_parsed_event(
+                db,
+                entity_type="idea",
+                extracted_json='{"content":"recent pending idea"}',
+            )
+            confirmed_event = await create_parsed_event(
+                db,
+                entity_type="note",
+                extracted_json='{"content":"confirmed note"}',
+            )
+            await confirm_parsed_event(db, confirmed_event["id"], entity_id=note["id"], entity_table="notes")
+
+            recent_unconfirmed_id = recent_unconfirmed["id"]
+            confirmed_event_id = confirmed_event["id"]
+
             cursor = await db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
             table_rows = await cursor.fetchall()
             await cursor.close()
@@ -261,6 +282,13 @@ async def run_smoke_test() -> None:
             missing_tables = EXPECTED_TABLES - actual_tables
             if missing_tables:
                 raise AssertionError(f"Missing tables: {sorted(missing_tables)}")
+
+        recent_events = get_recent_unconfirmed_events(DB_PATH, hours=2)
+        recent_event_ids = {item["id"] for item in recent_events}
+        assert recent_unconfirmed_id is not None and recent_unconfirmed_id in recent_event_ids, \
+            "get_recent_unconfirmed_events() must include recent confirmed=0 rows"
+        assert confirmed_event_id is not None and confirmed_event_id not in recent_event_ids, \
+            "get_recent_unconfirmed_events() must exclude confirmed=1 rows"
 
         print("PASS")
         sys.exit(0)
