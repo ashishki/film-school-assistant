@@ -16,7 +16,7 @@ async def idea_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     try:
         text = get_command_text(update)
         if not text:
-            await reply_text(update, context, "Usage: /idea <text>")
+            await reply_text(update, context, "Использование: /idea <текст>")
             return
 
         chat_id = update.effective_chat.id
@@ -28,20 +28,20 @@ async def idea_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 idea = await create_idea(db, content=text, project_id=user_state.active_project_id)
         except aiosqlite.Error:
             LOGGER.exception("Failed to save idea for chat_id=%s", chat_id)
-            await reply_text(update, context, "Could not save. Please try again. (ERR:DB)")
+            await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
             return
 
         LOGGER.info("Saved idea_id=%s for chat_id=%s", idea["id"], chat_id)
         scope = (
-            f"(Project: {user_state.active_project_name})"
+            f"(Проект: {user_state.active_project_name})"
             if user_state.active_project_name
-            else "(General)"
+            else "(Общее)"
         )
         await reply_text(
             update,
             context,
-            f'Idea saved as Idea #{idea["id"]}. {scope} Use /review {idea["id"]} for structured feedback.',
+            f'Идея сохранена как идея #{idea["id"]}. {scope} Используй /review {idea["id"]} для структурного разбора.',
         )
     except Exception:
         LOGGER.exception("Unhandled idea command failure")
-        await reply_text(update, context, "Something went wrong. Please try again.")
+        await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")

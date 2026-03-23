@@ -79,7 +79,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     try:
-        await message.reply_text("Something went wrong. Please try again.")
+        await message.reply_text("Что-то пошло не так. Попробуй ещё раз.")
     except TelegramError:
         LOGGER.warning("Failed to send generic error reply", exc_info=True)
 
@@ -94,10 +94,10 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     state = get_state(chat.id)
     if state.pending_entity is not None:
-        await message.reply_text("You have a pending item. /confirm, /edit, or /discard first.")
+        await message.reply_text("Есть незавершённая запись. Сначала /confirm, /edit или /discard.")
         return
 
-    await message.reply_text("Transcribing...")
+    await message.reply_text("Расшифровываю...")
 
     voice_info = message.voice
     ogg_path = str(Path(config.audio_path) / f"{voice_info.file_id}.ogg")
@@ -114,28 +114,29 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             )
     except aiosqlite.Error:
         LOGGER.exception("Failed to create voice_inputs row for message_id=%s", message.message_id)
-        await message.reply_text("Could not save. Please try again. (ERR:DB)")
+        await message.reply_text("Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
         return
 
     try:
         downloaded_ogg_path = await voice.download_voice(update, context, config)
     except Exception:
         LOGGER.exception("Voice download failed for voice_input_id=%s", voice_input["id"])
-        await message.reply_text("Could not download audio. Please try again.")
+        await message.reply_text("Не удалось скачать аудио. Попробуй ещё раз.")
         return
 
     try:
         wav_path = await voice.convert_to_wav(downloaded_ogg_path)
     except Exception:
         LOGGER.exception("Voice conversion failed for voice_input_id=%s", voice_input["id"])
-        await message.reply_text("Audio conversion failed. Send as text if urgent.")
+        voice.delete_wav(downloaded_ogg_path)
+        await message.reply_text("Ошибка конвертации аудио. Отправь текстом если срочно.")
         return
 
     try:
         transcript_text = await asyncio.to_thread(transcriber.transcribe, wav_path)
     except Exception:
         LOGGER.exception("Voice transcription failed for voice_input_id=%s", voice_input["id"])
-        await message.reply_text("Transcription failed. Your audio has been saved for retry.")
+        await message.reply_text("Ошибка расшифровки. Аудио сохранено для повтора.")
         return
 
     voice.delete_wav(wav_path)
@@ -172,14 +173,14 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             await update_voice_input_processed(db, voice_input["id"])
     except aiosqlite.Error:
         LOGGER.exception("Failed to persist transcript flow for voice_input_id=%s", voice_input["id"])
-        await message.reply_text("Could not save. Please try again. (ERR:DB)")
+        await message.reply_text("Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
         return
 
     pending_entity["parsed_event_id"] = parsed_event["id"]
     state.pending_entity = pending_entity
     state.pending_entity_type = detected_type
 
-    await message.reply_text(f"Transcript: {transcript_text}")
+    await message.reply_text(f"Расшифровка: {transcript_text}")
     await message.reply_text(_build_pending_preview(state), reply_markup=_pending_keyboard())
     LOGGER.info(
         "Prepared pending voice entity type=%s parsed_event_id=%s for chat_id=%s",

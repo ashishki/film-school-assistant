@@ -37,7 +37,7 @@
 
 ## Category 2: Refactoring
 
-### T-R1: Standardize user-facing error message language
+### T-R1: Standardize user-facing error message language ✅ DONE 2026-03-23
 - **Description:** Bot replies mix Russian and English (e.g., "Нет записи для сохранения" alongside "Could not save. Please try again."). Choose one language and apply consistently across all handlers.
 - **Priority:** Low
 - **Dependencies:** None
@@ -117,7 +117,7 @@
 - **Priority:** Low
 - **Dependencies:** None
 
-### T-B3: No error recovery if ffmpeg fails mid-voice flow
+### T-B3: No error recovery if ffmpeg fails mid-voice flow ✅ DONE 2026-03-23
 - **Description:** If ffmpeg conversion fails, voice.py raises an exception. The voice_inputs row is already inserted but will never have processed_at set. Orphaned records accumulate.
 - **Priority:** Low
 - **Dependencies:** None

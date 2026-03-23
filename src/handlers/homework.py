@@ -22,14 +22,14 @@ async def homework_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         command_text = get_command_text(update)
         match = HOMEWORK_RE.match(command_text)
         if match is None:
-            await reply_text(update, context, "Usage: /homework <title> due <date> [course:<name>]")
+            await reply_text(update, context, "Использование: /homework <название> due <дата> [course:<курс>]")
             return
 
         title = match.group("title").strip().strip('"')
         due_date = parse_date_text(match.group("due_date"))
         course = match.group("course").strip() if match.group("course") else None
         if not title or due_date is None:
-            await reply_text(update, context, "Could not parse that date. Usage: /homework <title> due <date> [course:<name>]")
+            await reply_text(update, context, "Не удалось разобрать дату.")
             return
 
         chat_id = update.effective_chat.id
@@ -47,11 +47,11 @@ async def homework_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 )
         except aiosqlite.Error:
             LOGGER.exception("Failed to save homework for chat_id=%s", chat_id)
-            await reply_text(update, context, "Could not save. Please try again. (ERR:DB)")
+            await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
             return
 
         LOGGER.info("Saved homework for chat_id=%s project_id=%s", chat_id, user_state.active_project_id)
-        await reply_text(update, context, f'Homework saved: "{title}" due {due_date}.')
+        await reply_text(update, context, f'Домашнее задание сохранено: "{title}" до {due_date}.')
     except Exception:
         LOGGER.exception("Unhandled homework command failure")
-        await reply_text(update, context, "Something went wrong. Please try again.")
+        await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")

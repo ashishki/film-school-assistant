@@ -25,7 +25,7 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await reply_text(update, context, result_text)
     except Exception:
         LOGGER.exception("Unhandled confirm command failure")
-        await reply_text(update, context, "Something went wrong. Please try again.")
+        await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")
 
 
 async def edit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -82,7 +82,7 @@ async def edit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await reply_text(update, context, _build_pending_preview(state), reply_markup=_pending_keyboard())
     except Exception:
         LOGGER.exception("Unhandled edit command failure")
-        await reply_text(update, context, "Something went wrong. Please try again.")
+        await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")
 
 
 async def discard_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -98,7 +98,7 @@ async def discard_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await reply_text(update, context, "Запись удалена.")
     except Exception:
         LOGGER.exception("Unhandled discard command failure")
-        await reply_text(update, context, "Something went wrong. Please try again.")
+        await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")
 
 
 async def _do_confirm(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> str:
@@ -126,7 +126,7 @@ async def _do_confirm(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> str:
                 await confirm_parsed_event(db, parsed_event_id, saved_row["id"], _entity_table_name(saved_type))
     except aiosqlite.Error:
         LOGGER.exception("Failed to confirm pending entity for chat_id=%s", chat_id)
-        return "Could not save. Please try again. (ERR:DB)"
+        return "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)"
 
     clear_pending(chat_id)
     LOGGER.info("Confirmed pending %s for chat_id=%s as id=%s", saved_type, chat_id, saved_row["id"])
@@ -222,15 +222,22 @@ def _build_pending_preview(state: UserState) -> str:
     project_id = pending.get("project_id")
 
     if project_id is None:
-        project_label = "General"
+        project_label = "Общее"
     elif project_id == state.active_project_id and state.active_project_name:
         project_label = state.active_project_name
     else:
         project_label = f"#{project_id}"
 
-    preview = [f"Pending {entity_type}: {text_value}", f"Project: {project_label}"]
+    entity_labels = {
+        "note": "заметка",
+        "idea": "идея",
+        "deadline": "дедлайн",
+        "homework": "домашнее задание",
+        "item": "запись",
+    }
+    preview = [f"Черновик ({entity_labels.get(entity_type, 'запись')}): {text_value}", f"Проект: {project_label}"]
     if due_date:
-        preview.insert(1, f"Due date: {due_date}")
+        preview.insert(1, f"Срок: {due_date}")
     return "\n".join(preview)
 
 

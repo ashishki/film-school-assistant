@@ -28,8 +28,8 @@ def get_command_text(update: Update) -> str:
 
 def format_project_scope(project_name: str | None) -> str:
     if project_name:
-        return f"under {project_name}"
-    return "under General"
+        return f"в проекте {project_name}"
+    return "в общем списке"
 
 
 def parse_date_text(raw_value: str) -> str | None:
