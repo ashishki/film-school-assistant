@@ -139,6 +139,26 @@ async def run_smoke_test() -> None:
             missing_note = await update_note_content(db, 99999, "Ghost note")
             assert not missing_note, "update_note_content must return False for unknown id"
 
+            # T-F4: list_notes(limit, offset) paginates correctly
+            isolated_db_path = "/tmp/smoke_test_pagination.db"
+            if os.path.exists(isolated_db_path):
+                os.remove(isolated_db_path)
+
+            try:
+                await init_db(isolated_db_path)
+                async with aiosqlite.connect(isolated_db_path) as pagination_db:
+                    pagination_db.row_factory = aiosqlite.Row
+                    await create_note(pagination_db, "Pagination note 1")
+                    await create_note(pagination_db, "Pagination note 2")
+                    await create_note(pagination_db, "Pagination note 3")
+                    page1 = await list_notes(pagination_db, limit=2, offset=0)
+                    page2 = await list_notes(pagination_db, limit=2, offset=2)
+                    assert len(page1) == 2, "isolated list_notes(limit=2, offset=0) must return 2 items"
+                    assert len(page2) == 1, "isolated list_notes(limit=2, offset=2) must return 1 item"
+            finally:
+                if os.path.exists(isolated_db_path):
+                    os.remove(isolated_db_path)
+
             # T-F2: edit idea content
             idea_updated = await update_idea_content(db, idea["id"], "Revised silence before image")
             assert idea_updated, "update_idea_content must return True for existing id"
