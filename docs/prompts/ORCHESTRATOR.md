@@ -32,12 +32,12 @@ The orchestrator reads all state from `docs/CODEX_PROMPT.md` and `docs/tasks.md`
 
 | Role | Tool | Why |
 |---|---|---|
-| Implementer / fixer | `Bash` → `# NOTE: In this environment use Agent tool (general-purpose) instead of Bash codex exec` | writes files, runs tests |
+| Implementer / fixer | `Bash` → `codex exec -s workspace-write` | writes files, runs tests |
 | Light reviewer | `Agent tool` (general-purpose) | fast checklist, no docs produced |
 | Deep review agents (META/ARCH/CODE/CONSOLIDATED) | `Agent tool` (general-purpose) | reasoning + file analysis |
 | Strategy reviewer | `Agent tool` (general-purpose) | architectural reasoning |
 
-<!-- # NOTE: In this environment use Agent tool (general-purpose) instead of Bash codex exec is the implementation agent invocation. Examples:
+<!-- codex exec -s workspace-write is the implementation agent invocation. Examples:
      - Codex CLI:              codex exec -s workspace-write "$PROMPT"
      - Claude Code subagent:   adapt Steps 2, 3, 5 to use the Agent tool instead of Bash
      - Any sandboxed executor: replace the Bash block with whatever your tool requires
@@ -48,7 +48,7 @@ The orchestrator reads all state from `docs/CODEX_PROMPT.md` and `docs/tasks.md`
 **Implementer invocation — always via variable, never stdin:**
 ```bash
 PROMPT=$(cat /tmp/orchestrator_codex_prompt.txt)
-cd /home/gdev/film-school-assistant && # NOTE: In this environment use Agent tool (general-purpose) instead of Bash codex exec "$PROMPT"
+cd /home/gdev/film-school-assistant && codex exec -s workspace-write "$PROMPT"
 ```
 
 ---
@@ -190,7 +190,7 @@ Baseline: [N passed, N skipped, N failed]
 Execute:
 ```bash
 PROMPT=$(cat /tmp/orchestrator_codex_prompt.txt)
-cd /home/gdev/film-school-assistant && # NOTE: In this environment use Agent tool (general-purpose) instead of Bash codex exec "$PROMPT"
+cd /home/gdev/film-school-assistant && codex exec -s workspace-write "$PROMPT"
 ```
 
 - `DONE` + 0 failures → next FIX item
@@ -244,7 +244,7 @@ AC status: [AC-1: PASS | FAIL, ...]
 Execute:
 ```bash
 PROMPT=$(cat /tmp/orchestrator_codex_prompt.txt)
-cd /home/gdev/film-school-assistant && # NOTE: In this environment use Agent tool (general-purpose) instead of Bash codex exec "$PROMPT"
+cd /home/gdev/film-school-assistant && codex exec -s workspace-write "$PROMPT"
 ```
 
 - `DONE` + all AC PASS + 0 failures → Step 4
@@ -423,7 +423,7 @@ Baseline: [N passed, N skipped, N failed]
 Execute:
 ```bash
 PROMPT=$(cat /tmp/orchestrator_codex_prompt.txt)
-cd /home/gdev/film-school-assistant && # NOTE: In this environment use Agent tool (general-purpose) instead of Bash codex exec "$PROMPT"
+cd /home/gdev/film-school-assistant && codex exec -s workspace-write "$PROMPT"
 ```
 
 Re-run light reviewer on fixed files only.
@@ -452,7 +452,7 @@ Baseline: [N passed, N skipped, N failed]
 Execute:
 ```bash
 PROMPT=$(cat /tmp/orchestrator_codex_prompt.txt)
-cd /home/gdev/film-school-assistant && # NOTE: In this environment use Agent tool (general-purpose) instead of Bash codex exec "$PROMPT"
+cd /home/gdev/film-school-assistant && codex exec -s workspace-write "$PROMPT"
 ```
 
 Re-run Steps 4.2 + 4.3 (targeted at fixed files).
@@ -643,10 +643,10 @@ Replace every `{{PLACEHOLDER}}` before using this template. The table below list
 |---|---|---|
 | `Film School Assistant` | Human-readable project name used in agent system prompts | `my-api-service` |
 | `/home/gdev/film-school-assistant` | Absolute path to the repository root on disk | `/home/alice/my-api-service` |
-| `# NOTE: In this environment use Agent tool (general-purpose) instead of Bash codex exec` | The implementation agent invocation — see note below | `codex exec -s workspace-write` |
+| `codex exec -s workspace-write` | The implementation agent invocation — see note below | `codex exec -s workspace-write` |
 | `Telegram (bot token via NOTIFICATION_TOKEN env var, chat_id 112375374)` | Optional out-of-band notification mechanism — see note below | Telegram bot, Slack webhook, or omit |
 
-**`# NOTE: In this environment use Agent tool (general-purpose) instead of Bash codex exec` — implementation agent options:**
+**`codex exec -s workspace-write` — implementation agent options:**
 
 The orchestrator expects a command that:
 1. Accepts a prompt string as its final argument (via shell variable, not stdin)
