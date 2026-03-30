@@ -1,182 +1,162 @@
 # Film School Assistant — Product Spec
 
-Version: 2.0
+Version: 3.0
 Last updated: 2026-03-30
-Status: Retrofit baseline
-
----
+Status: Active
 
 ## 1. Product Goal
 
-Provide a private Telegram assistant that helps one film-school student capture ideas,
-manage deadlines and reminders, process voice notes locally, and receive concise AI-aided
-review feedback without introducing unnecessary architecture or autonomy.
+Provide a private AI assistant that helps a director or film student think more clearly, keep continuity across projects, and reduce chaos in everyday creative work.
 
-Success means:
-- reminders and deadlines stay reliable
-- idea capture stays fast from chat or voice
-- review output is useful but bounded
-- operational cost and runtime complexity stay proportionate
-
----
+The current implementation surface is Telegram-first. The product goal is continuity and structure, not chat novelty.
 
 ## 2. Primary User
 
-One authorized owner uses the bot for personal productivity. There are no secondary user
-roles, tenant boundaries, or public-facing admin surfaces in scope.
+One authorized user:
+- a film student
+- an early-career director
+- a solo creative thinker managing multiple active threads of work
 
----
+No team roles, admin roles, or shared workspace roles exist in scope.
 
-## 3. Core Workflows
+## 3. Current Product Scope
 
-### 3.1 Task and Deadline Capture
+The current product must support:
+- quick capture of notes, ideas, deadlines, and homework
+- project-based organization
+- text and voice entry
+- confirmation-first handling for ambiguous NL capture
+- editing, search, listing, and archive flows
+- reminders
+- weekly summary
+- idea review / critique
 
-The user can create, inspect, and update tasks, deadlines, and reminders from Telegram.
-Structured commands should continue to work deterministically. Natural-language inputs may
-use the bounded chat/tool path to map the request into approved assistant actions.
+## 4. Core User Outcomes
 
-### 3.2 Idea Capture and Review
-
-The user can save creative ideas and request critique or review. Review generation may use
-a stronger model than routine intent handling, but only on explicit review flows.
-
-### 3.3 Voice Notes
-
-The user can send voice messages that are processed locally through Whisper and converted
-into assistant-understandable text without uploading raw audio to a third-party LLM API.
-
-### 3.4 Reminders and Weekly Summary
-
-Systemd timers run deterministic reminder and weekly summary flows. The assistant must avoid
-duplicate sends for the same intended interval.
-
----
-
-## 4. Solution Constraints
-
-- single-user private assistant only
-- SQLite remains the system of record
-- local Whisper remains the voice-transcription path
-- Anthropic usage stays bounded to approved inference paths
-- no RAG, vector DB, planner, or higher-autonomy runtime
-- runtime stays at T1 unless architecture is explicitly revised
-
----
+The product should help the user:
+- capture quickly without losing context
+- recover what matters later
+- maintain project continuity
+- feel less scattered between thinking sessions
+- move from stored material toward next action
 
 ## 5. Functional Requirements
 
-### FR-1 Authorized Access
+### FR-1 Single-user private operation
 
-Only the configured Telegram user may use the assistant.
-
-Acceptance:
-- unauthorized updates are rejected before feature handlers run
-- no sensitive action bypasses the auth guard
-
-### FR-2 Deterministic Reminder and Deadline Management
-
-Reminder creation, storage, due checks, and status changes remain deterministic.
+Only the authorized Telegram user may use the assistant.
 
 Acceptance:
-- persisted reminders have stable IDs and due timestamps
-- due reminders can be queried and sent without model involvement
-- duplicate reminder sends are prevented by deterministic state transitions
+- unauthorized updates are rejected before feature handling
+- state-changing actions remain behind the same auth guard
 
-### FR-3 Bounded Conversational Tool Use
+### FR-2 Structured capture
 
-Conversational handling may use an LLM to select from approved internal tools, but the loop
-must stay bounded and non-autonomous.
+The assistant must persist notes, ideas, deadlines, and homework as structured records.
 
 Acceptance:
-- the tool catalog is finite and explicit
-- tool rounds have a hard maximum
-- failure exits cleanly without open-ended retries
+- records have stable IDs and timestamps
+- project association is supported where relevant
+- capture works from commands and free text
 
-### FR-4 Local Voice Processing
+### FR-3 Local voice handling
 
-Voice notes are transcribed locally and routed into the same assistant workflows as text.
-
-Acceptance:
-- raw audio is not sent to third-party LLM APIs
-- the voice pipeline remains testable without production secrets
-
-### FR-5 AI Review Output
-
-Idea critique or review flows may call a stronger model when explicitly requested by the user.
+Voice notes must be transcribed locally and routed into the same structured workflows.
 
 Acceptance:
-- stronger-model usage is limited to review-specific flows
-- review output never bypasses deterministic persistence and auth boundaries
+- raw audio is not uploaded to external LLM services
+- the transcribed result can enter confirmation-first save flow
 
-### FR-6 Weekly Summary Integrity
+### FR-4 Deterministic workflow integrity
 
-Weekly summary generation must avoid duplicate sends and must remain observable.
+Persistence, editing, scheduling, reminder windows, archive state, and search remain deterministic.
 
 Acceptance:
-- one summary per intended period unless manually rerun
-- send status is recorded or inferable from deterministic state
+- reminder and summary delivery do not depend on model judgment
+- CRUD behavior is explicit and testable
 
----
+### FR-5 Bounded AI assistance
 
-## 6. Deterministic vs LLM Requirements
+LLM behavior is allowed only where interpretation or reflection is needed.
 
-### Deterministic-Owned
+Acceptance:
+- free-text capture can use bounded extraction
+- bounded conversational tool use stays inside explicit tool limits
+- idea review uses a stronger model only on explicit review request
 
-- authorization
-- command parsing where commands are already explicit
-- persistence, IDs, timestamps, and status transitions
-- reminder due checks and weekly summary deduplication
-- Telegram send retries/backoff behavior
-- voice transcription execution
+### FR-6 Continuity support
 
-### LLM-Owned, Bounded
+The product must maintain enough structure that the user can re-enter work without starting from zero.
 
-- conversational interpretation for non-command chat requests
-- selecting among approved tools during the chat loop
-- critique/review wording for idea feedback
+Acceptance:
+- projects act as continuity anchors
+- summaries reflect real stored activity
+- future phases may deepen continuity, but the current system must not pretend it already has semantic memory
 
-The implementation must default to deterministic logic whenever the behavior is already
-formalizable.
+## 6. Product Boundaries
 
----
+### In scope now
 
-## 7. Runtime and Governance Requirements
+- single-user private assistant
+- Telegram-first interaction
+- SQLite storage
+- bounded LLM use
+- local voice transcription
+- deterministic reminders and weekly digest
 
-- governance level: `Standard`
-- runtime tier: `T1`
-- no runtime mutation, shell execution, package installation, or privileged host changes
-  from model-driven flows
-- any expansion into multi-user, privileged automation, or broader autonomy requires an
-  architecture update before implementation
-
----
-
-## 8. Model Strategy Requirements
-
-- use the minimum sufficient model per workload
-- low-cost fast model class for routine conversational tool selection
-- stronger reasoning model only for explicit review/critique paths
-- track AI-path latency and cost in `docs/nfr.md`
-- any increase in model class or budget envelope requires an architecture update
-
----
-
-## 9. Current Hardening Scope
-
-The next project phase should focus on operational hardening, not feature expansion:
-
-1. verify SQLite WAL mode and startup assertions
-2. prevent unnecessary summary LLM calls when the weekly report is already sent
-3. consolidate Telegram send helper behavior used by scripts
-4. keep the voice pipeline testable in CI without heavy runtime side effects
-5. record AI-path and operational NFR baselines
-
----
-
-## 10. Explicit Non-Goals
+### Out of scope now
 
 - multi-user support
-- RAG or document retrieval
-- higher-autonomy planning agent
-- VM/microVM runtime isolation
-- compliance-heavy data governance beyond current private-assistant needs
+- SaaS packaging
+- web app as a required primary surface
+- generalized semantic retrieval
+- autonomous project planning agents
+- collaborative filmmaking workspace
+
+## 7. Deterministic vs LLM Requirements
+
+### Deterministic-owned
+
+- auth
+- persistence
+- search
+- edit flows
+- reminder logic
+- weekly report state
+- project archive state
+- delivery rules
+
+### LLM-owned, bounded
+
+- NL extraction for messy input
+- bounded chat tool selection
+- idea reflection / critique
+
+The default is deterministic unless ambiguity or interpretive output makes LLM use necessary.
+
+## 8. Product Positioning Rules
+
+The documentation and future implementation must not position the system as:
+- a generic productivity bot
+- a note-taking chatbot
+- a thin Telegram wrapper around Claude
+
+It should be positioned as:
+- a creative workflow assistant
+- a continuity aid for directors and serious creative thinkers
+- a small but coherent system, not a feature bundle
+
+## 9. Immediate Product Requirement for the Next Phase
+
+The next build phase after documentation must improve user-visible continuity and assistant feel inside the current Telegram surface before introducing larger architectural expansion.
+
+That means:
+- better status framing
+- clearer progress feeling
+- stronger weekly and project continuity signals
+- less mechanical interaction
+
+It does not mean:
+- jump straight to a web app
+- add speculative team features
+- add embeddings only because "memory" sounds modern

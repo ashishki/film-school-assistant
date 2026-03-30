@@ -1,8 +1,12 @@
 # Codex Fixer Prompt — Film School Assistant
 
-**Project:** Film School Assistant
-**Instance:** OpenClaw HER
-**Your role:** Fixer. Apply review findings. Update living docs. Do not expand scope.
+Project: Film School Assistant
+Role: Fixer
+
+Use this file only for manual debugging or ad-hoc re-runs outside the active Orchestrator loop.
+
+Active orchestration entry point:
+- `docs/prompts/ORCHESTRATOR.md`
 
 ---
 
@@ -15,7 +19,7 @@ Update living docs to reflect cycle completion.
 
 Do not add features.
 Do not refactor code beyond what is required by the review findings.
-Do not modify docs/architecture.md or docs/spec.md unless the Reviewer explicitly flagged them.
+Do not modify `docs/ARCHITECTURE.md` or `docs/spec.md` unless the review explicitly requires it.
 
 ---
 
@@ -24,10 +28,10 @@ Do not modify docs/architecture.md or docs/spec.md unless the Reviewer explicitl
 1. The review report (CRITICAL / HIGH / MINOR issues)
 2. The existing codebase (read files before editing)
 3. Reference docs:
-   - `/srv/openclaw-her/workspace/film-school-assistant/docs/architecture.md`
-   - `/srv/openclaw-her/workspace/film-school-assistant/docs/spec.md`
-   - `/srv/openclaw-her/workspace/film-school-assistant/docs/tasks.md`
-   - `/srv/openclaw-her/workspace/film-school-assistant/docs/dev-cycle.md`
+   - `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/ARCHITECTURE.md`
+   - `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/spec.md`
+   - `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/tasks.md`
+   - `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/CODEX_PROMPT.md`
 
 ---
 
@@ -53,34 +57,11 @@ After applying fixes:
 - Re-read the affected lines to confirm the fix is correct
 - Check that the fix does not introduce new violations of the checklist
 
-### 3. Update docs/tasks.md
+### 3. Update state docs only if instructed
 
-For each task that is now complete:
-- Change status from `review` or `fixing` to `done`
-- Do not add new tasks (that is the Strategist's job)
-- Do not remove tasks
-
-### 4. Append to docs/dev-cycle.md
-
-Add a new cycle entry at the bottom of the file:
-
-```
-## Cycle [N] — [date]
-
-Phase: [name]
-Reviewer verdict: [PASS | PASS-WITH-MINOR | FAIL → PASS]
-
-Issues fixed:
-- [CRITICAL] [brief description] — [file]
-- [HIGH] [brief description] — [file]
-- [MINOR] [brief description] — [file] (or "skipped: [reason]")
-
-Tasks completed this cycle:
-- [T-id]: [title]
-
-Notes:
-- [any relevant implementation notes]
-```
+- Update `docs/CODEX_PROMPT.md` only if the orchestrator or fix task explicitly requires it
+- Update `docs/tasks.md` only if the orchestrator or fix task explicitly requires it
+- Do not invent new workflow bookkeeping
 
 ---
 
@@ -88,11 +69,11 @@ Notes:
 
 - Do not implement Phase N+1 code while fixing Phase N
 - Do not add features not in the review report
-- Do not modify docs/architecture.md unless Reviewer explicitly flagged it
+- Do not modify `docs/ARCHITECTURE.md` unless explicitly required
 - Do not create new documentation files
 - Do not refactor working code that was not flagged
-- Do not change the data model without Strategist approval
-- Do not write to /opt/openclaw/src or /srv/openclaw-her/state
+- Do not change the data model without explicit task approval
+- Do not expand scope beyond the listed fixes
 
 ---
 
@@ -109,10 +90,8 @@ Issues applied:
 Issues skipped:
 - [description] — [reason]
 
-Tasks updated in tasks.md:
-- [T-id]: done
-
-dev-cycle.md updated: yes
+State docs updated:
+- [file or "none"]
 
 Ready for next phase: yes/no
 Blocker (if no): [description]

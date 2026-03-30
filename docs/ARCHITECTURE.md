@@ -1,263 +1,233 @@
 # Film School Assistant — Architecture
 
-Version: 2.0
+Version: 3.0
 Last updated: 2026-03-30
-Status: Retrofit to current AI Workflow Playbook
+Status: Active
 
----
+## 1. System Definition
 
-## 1. System Overview
+Film School Assistant is a private, single-user, Telegram-first AI assistant for directors and creative thinkers.
 
-Film School Assistant is a private single-user Telegram assistant for planning coursework,
-capturing ideas, transcribing voice notes, generating review feedback, and sending reminders
-and weekly summaries. It runs on a single VPS, persists state in SQLite, keeps voice
-transcription local via Whisper, and uses Anthropic models only for bounded language tasks.
+Architecturally, it is not a chatbot with extra commands. It is a small creative workflow system with:
+- a capture layer
+- a structured memory layer
+- a deterministic scheduling layer
+- a bounded AI interpretation and reflection layer
 
-The system is intentionally narrow:
-- one authorized Telegram user
-- one local SQLite database
-- one bounded tool-using chat path
-- no multi-tenant boundary
-- no RAG or external knowledge base
+Telegram is the current interface surface, not the full product category.
 
----
+## 2. Product Category
 
-## 2. Solution Shape
+### Now
+
+The product category now is:
+
+**Single-user AI creative workflow assistant for directors, delivered through Telegram**
+
+This definition is intentionally narrower than "creative OS" and broader than "notes bot."
+
+### Later
+
+The later product category, if evidence supports it, is:
+
+**AI continuity assistant for directors and creative project development**
+
+That later category may justify additional surfaces such as a web review layer, but only after the continuity and memory model are strong enough to deserve them.
+
+## 3. Solution Shape
 
 ### Primary Shape
 
 **Hybrid decomposition**
 
-- **Deterministic subsystem** for auth, persistence, deduplication, scheduling, reminders,
-  report state, validation, and Telegram delivery
-- **Bounded ReAct / tool-using assistant** for conversational intent resolution and
-  controlled tool selection inside the chat handler
-- **Workflow orchestration** for cron-like reminder and weekly summary execution via systemd
+- **Deterministic subsystem**
+  Owns auth, persistence, schema, scheduling, reminder windows, deduplication, search, editing, archive state, and delivery rules.
+- **Bounded LLM layer**
+  Owns natural-language intent extraction, tool selection inside the chat loop, and idea review output.
+- **Workflow orchestration**
+  Owns recurring jobs such as reminders and weekly digest generation through `systemd`.
 
-This project does not require a higher-autonomy agent. It has one bounded loop for chat
-tool use, explicit tool catalog limits, and no open-ended planning, delegation, or mutable
-runtime behavior.
+This is the minimum sufficient shape. It does not justify planner agents, delegated workers, open-ended memory agents, or runtime mutation.
 
-### Rejected Lower-Complexity Options
+### Why This Shape Is Correct
 
-- **Why not fully deterministic?**
-  Natural-language task entry, idea critique, and conversational clarification are not
-  reliable as fixed rules alone.
-- **Why not pure workflow only?**
-  User chat requests vary enough that a fixed intent tree would be brittle and costly to
-  maintain.
-- **Why not a freer agent?**
-  The assistant does not need long-horizon planning, autonomous retries across subsystems,
-  runtime mutation, or delegated work.
-- **Why not RAG?**
-  The system operates on current user data already stored in SQLite and local files. There
-  is no document corpus retrieval problem to solve.
+- Fully deterministic logic is insufficient for messy creative input and idea critique.
+- A fixed workflow alone is insufficient for flexible chat capture and natural-language routing.
+- A freer autonomous agent is not justified because the system has narrow scope, one user, low action variety, and clear deterministic boundaries.
 
-### Governance Level
+## 4. Governance Level
+
+### Current Governance
 
 **Standard**
 
-Rationale:
-- single-user and private lowers compliance burden
-- reminder/report automation makes it an operational system, not just a prototype
-- LLM calls affect user-visible behavior and cost
-- deterministic controls, audit trail, and phase review remain justified
+Why:
+- the system is private and single-user, so Strict governance is not justified
+- it is already an operational assistant, so Lean governance is too weak
+- LLM behavior affects stored state, costs, and user-facing output
+- the project benefits from artifact discipline, phase gates, and explicit boundaries
 
-### Minimum Viable Control Surface
+### Human Approval Boundaries
 
-The smallest justified control set for this project is:
-- explicit architecture, tasks, implementation contract, and session state docs
-- task-by-task implementation with light review on each task
-- phase-boundary strategy + deep review
-- strict single-user auth boundary
-- deterministic confirmation path for destructive or ambiguous actions
-- bounded tool loop and daily model-call limits
+Human approval is required for:
+- changing product category or target user
+- changing solution shape, governance, or runtime tier
+- enabling multi-user behavior
+- introducing web app scope beyond the current defined phase
+- adding semantic memory beyond the documented bounded design
+- changing destructive data flows
+- changing deployment topology or secrets handling
 
----
+## 5. Runtime Tier
 
-## 3. Runtime and Isolation Model
+### Current Runtime Tier
 
-### Runtime Tier
+**T1**
 
-**T1 — bounded service runtime**
+Why:
+- the assistant runs as a bounded Python service on a private VPS
+- the model does not mutate the runtime, shell, packages, or host
+- the blast radius is limited to one bot, one DB, one operator, one user
+- operations are recoverable via restart, logs, and DB backup
 
-Rationale:
-- the app runs as a normal Python service on a private VPS
-- no runtime mutation is performed by the assistant itself
-- no shell/package/toolchain modification is delegated to the model
-- blast radius is bounded to one service, one DB, one user
-- rollback is standard deploy/restart plus DB backup, not snapshot restore
+T0 is too low a description because this is an operational service with ongoing automation.
+T2/T3 are unjustified because there is no privileged autonomous execution and no mutable worker runtime.
 
-### Isolation Boundary
+## 6. System Components
 
-- one private VPS
-- systemd-managed Python bot process
-- systemd timers for reminder and weekly summary scripts
-- local SQLite database file
-- local filesystem for Whisper model and temporary audio files
+| Component | Current role |
+|-----------|--------------|
+| `src/bot.py` | Telegram entry point, authorization guard, routing, voice and command flow coordination |
+| `src/handlers/nl_handler.py` | Structured entity extraction from free text with confirmation-first save flow |
+| `src/handlers/chat_handler.py` | Bounded tool-using assistant loop for conversational queries and actions |
+| `src/tools.py` | Approved tool catalog for the bounded chat loop |
+| `src/reviewer.py` | Structured idea review generation |
+| `src/transcriber.py` and `src/voice.py` | Local voice transcription pipeline |
+| `src/db.py` and `src/schema.sql` | SQLite persistence and query layer |
+| `scripts/send_reminders.py` | Deterministic reminder job |
+| `scripts/send_summary.py` | Deterministic weekly digest job |
+| `systemd/*.service`, `systemd/*.timer` | VPS scheduling and service management |
 
-### Persistence Model
+## 7. Deterministic vs LLM Ownership
 
-- SQLite is the system of record
-- local filesystem stores temporary voice artifacts and Whisper assets
-- no persistent remote vector store, cache, or planner state
+| Responsibility | Owner | Why |
+|---------------|-------|-----|
+| Authorization and single-user gate | Deterministic | Security boundary must be explicit |
+| Schema, IDs, timestamps, persistence | Deterministic | State must be reliable and testable |
+| Reminder logic and due buckets | Deterministic | Time-based logic is formalizable |
+| Weekly summary triggering and dedup | Deterministic | Delivery state must not depend on model judgment |
+| Search, list, edit, archive | Deterministic | CRUD behavior is formalizable |
+| Voice transcription execution | Local ML / deterministic pipeline | Audio stays local and predictable |
+| Free-text entity extraction | LLM, bounded | Natural-language inputs are variable |
+| Conversational tool selection | LLM, bounded | Flexible requests benefit from tool-choice reasoning |
+| Idea review / reflection output | LLM, bounded | This is interpretive, not transactional |
 
-### Network Model
+Rule:
+- if behavior can be written as a reliable rule, it stays deterministic
+- LLMs are justified only for ambiguity, interpretation, or creative reflection
 
-- inbound: Telegram webhook/polling equivalent via bot API usage
-- outbound: Telegram Bot API, Anthropic API
-- no general web browsing or arbitrary network egress in model-driven flows
+## 8. Memory Model
 
-### Secrets Model
+### Current Memory Model
 
-- all credentials come from environment variables or host-managed secret files
-- no secrets in source control, prompts, or test fixtures
+The current memory model is structured operational memory, not semantic memory.
 
-### Rollback / Recovery Model
+What exists now:
+- projects
+- notes
+- ideas
+- deadlines
+- homework
+- parsed voice and text capture history
+- review history
+- weekly report history
 
-- service restart via systemd
-- SQLite backup / restore
-- failed reminder or report runs are retried by operational procedure, not autonomous agent
-- no T2/T3 snapshot workflow is required
+What this means:
+- the system can store and retrieve structured creative work
+- it can summarize recent activity and support continuity at the record level
+- it cannot yet maintain higher-order creative continuity across themes, tensions, evolving project intent, or long-range concept development
 
----
+### Planned Memory Evolution
 
-## 4. Human Approval Boundaries
+The next justified memory step is a **creative memory layer**, not generic embeddings-first infrastructure.
 
-Human approval remains required for:
-- changing runtime shape, deployment topology, or privilege level
-- enabling multi-user or shared-tenant behavior
-- modifying destructive data-handling paths
-- approving ambiguous natural-language task entries before they become persisted reminders
-- operational actions outside the bounded Telegram product flow
+That phase should focus on:
+- stable project summaries
+- evolving creative threads
+- continuity notes
+- durable "where this project stands now" artifacts
 
-The bot may autonomously:
-- parse user intent
-- draft review feedback
-- call approved internal tools inside the chat loop
-- send reminders and weekly summaries once the deterministic schedule exists
+It should not start with:
+- open-ended vector architecture
+- external retrieval stack
+- autonomous long-horizon planning
 
----
+## 9. Telegram as Interface Layer
 
-## 5. Deterministic vs LLM-Owned Subproblems
+Telegram is still the correct primary surface for the current phase because:
+- the product’s strongest behavior is fast capture
+- voice and text entry are the highest-frequency interactions
+- private single-user deployment lowers packaging complexity
+- there is no proven need yet for a richer visual workspace
 
-| Subproblem | Owner | Notes |
-|-----------|-------|-------|
-| Authorized chat guard | Deterministic | Reject unauthorized users before business logic |
-| Task/reminder persistence | Deterministic | SQLite writes, IDs, timestamps, status transitions |
-| Reminder scheduling and due checks | Deterministic | Cron/timer driven, no model judgment |
-| Weekly summary dedup and send-window checks | Deterministic | One report per intended period |
-| Voice transcription | Deterministic/local ML | Whisper runs locally; no LLM reasoning involved |
-| Telegram delivery and retry/backoff | Deterministic | Network error handling must stay explicit |
-| Chat intent interpretation | LLM-owned, bounded | Haiku-class model maps requests into allowed tool calls |
-| Idea critique / review feedback | LLM-owned, bounded | Sonnet-class path for higher-quality textual analysis |
+Telegram should be described as the interface layer, not the identity of the product.
 
-Deterministic default applies whenever the task is already formalizable.
+## 10. Current Constraints
 
----
+- single-user only
+- Telegram-first only
+- private VPS deployment
+- SQLite as system of record
+- local Whisper transcription
+- Anthropic models for bounded language work only
+- no web layer required in the current phase
+- no multi-user, team, SaaS, or shared workspace scope
+- no RAG or external knowledge base
 
-## 6. Inference / Model Strategy
+These are valid constraints, not shortcomings to hide.
 
-| Path / Task | Model Class | Why | Fallback | Budget / Latency Constraint |
-|-------------|-------------|-----|----------|------------------------------|
-| Conversational tool selection in `chat_handler` | Fast low-cost model (Haiku-class) | Frequent, bounded, low-latency intent resolution | Ask for clarification or fall back to deterministic command handling | Keep per-message cost low; optimize for responsiveness |
-| Idea review / critique output | Stronger reasoning model (Sonnet-class) | Higher-quality feedback matters more than lowest cost | Return a simpler template review or defer | Use only on explicit review flows |
-| Voice transcription | Local Whisper model | Keeps audio local and avoids LLM cost | Manual text entry | Higher latency acceptable; no external audio upload |
-
-Rules:
-- choose the minimum sufficient model per workload, not one model for the whole system
-- do not increase model class or cost envelope without updating this section
-- compare model pricing/capability data before changes, but record the accepted decision here
-
----
-
-## 7. Capability Profiles
+## 11. Capability Profiles
 
 | Profile | Status | Notes |
 |---------|--------|-------|
-| RAG | OFF | No retrieval corpus or citation contract required |
-| Tool-Use | ON | Chat path can call approved internal tools through a bounded tool catalog |
-| Agentic | ON | One bounded tool loop exists; no higher-autonomy delegation |
-| Planning | OFF | No plan schema or planner role |
-| Compliance | OFF | Private personal assistant; no regulated-data framework in scope |
+| RAG | OFF | No retrieval corpus problem is defined yet |
+| Tool-Use | ON | The chat loop can select from an explicit internal tool catalog |
+| Agentic | ON | Only in the narrow sense of a bounded loop with hard limits |
+| Planning | OFF | No runtime planner output governs execution |
+| Compliance | OFF | Private personal-use assistant; no regulated-data regime in scope |
 
----
+## 12. Inference Strategy
 
-## 8. Component Model
+| Path | Current model class | Purpose |
+|------|---------------------|---------|
+| Free-text capture / intent extraction | Haiku-class | Cheap, bounded interpretation |
+| Conversational tool use | Haiku-class | Fast routing and tool choice |
+| Idea review | Sonnet-class | Better reflective quality where it matters |
+| Voice transcription | Local Whisper | Keep audio local |
 
-| Component | Responsibility |
-|-----------|----------------|
-| `src/bot.py` | Telegram entry point, command routing, auth guard hookup |
-| `src/handlers/chat_handler.py` | Bounded LLM chat loop and tool-call orchestration |
-| `src/tools.py` | Tool catalog, schema definitions, executor bridge |
-| `src/db.py` and related state modules | SQLite persistence and query helpers |
-| `src/handlers/*` | Explicit feature handlers for reminders, ideas, deadlines, and reports |
-| `scripts/send_reminders.py` | Deterministic reminder delivery workflow |
-| `scripts/send_weekly_summary.py` | Deterministic weekly report workflow |
-| `scripts/test_voice_pipeline.py` | Voice pipeline verification path |
+Model escalation is not justified unless a specific workload proves it needs it.
 
-### Agent Roles
+## 13. Architecture Evolution Path
 
-Only one runtime agent-like role exists:
+### Current phase
 
-| Role | Authority Scope | Termination |
-|------|------------------|-------------|
-| Chat assistant loop | Select from declared tools and produce user-facing text within the current conversation | Stop on non-tool response, max tool rounds, or explicit failure path |
+Stabilize the product definition and experience around the existing foundation.
 
-### Tool Catalog Contract
+### Next justified evolution
 
-Every LLM-callable tool must be:
-- declared in `src/tools.py`
-- side-effect scoped to the single-user assistant domain
-- validated before execution
-- permission-checked through the existing auth boundary
+1. Improve UX continuity and assistant behavior inside the current Telegram surface.
+2. Add a bounded creative memory layer that improves continuity without changing runtime class.
+3. Add higher-leverage reflection and guidance features that use the new memory artifacts.
+4. Only then consider packaging expansion, including an optional web review layer.
 
-Destructive or irreversible mutations require explicit confirmation as a separate code path.
+### Explicitly Deferred
 
-### Termination Contract
-
-The chat loop must enforce:
-- explicit maximum tool rounds
-- deterministic failure path on tool or model errors
-- no recursive self-invocation
-- no background autonomous continuation
-
----
-
-## 9. Data Flow
-
-1. Telegram update arrives from the authorized user.
-2. `src/bot.py` routes the message to a command handler or `chat_handler`.
-3. Deterministic guards validate authorization and message type.
-4. For chat flows, the bounded LLM loop may choose from approved tools.
-5. Tool execution persists or queries state through SQLite helpers.
-6. The response is returned to Telegram.
-7. Separately, systemd timers invoke deterministic reminder and weekly-summary scripts.
-
----
-
-## 10. Security and Operational Boundaries
-
-- single-user auth is the primary access boundary
-- Anthropic and Telegram credentials must remain environment-backed only
-- local voice processing keeps raw audio off third-party APIs
-- no model may execute shell commands or mutate host runtime
-- all runtime-changing actions remain human-only operational tasks
-
----
-
-## 11. Tech Stack
-
-| Layer | Technology | Why |
-|-------|------------|-----|
-| Bot runtime | Python | Existing project language and operational fit |
-| Messaging surface | Telegram Bot API | Primary user interface |
-| Persistence | SQLite | Small single-user system of record |
-| Voice transcription | Local Whisper | Keeps audio local |
-| LLM provider | Anthropic models | Bounded language tasks only |
-| Scheduling | systemd services and timers | Simple deterministic automation on one host |
-
----
+- multi-user productization
+- SaaS platform framing
+- collaboration features
+- generalized autonomous agents
+- vector-first memory architecture without product evidence
+- web app as primary product before continuity and memory are strong
 
 ## 12. External Integrations
 

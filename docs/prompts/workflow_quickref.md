@@ -1,135 +1,62 @@
 # Workflow Quick Reference
 
----
+## Active Entry Point
 
-## Entry Point
+Start the repository loop with:
 
-There is one way to start the development cycle:
+`docs/prompts/ORCHESTRATOR.md`
 
-```
-Send docs/prompts/workflow_orchestrator.md to Claude Code (Strategist instance).
-No variables. No setup. Just paste and send.
-```
+Do not start from:
+- `docs/prompts/workflow_orchestrator.md`
 
-The orchestrator reads `docs/tasks.md` to determine the current phase,
-drives Implement → Review → Fix automatically, updates `docs/tasks.md` after each phase,
-and loops until all phases are complete or a blocker is found.
+That file is legacy only.
 
----
+## Active Loop
 
-## What the Orchestrator Does
+The repository loop is:
 
-```
-Read tasks.md
-  │
-  └─▶ Find current phase (lowest phase with [ ] tasks)
-        │
-        ├─▶ Write prompt to /tmp/codex_phase_prompt.txt
-        │   codex exec -s workspace-write "$PROMPT"   ← Codex Implementer
-        │     └─▶ Implements all tasks in phase
-        │
-        ├─▶ Update tasks.md: [ ] → [~]
-        │
-        ├─▶ Agent tool (subagent_type: Explore)  ← Claude Reviewer
-        │     ├─▶ PHASE_REVIEW_RESULT: PASS → continue
-        │     └─▶ PHASE_REVIEW_RESULT: ISSUES_FOUND:
-        │               ├─▶ codex exec -s workspace-write  ← Codex Fixer
-        │               └─▶ Agent tool (Explore) again — targeted re-check
-        │                     ├─▶ PASS → continue
-        │                     └─▶ SAME ISSUES → mark [!], stop, report to user
-        │
-        ├─▶ Update tasks.md: [~] → [x]
-        │
-        └─▶ Loop to next phase
-```
+1. Read current state from `docs/CODEX_PROMPT.md`, `docs/PHASE_PLAN.md`, and `docs/tasks.md`.
+2. Select the next active phase.
+3. Run a Phase Decomposition Pass if that phase is not yet broken into executable tasks.
+4. Run a Phase Entry Check.
+5. Dispatch one task at a time to Codex through the existing exec-based mechanism.
+6. Run light review after each task.
+7. Run deep review at the phase boundary.
+8. Update state docs.
+9. Stop for human approval at the phase gate.
 
-**Tool split — hard rule:**
+## Tool Split
 
-| Role | Tool | Reason |
-|---|---|---|
-| Implementer | `codex exec -s workspace-write` (via variable) | writes files |
-| Reviewer | `Agent tool` (Explore, Claude) | reasoning + checklist |
-| Fixer | `codex exec -s workspace-write` (via variable) | writes fixes |
-
-**Critical:** Always invoke codex via variable, never via stdin:
-```bash
-# CORRECT
-PROMPT=$(cat /tmp/codex_phase_prompt.txt)
-codex exec -s workspace-write "$PROMPT"
-
-# WRONG — forces wrong model, returns 401
-codex exec -s workspace-write - < /tmp/codex_phase_prompt.txt
-```
-
----
-
-## When the Loop Stops
-
-| Condition | tasks.md state | Action needed |
-|---|---|---|
-| All phases `[x]` | All done | MVP complete — proceed to ops setup |
-| Task marked `[!]` | Blocked | User must resolve blocker manually, then re-run orchestrator |
-| Agent unrecoverable error | `[!]` set on failed task | Check logs, fix manually, re-run |
-
-**Expected blocker:** P5-01 — OpenClaw API contract must be verified manually before Phase 5 can proceed.
-
----
-
-## Resuming After a Stop
-
-The orchestrator is stateless — it reads all state from `docs/tasks.md` on every run.
-
-To resume:
-1. Resolve the blocker (fix the `[!]` task manually or clear the `[!]` mark)
-2. Re-send `workflow_orchestrator.md` to Claude Code
-3. It picks up from the current state automatically
-
----
-
-## Manual Overrides
-
-To re-run a specific phase without re-running previous phases:
-1. Open `docs/tasks.md`
-2. Change the phase tasks back to `[ ]`
-3. Re-send the orchestrator prompt
-
-To skip a phase (not recommended):
-1. Manually mark all its tasks `[x]` in `docs/tasks.md`
-2. The orchestrator will skip it
-
----
-
-## Phase Reference
-
-| Phase | Name | Key files Codex creates |
-|---|---|---|
-| 0 | Repository Baseline | docs/, prompts/ (Strategist), git init (P0-11 Codex) |
-| 1 | Config + Storage + Schema | src/config.py, src/schema.sql, src/db.py, requirements.txt |
-| 2 | Telegram Command Flows | src/bot.py, src/state.py, src/handlers/*.py, systemd/film-school-bot.service |
-| 3 | Reminders + Weekly Summary | scripts/send_reminders.py, scripts/send_summary.py, systemd/*.timer |
-| 4 | Voice Ingestion | src/voice.py, src/transcriber.py |
-| 5 | NL Routing + Review Mode | src/openclaw_client.py, src/reviewer.py, src/handlers/nl_handler.py, src/handlers/review.py |
-| 6 | Hardening | logging throughout, scripts/cleanup_audio.py, scripts/backup_db.sh, systemd timers |
-
----
-
-## tasks.md Status Legend
-
-| Symbol | Meaning |
+| Role | Tool |
 |---|---|
-| `[ ]` | Not started |
-| `[~]` | Implemented, pending review |
-| `[x]` | Complete (implemented + reviewed) |
-| `[!]` | Blocked — needs human input |
+| Orchestrator | Claude / reasoning agent |
+| Implementer | `codex exec -s workspace-write` |
+| Fixer | `codex exec -s workspace-write` |
+| Reviewer | Claude / reasoning agent |
 
----
+## Current Reality
 
-## Individual Agent Prompts (manual use only)
+The repository is past bootstrap.
 
-These exist for ad-hoc use or debugging — the orchestrator uses them as embedded templates:
+That means:
+- no full-project Strategist rerun
+- no original full-repo Phase 1 Validator flow
+- phase-level planning and validation only
 
-| File | Use when |
-|---|---|
-| `workflow_codex_implementer.md` | Manually re-running a single phase implementation |
-| `workflow_claude_reviewer.md` | Manually reviewing a specific phase |
-| `workflow_codex_fixer.md` | Manually applying fixes from a review |
+## Current Phase Intent
+
+Phase 0 is complete.
+
+Next active work:
+- Phase 1 — Product Experience and UX Continuity
+
+Before coding Phase 1:
+- decompose the phase into executable tasks
+- sync `docs/tasks.md`
+- sync `docs/CODEX_PROMPT.md`
+- sharpen `docs/spec.md` if needed
+- run a Phase Entry Check
+
+## Resume Rule
+
+The loop is artifact-driven. To resume, re-run the active Orchestrator entry point and let it read the current repo state.

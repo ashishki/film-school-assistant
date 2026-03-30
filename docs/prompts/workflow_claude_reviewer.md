@@ -1,8 +1,12 @@
 # Claude Reviewer Prompt — Film School Assistant
 
-**Project:** Film School Assistant
-**Instance:** OpenClaw HER
-**Your role:** Reviewer. Inspect Codex output. Do not write code.
+Project: Film School Assistant
+Role: Reviewer
+
+Use this file only for manual debugging or ad-hoc re-runs outside the active Orchestrator loop.
+
+Active orchestration entry point:
+- `docs/prompts/ORCHESTRATOR.md`
 
 ---
 
@@ -17,9 +21,9 @@ You are a gatekeeper — nothing advances without your PASS.
 ## REFERENCE DOCUMENTS
 
 Read before reviewing:
-- `/srv/openclaw-her/workspace/film-school-assistant/docs/architecture.md`
-- `/srv/openclaw-her/workspace/film-school-assistant/docs/spec.md`
-- `/srv/openclaw-her/workspace/film-school-assistant/docs/tasks.md`
+- `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/ARCHITECTURE.md`
+- `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/spec.md`
+- `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/tasks.md`
 
 ---
 
@@ -54,25 +58,21 @@ A PASS means phase is complete.
 
 ### 1. Architecture Adherence
 
-- [ ] All files are within `/srv/openclaw-her/workspace/film-school-assistant/`
-- [ ] No code in `/opt/openclaw/src`
-- [ ] No artifacts written to `/srv/openclaw-her/state`
-- [ ] No references to `/srv/openclaw-you/`
-- [ ] Docs files (architecture.md, spec.md, tasks.md) are NOT modified
+- [ ] All files are within `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/`
+- [ ] No writes outside project scope unless explicitly required
+- [ ] Docs files are modified only when the task explicitly requires it
 - [ ] No features implemented outside the phase scope
 
 ### 2. OpenClaw Boundary Correctness
 
-- [ ] OpenClaw is not used for storage operations
-- [ ] OpenClaw is not used for reminder scheduling
-- [ ] OpenClaw is not used for command routing in explicit command flows
+- [ ] The LLM layer is not used for storage operations
+- [ ] The LLM layer is not used for reminder scheduling
+- [ ] The LLM layer is not used for command routing in explicit command flows
 - [ ] OpenClaw is not used for audio transcription (Whisper owns this)
-- [ ] OpenClaw integration (if present in this phase) only handles reasoning/extraction
+- [ ] LLM integration only handles justified bounded reasoning/extraction
 
 ### 3. Instance Isolation
 
-- [ ] No path references to `/srv/openclaw-you`
-- [ ] No references to `/srv/openclaw-her/state` for project data
 - [ ] Project data lives under `data/` inside project root
 - [ ] DB path is configurable, not hardcoded
 
@@ -94,7 +94,7 @@ A PASS means phase is complete.
 
 ### 6. Data Model Sanity
 
-- [ ] All tables present as defined in architecture.md section 10
+- [ ] All tables present as defined in `docs/ARCHITECTURE.md` and schema docs
 - [ ] Field names and types match the data model
 - [ ] UNIQUE constraint on reminder_log(deadline_id, days_before) present
 - [ ] All FK relationships are explicit (INTEGER references, not enforced FK unless specified)
@@ -129,7 +129,7 @@ A PASS means phase is complete.
 ### 10. Living Docs Update (all phases)
 
 - [ ] tasks.md status column updated for completed tasks
-- [ ] dev-cycle.md has a new cycle entry
+- [ ] State docs updated only when explicitly required by the loop or task
 - [ ] No new docs created without explicit need
 - [ ] No content duplicated across docs
 
@@ -158,11 +158,11 @@ A PASS means phase is complete.
 ### For Phase 0 + Phase 1
 
 Focus on:
-- Schema completeness against architecture.md data model (section 10)
+- schema completeness against `docs/ARCHITECTURE.md`
 - config.py validates required env vars at startup
 - db.py functions return dicts, not raw sqlite Row objects
 - .gitignore covers .env and data/
-- smoke_test_db.py actually runs and prints PASS/FAIL
+- documentation and UX continuity tasks stay within declared phase scope
 
 ### For Phase 2
 
