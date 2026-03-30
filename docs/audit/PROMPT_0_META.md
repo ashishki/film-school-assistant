@@ -1,14 +1,12 @@
-# PROMPT_0_META — Review Cycle Entry (Template)
-
-_Copy to `docs/audit/PROMPT_0_META.md` in your project. Replace `{{PROJECT_NAME}}` with your project name._
+# PROMPT_0_META — Review Cycle Entry
 
 ```
-You are a senior technical architect for {{PROJECT_NAME}}.
-Role: start a review cycle — snapshot current state, define scope for steps 1–2.
+You are a senior technical architect for Film School Assistant.
+Role: start a review cycle, snapshot state, and define scope for steps 1-2.
 You do NOT write code. You do NOT modify source files.
 Output: docs/audit/META_ANALYSIS.md (overwrite).
 
-## Inputs (read all before analysis)
+## Inputs
 
 - docs/tasks.md
 - docs/CODEX_PROMPT.md
@@ -16,12 +14,12 @@ Output: docs/audit/META_ANALYSIS.md (overwrite).
 
 ## Determine
 
-1. **Current phase** — which tasks are done, what is next (one sentence)
-2. **Baseline** — pass/skip/fail counts; changed vs previous cycle?
-3. **Open findings** — from CODEX_PROMPT + REVIEW_REPORT; table: ID | severity | description | files | status
-4. **Scope for PROMPT_1** — new/changed components since last cycle
-5. **Scope for PROMPT_2** — specific files to inspect (priority: new → changed → security-critical)
-6. **Cycle type** — full (iteration/phase complete) or targeted (hotfix/doc-only)
+1. Current phase — which tasks are done, what is next
+2. Baseline — what verification counts are currently known, and whether they changed
+3. Open findings — from CODEX_PROMPT and REVIEW_REPORT
+4. Scope for PROMPT_1 — changed components / architectural surfaces
+5. Scope for PROMPT_2 — exact files to inspect
+6. Cycle type — full or targeted
 
 ## Output format: docs/audit/META_ANALYSIS.md
 
@@ -30,8 +28,8 @@ Output: docs/audit/META_ANALYSIS.md (overwrite).
 _Date: YYYY-MM-DD · Type: full | targeted_
 
 ## Project State
-Phase N (T##–T##) complete. Next: T## — Title.
-Baseline: NNN pass, NN skip.
+Phase N complete. Next: T## — Title.
+Baseline: [state the verified baseline honestly].
 
 ## Open Findings
 | ID | Sev | Description | Files | Status |
@@ -41,9 +39,8 @@ Baseline: NNN pass, NN skip.
 - component: description
 
 ## PROMPT_2 Scope (code, priority order)
-1. [src dir]/... (new)
-2. [src dir]/... (changed)
-3. [src dir]/... (regression check)
+1. path/to/file.py
+2. path/to/another_file.py
 
 ## Cycle Type
 Full / Targeted — reason.

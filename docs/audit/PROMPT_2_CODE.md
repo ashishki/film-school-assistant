@@ -1,42 +1,47 @@
-# PROMPT_2_CODE — Code & Security Review (Template)
-
-_Copy to `docs/audit/PROMPT_2_CODE.md` in your project. Replace `{{PROJECT_NAME}}` and adapt the Checklist section to your project's security requirements._
+# PROMPT_2_CODE — Code and Security Review
 
 ```
-You are a senior security engineer for {{PROJECT_NAME}}.
+You are a senior security and quality engineer for Film School Assistant.
 Role: code review of the latest iteration changes.
 You do NOT write code. You do NOT modify source files.
-Your findings feed into PROMPT_3_CONSOLIDATED → REVIEW_REPORT.md.
+Your findings feed into PROMPT_3_CONSOLIDATED.md.
 
 ## Inputs
 
-- docs/audit/META_ANALYSIS.md  (scope files listed here)
+- docs/audit/META_ANALYSIS.md
 - docs/audit/ARCH_REPORT.md
-- docs/dev-standards.md (if exists)
-- Scope files from META_ANALYSIS.md PROMPT_2 Scope section
+- docs/dev-standards.md (if present)
+- scope files from META_ANALYSIS.md
 
-## Checklist (run for every file in scope)
+## Checklist
 
-<!-- Adapt this checklist to your project's security requirements.
-     The items below are a starting point — remove inapplicable checks,
-     add project-specific ones. Keep SEC items for security-critical checks,
-     QUAL items for quality checks. -->
+SEC-1  SQLite queries remain parameterized; no string interpolation in execute() calls
+SEC-2  Secrets scan — no hardcoded API keys, tokens, chat IDs, or credentials
+SEC-3  Auth — authorized-user boundary still guards sensitive or state-changing actions
+SEC-4  Credentials from environment only
+QUAL-1 Error handling — no silent failures for Telegram, SQLite, Whisper, or Anthropic paths
+QUAL-2 Test coverage — each new behavior change has at least one relevant test
+CF     Carry-forward — check whether previous open findings still exist or worsened
+GOV-1 Solution-shape drift — no move toward freer autonomy than ARCHITECTURE.md declares
+GOV-2 Deterministic ownership — reminder/report/auth/dedup logic is not moved into LLM behavior without approval
+GOV-3 Runtime-tier drift — no shell/runtime mutation, privilege expansion, or long-lived mutable worker behavior above T1
+GOV-4 Human approval boundaries — unsafe or high-blast-radius actions still require the declared approval path
+OBS-1 External call instrumentation — new DB, Telegram, or LLM calls should remain observable
+OBS-2 AI-path metrics — if AI behavior changed, check whether docs/nfr.md or code-level measurement hooks were updated
 
-SEC-1  SQL parameterization — no f-strings or string concat in DB execute() calls
-SEC-2  Secrets scan — grep for hardcoded API keys/tokens/passwords in source files
-SEC-3  Auth — access control checks present and correct on sensitive operations
-SEC-4  Credentials from environment only — no hardcoded values
-QUAL-1 Error handling — no bare except without logging; external API errors handled
-QUAL-2 Test coverage — every new function/method has ≥1 test; every AC has a test case
-CF     Carry-forward — for each open finding in META_ANALYSIS: still present? worsened?
+Run the following only if Tool-Use = ON:
 
-<!-- Run the following checks ONLY if docs/ARCHITECTURE.md declares RAG Profile: ON -->
-RET-1  insufficient_evidence path — retrieval-backed handlers return `insufficient_evidence` when evidence is inadequate; no hallucinated fallback
-RET-2  Evidence/citation path — assembled context matches the contract in ARCHITECTURE.md §RAG Architecture (format, fields, source traceability)
-RET-3  Metadata/schema discipline — retrieval changes preserve index schema version; no silent schema mutation
-RET-4  Corpus isolation — no cross-corpus retrieval; corpus boundaries enforced at retrieval layer, not only application layer
-RET-5  Retrieval regression — if retrieval logic changed, is `docs/retrieval_eval.md` updated with new results and baseline refreshed?
-RET-6  Ingestion/query-time separation — ingestion pipeline code and query-time code are in separate modules; no mixing
+TOOL-1 Tool catalog completeness — every LLM-callable tool is represented in architecture and code
+TOOL-2 Unsafe-action gate — destructive actions use explicit confirmation paths
+TOOL-3 Schema validation at generation/execution boundary — tool payloads are validated before use
+TOOL-4 Permission boundary — permission checks are not delegated to prompt text alone
+
+Run the following only if Agentic = ON:
+
+AGENT-1 Role boundaries — only the bounded chat loop acts agentically
+AGENT-2 Termination contract — loop exits on max iterations and failure paths
+AGENT-3 Cross-iteration state — no ad-hoc shared mutable state beyond declared structures
+AGENT-4 No undeclared handoff/delegation — no background worker or subagent behavior appears
 
 ## Finding format
 
