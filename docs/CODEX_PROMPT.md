@@ -14,11 +14,10 @@ Last updated: 2026-03-31
 
 ## Current Phase
 
-- Phase: 1
+- Phase: 1 — COMPLETE (pending human phase-gate approval)
 - Goal: improve user-visible UX continuity inside the current Telegram surface
-- Active Task: `P1-01 — UX Acceptance Examples Pack`
-- Active Task Owner: claude
-- Active Task Output: `docs/examples/ux_acceptance_examples.md` (new file)
+- Phase review: `docs/review/ux_review_p1.md`
+- Next action: human approval → Phase 2 Decomposition Pass
 
 ---
 
@@ -115,6 +114,12 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
   - decomposed Phase 1 into five tasks (P1-01 through P1-05) in `docs/tasks.md`
   - added Phase 1 UX behavioral requirements (UXR-1 through UXR-5) to `docs/spec.md` section 10
   - advanced `docs/CODEX_PROMPT.md` to Phase 1 with P1-01 as active task
+- Phase 1 Implementation:
+  - P1-01: `docs/examples/ux_acceptance_examples.md` — UX eval contract (7 moments, anti-pattern table)
+  - P1-02: `scripts/send_summary.py` — digest rewritten with Russian locale, project-framing opening
+  - P1-03: `src/handlers/confirm.py` — project name in confirmation replies, emoji removed, gender fixed
+  - P1-04: `src/handlers/confirm.py`, `nl_handler.py`, `reviewer.py` — edit ack, type-select prompt, unreviewed count pointer
+  - P1-05: `docs/review/ux_review_p1.md` — UX review pack; 3 low-severity gaps deferred to Phase 2
 
 ---
 
