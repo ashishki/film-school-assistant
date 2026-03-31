@@ -147,7 +147,7 @@ Exit criteria:
 
 ---
 
-[ ] P1-01 — UX Acceptance Examples Pack
+[x] P1-01 — UX Acceptance Examples Pack
 Owner: claude
 Phase: 1
 Type: documentation
@@ -185,7 +185,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P1-02 — Weekly Digest Contract Rewrite
+[x] P1-02 — Weekly Digest Contract Rewrite
 Owner: codex
 Phase: 1
 Type: doc + implementation
@@ -231,7 +231,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P1-03 — Active Project Visibility and Orientation
+[x] P1-03 — Active Project Visibility and Orientation
 Owner: codex
 Phase: 1
 Type: implementation
@@ -273,7 +273,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P1-04 — Reply Framing Rewrite for Core Moments
+[x] P1-04 — Reply Framing Rewrite for Core Moments
 Owner: codex
 Phase: 1
 Type: implementation
@@ -317,7 +317,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P1-05 — Transcript-Based UX Review Pack
+[x] P1-05 — Transcript-Based UX Review Pack
 Owner: claude
 Phase: 1
 Type: documentation / eval
