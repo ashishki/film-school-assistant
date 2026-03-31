@@ -100,17 +100,95 @@ def _format_bullets(lines: list[str], empty_text: str) -> str:
     return "\n".join(lines)
 
 
+def _russian_plural(count: int, forms: tuple[str, str, str]) -> str:
+    remainder_100 = count % 100
+    remainder_10 = count % 10
+    if 11 <= remainder_100 <= 14:
+        return forms[2]
+    if remainder_10 == 1:
+        return forms[0]
+    if 2 <= remainder_10 <= 4:
+        return forms[1]
+    return forms[2]
+
+
+def _russian_month_range(week_start: date, week_end: date) -> str:
+    month_names = {
+        1: "января",
+        2: "февраля",
+        3: "марта",
+        4: "апреля",
+        5: "мая",
+        6: "июня",
+        7: "июля",
+        8: "августа",
+        9: "сентября",
+        10: "октября",
+        11: "ноября",
+        12: "декабря",
+    }
+    start_month = month_names[week_start.month]
+    end_month = month_names[week_end.month]
+    if week_start.month == week_end.month:
+        return f"{week_start.day}–{week_end.day} {end_month}"
+    return f"{week_start.day} {start_month} – {week_end.day} {end_month}"
+
+
+def _format_project_activity_summary(activity: dict[str, int]) -> str:
+    parts: list[str] = []
+    if activity.get("notes", 0):
+        notes_count = int(activity["notes"])
+        parts.append(
+            f"{notes_count} {_russian_plural(notes_count, ('заметка', 'заметки', 'заметок'))}"
+        )
+    if activity.get("ideas", 0):
+        ideas_count = int(activity["ideas"])
+        parts.append(
+            f"{ideas_count} {_russian_plural(ideas_count, ('идея', 'идеи', 'идей'))}"
+        )
+    if activity.get("homework", 0):
+        homework_count = int(activity["homework"])
+        parts.append(
+            f"{homework_count} {_russian_plural(homework_count, ('задача', 'задачи', 'задач'))}"
+        )
+    return ", ".join(parts)
+
+
 def _build_opening_sentence(
+    week_start: date,
+    week_end: date,
     project_activity: dict[str, dict[str, int]],
     new_notes: list[dict[str, object]],
     new_ideas: list[dict[str, object]],
     new_homework: list[dict[str, object]],
 ) -> str:
+    week_label = _russian_month_range(week_start, week_end)
     total_items = len(new_notes) + len(new_ideas) + len(new_homework)
-    total_projects = len(project_activity)
-    if total_items == 0:
-        return "Quiet week — keep the momentum going."
-    return f"You logged {total_items} items this week across {total_projects} projects."
+    if total_items == 0 or not project_activity:
+        return f"Дайджест {week_label}\n\nТихая неделя."
+
+    ranked_projects = sorted(
+        (
+            (
+                project_name,
+                int(activity.get("notes", 0)) + int(activity.get("ideas", 0)) + int(activity.get("homework", 0)),
+                activity,
+            )
+            for project_name, activity in project_activity.items()
+        ),
+        key=lambda item: (-item[1], item[0]),
+    )
+    top_project_name, top_total, top_activity = ranked_projects[0]
+    if top_total <= 0:
+        return f"Дайджест {week_label}\n\nТихая неделя."
+    if len(ranked_projects) > 1 and top_total == ranked_projects[1][1]:
+        return f"Дайджест {week_label}\n\nТихая неделя."
+
+    activity_summary = _format_project_activity_summary(top_activity)
+    return (
+        f"Дайджест {week_label}\n\n"
+        f"{top_project_name} — основная активность недели: {activity_summary}."
+    )
 
 
 def _build_urgent_items(
@@ -124,7 +202,7 @@ def _build_urgent_items(
             continue
         if date.fromisoformat(due_date_raw) > week_end:
             continue
-        urgent.append(f'• {item["title"]} — due {due_date_raw}')
+        urgent.append(f'• {item["title"]} — срок {due_date_raw}')
     return urgent
 
 
@@ -148,9 +226,9 @@ def _build_overdue_or_stalled(
     overdue_items = [item for item in upcoming_deadlines if int(item.get("days_until") or 0) < 0]
     overdue_items.sort(key=lambda item: str(item.get("due_date") or ""))
     for item in overdue_items:
-        lines.append(f'• {item["title"]} (overdue since {item["due_date"]})')
+        lines.append(f'• {item["title"]} (просрочено с {item["due_date"]})')
     for project in stalled_projects:
-        lines.append(f'• {project["name"]} (last activity {str(project["last_activity_at"])[:10]})')
+        lines.append(f'• {project["name"]} (активность: {str(project["last_activity_at"])[:10]})')
     return lines
 
 
@@ -158,14 +236,14 @@ def _build_next_step(upcoming_deadlines: list[dict[str, object]]) -> str:
     overdue_items = [item for item in upcoming_deadlines if int(item.get("days_until") or 0) < 0]
     overdue_items.sort(key=lambda item: (str(item.get("due_date") or ""), str(item.get("title") or "")))
     if overdue_items:
-        return f'Work on: {overdue_items[0]["title"]}'
+        return f'Дедлайн: {overdue_items[0]["title"]}'
 
     upcoming_items = [item for item in upcoming_deadlines if int(item.get("days_until") or 0) >= 0]
     upcoming_items.sort(key=lambda item: (int(item.get("days_until") or 0), str(item.get("due_date") or "")))
     if upcoming_items:
-        return f'Work on: {upcoming_items[0]["title"]}'
+        return f'Дедлайн: {upcoming_items[0]["title"]}'
 
-    return "Quiet week — keep the momentum going."
+    return "Ничего срочного."
 
 
 def build_summary_text(
@@ -178,32 +256,46 @@ def build_summary_text(
     upcoming_deadlines: list[dict[str, object]],
     stalled_projects: list[dict[str, object]],
 ) -> str:
-    week_label = f"{week_start.isoformat()} – {week_end.isoformat()}"
-    opening_sentence = _build_opening_sentence(project_activity, new_notes, new_ideas, new_homework)
+    week_label = _russian_month_range(week_start, week_end)
+    opening_sentence = _build_opening_sentence(
+        week_start,
+        week_end,
+        project_activity,
+        new_notes,
+        new_ideas,
+        new_homework,
+    )
     urgent_items = _build_urgent_items(upcoming_deadlines, week_end)
     creative_momentum = _build_creative_momentum(new_notes, new_ideas)
     overdue_or_stalled = _build_overdue_or_stalled(upcoming_deadlines, stalled_projects)
     next_step = _build_next_step(upcoming_deadlines)
 
-    if (
-        opening_sentence == "Quiet week — keep the momentum going."
-        and not urgent_items
-        and not creative_momentum
-        and not overdue_or_stalled
-        and next_step == "Quiet week — keep the momentum going."
-    ):
-        return f"Weekly Digest — {week_label}\n\nQuiet week — keep the momentum going."
+    if not urgent_items and not creative_momentum and not overdue_or_stalled:
+        nearest_deadline = min(
+            (
+                item for item in upcoming_deadlines
+                if int(item.get("days_until") or 0) >= 0
+            ),
+            key=lambda item: (int(item.get("days_until") or 0), str(item.get("due_date") or ""), str(item.get("title") or "")),
+            default=None,
+        )
+        if nearest_deadline is not None:
+            return (
+                f"Дайджест {week_label}\n\n"
+                f'Тихая неделя. Ближайший дедлайн: «{nearest_deadline["title"]}» '
+                f'через {nearest_deadline["days_until"]} дн.'
+            )
+        return f"Дайджест {week_label}\n\nТихая неделя — ничего не зафиксировано."
 
     return (
-        f"Weekly Digest — {week_label}\n\n"
         f"{opening_sentence}\n\n"
         f"🔴 Urgent (due this week):\n"
-        f"{_format_bullets(urgent_items, 'Nothing critical due this week.')}\n\n"
+        f"{_format_bullets(urgent_items, 'Ничего срочного на этой неделе.')}\n\n"
         f"🎬 Creative Momentum:\n"
-        f"{_format_bullets(creative_momentum, 'No new notes or ideas this week.')}\n\n"
+        f"{_format_bullets(creative_momentum, 'Новых заметок и идей нет.')}\n\n"
         f"⏳ Stalled / Neglected:\n"
-        f"{_format_bullets(overdue_or_stalled, 'Nothing stalled.')}\n\n"
-        f"➡ Recommended next step:\n"
+        f"{_format_bullets(overdue_or_stalled, 'Ничего зависшего.')}\n\n"
+        f"➡ Что дальше:\n"
         f"{next_step}"
     )
 
