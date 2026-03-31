@@ -118,7 +118,7 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await reply_text(
                 update,
                 context,
-                f"Куда сохранить?\n«{_content_preview(content)}»",
+                f"Куда сохранить «{_content_preview(content)}»?",
                 reply_markup=_type_selection_keyboard(),
             )
             return

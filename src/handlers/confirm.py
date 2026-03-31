@@ -79,7 +79,9 @@ async def edit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             await reply_text(update, context, _edit_usage_text())
             return
 
-        await reply_text(update, context, _build_pending_preview(state), reply_markup=_pending_keyboard())
+        change_ack = _build_edit_ack(field, value, entity_type)
+        preview_with_ack = f"{change_ack}\n{_build_pending_preview(state)}"
+        await reply_text(update, context, preview_with_ack, reply_markup=_pending_keyboard())
     except Exception:
         LOGGER.exception("Unhandled edit command failure")
         await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")
@@ -222,6 +224,16 @@ def _editable_text_field(entity_type: str, field: str) -> str | None:
     if field == "content":
         return "title" if entity_type in {"deadline", "homework"} else "content"
     return None
+
+
+def _build_edit_ack(field: str, value: str, entity_type: str) -> str:
+    if field == "due":
+        return f"Обновлено: срок → {value}"
+    if field in {"title", "content"}:
+        label = "название" if entity_type in {"deadline", "homework"} else "содержание"
+        preview = value[:40].rstrip() + ("..." if len(value) > 40 else "")
+        return f"Обновлено: {label} → {preview}"
+    return "Обновлено."
 
 
 def _build_pending_preview(state: UserState) -> str:
