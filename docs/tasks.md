@@ -138,10 +138,221 @@ Goal:
 Entry condition:
 - Phase 0 artifacts are approved
 
-Representative task areas:
-- project state framing
-- better continuity summaries
-- clearer confirmation and progress flows
-- stronger assistant tone and next-step guidance
+Exit criteria:
+- confirmation flows use oriented, project-aware language
+- weekly digest reads as a continuity artifact with directional framing
+- active-project context is visible in relevant flows without user prompting
+- reply framing at key moments (save, edit, confirm, review) feels grounded, not mechanical
+- a transcript-based UX review pack validates the above across representative sessions
 
-This phase is intentionally not yet broken into implementation tasks here. It requires a Phase Decomposition Pass against the current source-of-truth docs before coding begins.
+---
+
+[ ] P1-01 — UX Acceptance Examples Pack
+Owner: claude
+Phase: 1
+Type: documentation
+Depends-On: none
+Objective: |
+  Produce a concrete set of before/after examples for the four key interaction moments:
+  capture confirmation, edit confirmation, active-project-context reply, and digest opening.
+  These examples define what "better" means before any code changes are made.
+Why-Now: |
+  Coding UX improvements without agreed examples leads to subjective argument at review time.
+  The examples are the eval contract for every subsequent task in this phase.
+File-Scope:
+  - docs/examples/ux_acceptance_examples.md (new file)
+Deterministic-Owned:
+  - selection of moments to cover (this list is fixed: capture confirm, edit confirm, active project reply, digest opening)
+  - structure of each example (before / after / why)
+LLM-Owned:
+  - drafting the example language to match USER_EXPERIENCE.md tone and anti-goals
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Examples cover all four moments: capture confirmation, edit confirmation, active-project reply, weekly digest opening."
+    test: "manual review against USER_EXPERIENCE.md"
+  - id: AC-2
+    description: "Each example contains a before (current or representative), an after (target), and a one-line rationale."
+    test: "manual review"
+  - id: AC-3
+    description: "No after-state example uses generic AI praise, excessive length, or false-certainty language."
+    test: "manual review against USER_EXPERIENCE.md section 6 anti-goals"
+Dependencies: none
+Review-Mode: light (documentation only)
+Out-Of-Scope:
+  - code changes
+  - new flows not already in the current implementation
+  - eval automation or scoring pipelines
+
+---
+
+[ ] P1-02 — Weekly Digest Contract Rewrite
+Owner: codex
+Phase: 1
+Type: doc + implementation
+Depends-On: P1-01
+Objective: |
+  Rewrite the weekly digest output contract in docs/spec.md and implement the corresponding
+  changes in scripts/send_summary.py so the digest reads as a continuity artifact rather than
+  a raw activity log or generic weekly recap.
+Why-Now: |
+  The weekly digest is currently the highest-leverage continuity touchpoint.
+  It is also where the gap between "stored data" and "useful continuity framing" is most visible.
+  Improving it delivers phase value without touching the core capture or edit flows.
+File-Scope:
+  - docs/spec.md (section 10, UXR-3 digest contract)
+  - scripts/send_summary.py
+Deterministic-Owned:
+  - which entity types to include and their ordering
+  - grouping rules by project or type
+  - deduplication state and send guard
+  - delivery timing and trigger logic
+LLM-Owned:
+  - bounded framing sentence at digest opening, derived from actual stored project state
+  - optional one-line directional pointer per active project if records exist
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Digest opens with a brief grounded framing sentence referencing actual project state, not a generic header."
+    test: "manual review against P1-01 digest opening example"
+  - id: AC-2
+    description: "Digest includes a directional next-step pointer per active project where records support one."
+    test: "manual review on representative or synthetic test data"
+  - id: AC-3
+    description: "Digest send trigger and dedup guard remain fully deterministic after changes."
+    test: "code review of scripts/send_summary.py trigger and guard logic"
+  - id: AC-4
+    description: "Total digest length does not increase relative to the current version."
+    test: "manual comparison on identical input data"
+Dependencies: P1-01
+Review-Mode: light (doc + code)
+Out-Of-Scope:
+  - multi-project comparative ranking
+  - semantic summary generation beyond one bounded framing sentence
+  - digest scheduling or delivery window changes
+
+---
+
+[ ] P1-03 — Active Project Visibility and Orientation
+Owner: codex
+Phase: 1
+Type: implementation
+Depends-On: P1-01
+Objective: |
+  Make the active project visible in capture confirmations and key replies without the user
+  needing to ask or invoke project-specific commands. Project context should surface
+  deterministically at save time.
+Why-Now: |
+  The current confirmation flow does not orient the user to project context.
+  The assistant feels like generic storage even when the user has a clear active project.
+  Adding project name to confirmation replies closes this gap with minimal code change
+  and no new LLM path.
+File-Scope:
+  - src/handlers/nl_handler.py
+  - src/handlers/chat_handler.py (if project context is surfaced through chat tool confirmation responses)
+Deterministic-Owned:
+  - reading project association from DB at confirmation time
+  - including project name in reply template when association exists
+  - fallback wording when no project is associated (no error, no prompt to set project)
+LLM-Owned:
+  - none; project-name inclusion is fully deterministic
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Confirmation replies for capture actions include the project name when a project is associated."
+    test: "manual test: save a note with active project set; verify reply includes project name"
+  - id: AC-2
+    description: "When no project is associated, confirmation reply does not include a placeholder, error, or unsolicited prompt to set a project."
+    test: "manual test: save a note with no project set"
+  - id: AC-3
+    description: "Project name appears before or alongside the entity description, not as an afterthought at the end."
+    test: "manual review against P1-01 examples"
+Dependencies: P1-01
+Review-Mode: light
+Out-Of-Scope:
+  - project-switching commands
+  - project listing, creation, or archiving changes
+  - any new entity types or flows
+
+---
+
+[ ] P1-04 — Reply Framing Rewrite for Core Moments
+Owner: codex
+Phase: 1
+Type: implementation
+Depends-On: P1-01, P1-03
+Objective: |
+  Rewrite the response templates for save, edit, confirm, and review-completion moments
+  so they feel grounded and directional rather than mechanical. Tone and wording must match
+  USER_EXPERIENCE.md principles and the P1-01 accepted examples.
+Why-Now: |
+  These are the most frequent interaction moments across every session.
+  Improving template wording here improves product feel without new features or new architecture.
+File-Scope:
+  - src/handlers/nl_handler.py
+  - src/handlers/chat_handler.py
+  - src/reviewer.py (review completion wording only)
+Deterministic-Owned:
+  - template structure for save, edit, and confirm moments (project name, entity type, action taken)
+  - fallback wording for all deterministic paths
+LLM-Owned:
+  - bounded one-line next-step suggestion appended to review-completion reply, if stored project data supports it
+  - save, edit, and confirm templates must not use LLM for wording
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Save, edit, and confirm reply templates match the P1-01 after-state examples in wording and length."
+    test: "manual review against P1-01 examples"
+  - id: AC-2
+    description: "No template contains generic AI praise phrases (great, awesome, perfect, etc.)."
+    test: "grep over template strings in nl_handler.py and chat_handler.py"
+  - id: AC-3
+    description: "Review completion reply ends with a bounded one-sentence next-step pointer where stored data supports it."
+    test: "manual test on a representative review session"
+  - id: AC-4
+    description: "No reply is longer after changes than before, except where project name was absent before."
+    test: "manual length comparison on representative flows"
+Dependencies: P1-01, P1-03
+Review-Mode: light
+Out-Of-Scope:
+  - changing which commands trigger which flows
+  - new entity types
+  - LLM use for save, edit, or confirm templates
+
+---
+
+[ ] P1-05 — Transcript-Based UX Review Pack
+Owner: claude
+Phase: 1
+Type: documentation / eval
+Depends-On: P1-02, P1-03, P1-04
+Objective: |
+  Review representative session transcripts (real or synthetic) against the P1-01 examples
+  and USER_EXPERIENCE.md principles. Produce a structured UX review pack that documents
+  what improved, what gaps remain, and whether any items warrant rework before Phase 1 closes.
+Why-Now: |
+  Phase 1 should not close on code review alone. Transcript review is the evidence gate
+  for whether UX continuity actually improved in practice. It is the deep review artifact
+  for this phase.
+File-Scope:
+  - docs/review/ux_review_p1.md (new file)
+Deterministic-Owned:
+  - which moments to review (fixed: the four moments from P1-01)
+  - review structure per moment: moment name / before / after / verdict / notes
+LLM-Owned:
+  - drafting the review commentary and verdict prose from transcript evidence
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Review covers all four moments from P1-01."
+    test: "doc structure check"
+  - id: AC-2
+    description: "Each moment has a verdict (improved / unchanged / regressed) with supporting evidence."
+    test: "manual review"
+  - id: AC-3
+    description: "Gaps or rework items are listed explicitly, not folded into vague commentary."
+    test: "manual review"
+  - id: AC-4
+    description: "Phase 1 close decision in CODEX_PROMPT.md references this review pack."
+    test: "CODEX_PROMPT.md update at phase close"
+Dependencies: P1-02, P1-03, P1-04
+Review-Mode: deep (phase-close artifact; human approval required before Phase 2 entry)
+Out-Of-Scope:
+  - automated eval pipelines or benchmark scoring
+  - Phase 2 feature proposals (belong in Phase 2 decomposition pass)
+  - new transcript capture tooling
