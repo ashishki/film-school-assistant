@@ -128,9 +128,19 @@ async def _do_confirm(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> str:
         LOGGER.exception("Failed to confirm pending entity for chat_id=%s", chat_id)
         return "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)"
 
+    project_id = pending.get("project_id")
+    if (
+        project_id is not None
+        and project_id == state.active_project_id
+        and state.active_project_name
+    ):
+        project_name = state.active_project_name
+    else:
+        project_name = None
+
     clear_pending(chat_id)
     LOGGER.info("Confirmed pending %s for chat_id=%s as id=%s", saved_type, chat_id, saved_row["id"])
-    return _confirm_success_text(saved_type)
+    return _confirm_success_text(saved_type, project_name)
 
 
 async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pending: dict) -> tuple[str, dict]:
@@ -241,10 +251,13 @@ def _build_pending_preview(state: UserState) -> str:
     return "\n".join(preview)
 
 
-def _confirm_success_text(entity_type: str) -> str:
-    return {
-        "note": "✅ Заметка сохранена.",
-        "idea": "✅ Идея сохранена.",
-        "deadline": "✅ Дедлайн сохранён.",
-        "homework": "✅ Домашнее задание сохранено.",
+def _confirm_success_text(entity_type: str, project_name: str | None) -> str:
+    label = {
+        "note": "Заметка сохранена",
+        "idea": "Идея сохранена",
+        "deadline": "Дедлайн сохранён",
+        "homework": "Задание сохранено",
     }[entity_type]
+    if project_name:
+        return f"{label} → {project_name}"
+    return f"{label} (без проекта)"
