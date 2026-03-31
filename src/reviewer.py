@@ -53,6 +53,14 @@ async def review_idea(idea: dict, config) -> str:
                 model_used=get_model_name("review"),
             )
             await update_idea_review_status(db, idea_id, "reviewed")
+            try:
+                unreviewed_count = await _fetch_unreviewed_count(db, idea.get("project_id"))
+            except aiosqlite.Error:
+                LOGGER.warning("Failed to fetch unreviewed idea count for idea_id=%s", idea_id, exc_info=True)
+            else:
+                if unreviewed_count > 0:
+                    plural = _russian_plural_ideas(unreviewed_count)
+                    formatted = f"{formatted}\n\n→ Ещё {unreviewed_count} {plural} без разбора в этом проекте."
 
         LOGGER.info("Generated review for idea_id=%s", idea_id)
         return formatted
@@ -87,6 +95,30 @@ def _format_review(response: dict) -> str:
         f"  3. {questions[2]}\n"
         f"NEXT STEP: {next_step}"
     )
+
+
+async def _fetch_unreviewed_count(db: aiosqlite.Connection, project_id: int | None) -> int:
+    if project_id is None:
+        return 0
+    cursor = await db.execute(
+        "SELECT COUNT(*) FROM ideas WHERE project_id = ? AND review_status = 'unreviewed'",
+        (project_id,),
+    )
+    row = await cursor.fetchone()
+    await cursor.close()
+    return int(row[0]) if row else 0
+
+
+def _russian_plural_ideas(count: int) -> str:
+    rem100 = count % 100
+    rem10 = count % 10
+    if 11 <= rem100 <= 14:
+        return "идей"
+    if rem10 == 1:
+        return "идея"
+    if 2 <= rem10 <= 4:
+        return "идеи"
+    return "идей"
 
 
 def _get_required_review_field(response: dict, field_name: str) -> str:
