@@ -160,3 +160,58 @@ It does not mean:
 - jump straight to a web app
 - add speculative team features
 - add embeddings only because "memory" sounds modern
+
+## 10. Phase 1 UX Behavioral Requirements
+
+These requirements are implementation-explicit for Phase 1. They supplement the functional requirements above by defining expected output behavior at specific interaction moments. They are the behavioral contract that acceptance tests in Phase 1 tasks refer to.
+
+### UXR-1 — Confirmation Flow Language
+
+When a capture action produces a confirmation reply, the reply must:
+- name the entity type saved (note, idea, deadline, homework)
+- include the project name when a project is associated
+- avoid generic AI praise phrases (great, got it, awesome, perfect, etc.)
+- stay under three lines
+- not append a help command list
+
+When no project is associated, the reply must:
+- confirm the save without a placeholder or error about missing project context
+- not prompt the user to set a project unless they explicitly asked how
+
+### UXR-2 — Active Project Orientation
+
+When the assistant performs a save or edit action for an entity with project association:
+- the project name must appear in the reply
+- the project name must come before or alongside the entity description, not as an afterthought at the end
+
+When the assistant has no project context for an entity:
+- the reply must not prompt the user to set a project unless they raised the question
+
+### UXR-3 — Weekly Digest Framing
+
+The weekly digest must:
+- open with a brief project-state framing sentence derived from actual stored state (not a generic "here is your weekly summary" header)
+- group items by project or type where volume justifies grouping
+- include a directional next-step pointer per active project when records for that project exist
+- not increase in total length relative to the current implementation
+
+The framing sentence is a bounded LLM output anchored to stored state. The rest of the digest is deterministic.
+
+The digest must not:
+- open with motivational or generic AI language
+- summarize the same items more than once
+- invent activity not supported by stored records
+
+### UXR-4 — Review Completion Framing
+
+When an idea review completes:
+- the reply must end with a one-sentence next-step pointer if stored project data supports one
+- the next-step pointer is a bounded LLM output constrained to one sentence
+- the reply must not end with a generic "let me know how you want to proceed" fallback
+
+### UXR-5 — Reply Length Discipline
+
+Across all Phase 1 changes:
+- no reply should be longer after changes than before, except where the added content is the project name that was previously absent
+- confirmations, digests, and review completions must not accumulate decorative language
+- longer is not better; grounded and brief is better

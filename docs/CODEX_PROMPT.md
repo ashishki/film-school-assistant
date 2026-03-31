@@ -1,6 +1,6 @@
 # Film School Assistant — Codex Session State
 
-Last updated: 2026-03-30
+Last updated: 2026-03-31
 
 ---
 
@@ -14,9 +14,11 @@ Last updated: 2026-03-30
 
 ## Current Phase
 
-- Phase: 0
-- Goal: documentation and product clarity foundation
-- Next Task: `Phase Decomposition Pass for Phase 1 — Product Experience and UX Continuity`
+- Phase: 1
+- Goal: improve user-visible UX continuity inside the current Telegram surface
+- Active Task: `P1-01 — UX Acceptance Examples Pack`
+- Active Task Owner: claude
+- Active Task Output: `docs/examples/ux_acceptance_examples.md` (new file)
 
 ---
 
@@ -109,6 +111,10 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
   - added `docs/DECISIONS.md`
   - refreshed `docs/spec.md`
   - refreshed `docs/tasks.md`
+- Phase 1 Decomposition Pass:
+  - decomposed Phase 1 into five tasks (P1-01 through P1-05) in `docs/tasks.md`
+  - added Phase 1 UX behavioral requirements (UXR-1 through UXR-5) to `docs/spec.md` section 10
+  - advanced `docs/CODEX_PROMPT.md` to Phase 1 with P1-01 as active task
 
 ---
 
