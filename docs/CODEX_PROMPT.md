@@ -16,9 +16,9 @@ Last updated: 2026-03-31
 
 - Phase: 4
 - Goal: deployment simplification and onboarding clarity
-- Active Task: `P4-01 — Deployment Package`
+- Active Task: `P4-02 — Onboarding Flow Polish`
 - Active Task Owner: codex
-- Active Task Output: `systemd/film-school-bot.service`, `.env.example`, `docs/DEPLOY.md`
+- Active Task Output: `src/bot.py` (start_command)
 - Web layer: deferred (DECISIONS.md condition not met)
 
 ---
