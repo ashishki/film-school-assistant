@@ -75,6 +75,7 @@ def _extract_next_steps(review_rows: list[dict]) -> list[str]:
             continue
 
         next_step = str(parsed.get("next_step", "")).strip()
+        next_step = next_step[:200]
         if next_step:
             next_steps.append(next_step)
 
