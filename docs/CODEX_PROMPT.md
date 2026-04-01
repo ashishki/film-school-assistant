@@ -14,10 +14,11 @@ Last updated: 2026-03-31
 
 ## Current Phase
 
-- Phase: 1 — COMPLETE (pending human phase-gate approval)
-- Goal: improve user-visible UX continuity inside the current Telegram surface
-- Phase review: `docs/review/ux_review_p1.md`
-- Next action: human approval → Phase 2 Decomposition Pass
+- Phase: 2
+- Goal: add bounded creative memory layer — project summaries, chat context injection
+- Active Task: `P2-01 — project_memory Schema and DB Layer`
+- Active Task Owner: codex
+- Active Task Output: `src/schema.sql`, `src/db.py`
 
 ---
 
@@ -120,6 +121,10 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
   - P1-03: `src/handlers/confirm.py` — project name in confirmation replies, emoji removed, gender fixed
   - P1-04: `src/handlers/confirm.py`, `nl_handler.py`, `reviewer.py` — edit ack, type-select prompt, unreviewed count pointer
   - P1-05: `docs/review/ux_review_p1.md` — UX review pack; 3 low-severity gaps deferred to Phase 2
+- Phase 2 Decomposition Pass:
+  - decomposed Phase 2 into four tasks (P2-01 through P2-04) in `docs/tasks.md`
+  - added Phase 2 memory behavioral requirements (MR-1 through MR-4) to `docs/spec.md` section 11
+  - advanced `docs/CODEX_PROMPT.md` to Phase 2 with P2-01 as active task
 
 ---
 
