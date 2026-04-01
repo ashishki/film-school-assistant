@@ -211,13 +211,17 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if message is None:
         return
     await message.reply_text(
-        "Привет.\n\n"
-        "Я помогаю режиссёрам и студентам хранить идеи, заметки, дедлайны "
-        "и домашние задания — и возвращаться к ним без потерь.\n\n"
-        "Для начала создай проект:\n"
-        "/new_project <название>\n\n"
-        "Потом просто пиши или диктуй — я разберусь сам. "
-        "/help покажет все команды."
+        "Привет! Я твой ассистент для учёбы в киношколе 🎬\n\n"
+        "Помогаю не терять мысли в потоке учёбы: сохраняю идеи, заметки, "
+        "дедлайны и домашние задания — и напоминаю о них в нужный момент.\n\n"
+        "Просто пиши мне как другу — голосом или текстом — и я сам пойму, "
+        "что нужно сохранить. Например:\n"
+        "• «Идея для документального — снять рынок на рассвете»\n"
+        "• «Напомни сдать монтаж до пятницы»\n"
+        "• «Домашнее по звуку до 10 апреля»\n\n"
+        "Для начала создай свой первый проект:\n"
+        "/new_project Название проекта\n\n"
+        "Полный список возможностей — /help"
     )
 
 
@@ -361,6 +365,12 @@ def configure_logging(level_name: str) -> None:
     )
 
 
+async def post_init(application: Application) -> None:
+    db_path = application.bot_data["db_path"]
+    await init_db(db_path)
+    await notify_restart_if_pending(application)
+
+
 async def notify_restart_if_pending(application: Application) -> None:
     db_path = application.bot_data["db_path"]
     allowed_chat_id = application.bot_data["allowed_chat_id"]
@@ -394,9 +404,8 @@ async def notify_restart_if_pending(application: Application) -> None:
 def build_application() -> Application:
     config = load_config()
     configure_logging(config.log_level)
-    asyncio.run(init_db(config.db_path))
 
-    application = ApplicationBuilder().token(config.telegram_bot_token).post_init(notify_restart_if_pending).build()
+    application = ApplicationBuilder().token(config.telegram_bot_token).post_init(post_init).build()
     application.bot_data["config"] = config
     application.bot_data["db_path"] = config.db_path
     application.bot_data["allowed_chat_id"] = config.telegram_allowed_chat_id
