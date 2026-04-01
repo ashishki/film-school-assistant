@@ -14,18 +14,22 @@ It is not a wishlist. It is the recommended development order.
 
 ## 2. What Has Already Been Built
 
-Implemented foundation:
-- Telegram-first capture and management
+Implemented foundation (Phases 0–5, Audit Cycle 1):
+- Telegram-first capture and management by text and voice
 - structured entities: notes, ideas, deadlines, homework
-- project scoping
+- project scoping; confirmation and edit replies are project-aware
 - local Whisper voice transcription
-- bounded NL extraction
+- multi-entity NL extraction — one message can produce multiple queued entities
+- context-aware NL handler — last 5 messages used to resolve back-references
+- targeted clarifying questions on parse failure (not generic errors)
+- ✏️ Уточнить button — lets user rewrite a pending entity without retyping from scratch
 - bounded chat tool use
-- idea review
-- reminders
-- weekly digest
+- idea review with project-memory context injection
+- `/memory` — bounded per-project state summary, injected into chat context
+- `/reflect` — structured project reflection: current state, tensions, next focus
+- reminders; weekly digest with project-level next-step framing
 - search, edit, archive
-- private VPS deployment with SQLite and `systemd`
+- private VPS deployment with SQLite and `systemd`; documented in `docs/DEPLOY.md`
 
 This foundation is substantial enough to support a real product. The next work should clarify and deepen it, not replace it.
 
@@ -304,7 +308,45 @@ Reflection quality depends on continuity quality.
 
 - collaborative review workflows
 
-## 8. Phase 4 — Productization and Optional Surface Expansion
+## 8. Phase 5 — NL Interaction Quality
+
+### Objective
+
+Make free-text capture smarter: handle multi-item messages, recover gracefully from parse failures, and let the user correct a pending entity with minimal friction.
+
+### Why it belongs here
+
+Phases 1–4 improved continuity, memory, and reflection. Phase 5 closes the gap in the most frequent interaction — free-text capture — where users regularly send compound messages, get unhelpful generic errors, or have no way to fix a misread entity without discarding it.
+
+### What was built
+
+- multi-entity extraction — one message → `{"entities": [...]}` → queued per-entity confirmation
+- NL context window — last 5 raw messages passed to extraction so back-references resolve
+- targeted clarifying questions — 4 distinct failure modes each get a specific message
+- ✏️ Уточнить button — third keyboard option; sets re-extraction mode on next free-text message
+
+### Key artifacts
+
+- `src/state.py` — `pending_entities`, `pending_clarify`, `nl_context`, `add_nl_context()`
+- `src/handlers/nl_handler.py` — multi-entity schema, context prompt, clarifying messages
+- `src/handlers/confirm.py` — `_queue_next_pending_entity()`, 3-button keyboard
+- `src/bot.py` — clarify callback handler
+- `docs/review/nl_quality_review_p5.md` — phase review pack; all NR-1..4 met
+
+### Acceptance criteria met
+
+- single-entity path unchanged (backward compatible)
+- multi-entity queuing confirmed in code and review
+- ruff passes on all tasks; no regressions
+
+### Deferred (low severity)
+
+- R1-F1: save/restore pattern for `pending_entities` around `clear_pending` in `_do_confirm`
+- R3-F1: clarify flow leaves old message in `nl_context`
+
+---
+
+## 9. Phase 4 — Productization and Optional Surface Expansion
 
 ### Objective
 
@@ -352,15 +394,14 @@ Packaging a weakly differentiated product surface earlier would amplify the wron
 
 - multi-user product unless evidence clearly demands it
 
-## 9. Immediate Task Order for the Next Phase
+## 10. Current Development Status
 
-Recommended order inside Phase 1:
+Phases 0–5 and Audit Cycle 1 are complete. There is no active phase.
 
-1. Define UX acceptance examples for capture, confirm, digest, and project-context replies.
-2. Rewrite weekly digest contract as a continuity artifact, not just a summary message.
-3. Improve active-project visibility and project-scoped orientation in key flows.
-4. Improve reply framing for saved, edited, confirmed, and reviewed entities.
-5. Run transcript-based UX review on representative sessions before adding new capability.
+If development resumes, the recommended next areas (in order of leverage):
+1. Voice capture improvement — voice notes currently enter the same extraction path but lose the multi-entity and context benefits; aligning voice + text capture would close that gap.
+2. Second audit cycle — now that NL extraction is significantly more complex, a targeted code audit of the queue and clarify paths would be valuable before any further expansion.
+3. Web review layer — deferred per DECISIONS.md; condition not yet met but closer now that capture quality has improved.
 
 ## 10. Active Development Loop
 
