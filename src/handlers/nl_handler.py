@@ -17,10 +17,10 @@ from src.state import get_state
 
 LOGGER = logging.getLogger(__name__)
 EXTRACTION_SYSTEM_PROMPT = (
-    "You are an entity extractor for a film school workflow assistant. Extract structured data from the user's message.\n"
-    'Return JSON only: {"entity_type": "note|idea|homework|deadline", "content": "cleaned content", '
+    "Ты извлекатель сущностей для ассистента по учебному процессу киношколы. Извлеки структурированные данные из сообщения пользователя.\n"
+    'Верни только JSON: {"entity_type": "note|idea|homework|deadline", "content": "cleaned content", '
     '"project_hint": "project name or empty string", "due_date": "YYYY-MM-DD or empty string"}\n'
-    "Rules: entity_type must be one of the four values. due_date only if explicitly mentioned. No explanation text."
+    "Правила: entity_type должен быть одним из четырёх значений. due_date указывай только если дата явно упомянута. Без пояснительного текста. Язык значения content: язык пользователя, без изменений."
 )
 
 
