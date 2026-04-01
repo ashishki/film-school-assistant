@@ -133,7 +133,7 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     await reply_text(
                         update,
                         context,
-                        f"Память проекта «{project_name}»:\n\n{existing_memory['summary_text']}\n\n_(актуально)_",
+                        f"Память проекта «{project_name}»:\n\n{existing_memory['summary_text']}\n\n_(актуально, обновлено: {existing_memory['generated_at'][:10]})_",
                     )
                     return
 

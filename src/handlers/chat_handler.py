@@ -58,7 +58,7 @@ async def handle_chat(
             memory_text = memory_row["summary_text"] if memory_row else None
         except Exception:
             LOGGER.warning(
-                "Failed to read project memory for project_id=%s, proceeding without it",
+                "memory injection failed: could not read project memory for project_id=%s, proceeding without it",
                 project_id,
             )
             memory_text = None
