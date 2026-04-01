@@ -5,13 +5,14 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-User=oc_her
-WorkingDirectory=/srv/openclaw-her/workspace/film-school-assistant
-# ExecStart: update to your venv path, e.g. ExecStart=/path/to/.venv/bin/python3 ...
-ExecStart=/usr/bin/python3 src/bot.py
+User=youruser
+WorkingDirectory=/path/to/repo
+# Set ExecStart to the venv python3 inside your cloned repo, e.g.:
+# ExecStart=/path/to/repo/.venv/bin/python3 src/bot.py
+ExecStart=/path/to/repo/.venv/bin/python3 src/bot.py
 Restart=on-failure
 RestartSec=10
-EnvironmentFile=/srv/openclaw-her/workspace/film-school-assistant/.env
+EnvironmentFile=/path/to/repo/.env
 NoNewPrivileges=true
 StandardOutput=journal
 StandardError=journal
