@@ -289,13 +289,13 @@ def build_summary_text(
 
     return (
         f"{opening_sentence}\n\n"
-        f"🔴 Urgent (due this week):\n"
+        f"Срочно (срок на этой неделе):\n"
         f"{_format_bullets(urgent_items, 'Ничего срочного на этой неделе.')}\n\n"
-        f"🎬 Creative Momentum:\n"
+        f"Активные идеи:\n"
         f"{_format_bullets(creative_momentum, 'Новых заметок и идей нет.')}\n\n"
-        f"⏳ Stalled / Neglected:\n"
+        f"Без активности:\n"
         f"{_format_bullets(overdue_or_stalled, 'Ничего зависшего.')}\n\n"
-        f"➡ Что дальше:\n"
+        f"Что дальше:\n"
         f"{next_step}"
     )
 

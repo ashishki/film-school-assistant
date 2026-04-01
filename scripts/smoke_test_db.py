@@ -22,11 +22,15 @@ from src.db import (
     get_recent_unconfirmed_events,
     get_deadline,
     get_idea,
+    get_llm_calls_today,
     get_note,
+    get_project_item_count,
     get_project_by_slug,
+    get_project_memory,
     get_reminder_log,
     init_db,
     log_reminder,
+    log_llm_call,
     list_all_projects,
     list_deadlines,
     list_homework,
@@ -34,6 +38,7 @@ from src.db import (
     list_projects,
     search_ideas,
     search_notes,
+    upsert_project_memory,
     update_deadline_due_date,
     update_deadline_status,
     update_deadline_title,
@@ -67,6 +72,8 @@ EXPECTED_TABLES = {
     "reminder_log",
     "review_history",
     "weekly_reports",
+    "project_memory",
+    "llm_call_log",
 }
 
 
@@ -260,6 +267,48 @@ async def run_smoke_test() -> None:
             all_dl_ids = {item["id"] for item in all_dl}
             assert dl_done["id"] in all_dl_ids, \
                 "done deadline must appear in unfiltered list"
+
+            # T-P2: upsert_project_memory/get_project_memory round-trip updates existing row
+            memory_project = await create_project(db, "Memory Project", "memory-project")
+            memory_inserted = await upsert_project_memory(
+                db,
+                memory_project["id"],
+                "first summary",
+                0,
+                "test-model-v1",
+            )
+            assert memory_inserted["summary_text"] == "first summary", \
+                "upsert_project_memory must insert the initial summary_text"
+
+            memory_updated = await upsert_project_memory(
+                db,
+                memory_project["id"],
+                "updated summary",
+                1,
+                "test-model-v2",
+            )
+            fetched_memory = await get_project_memory(db, memory_project["id"])
+            assert fetched_memory is not None, "get_project_memory must return the stored row"
+            assert memory_updated["id"] == memory_inserted["id"], \
+                "upsert_project_memory must update the existing UNIQUE project_id row"
+            assert fetched_memory["summary_text"] == "updated summary", \
+                "upsert_project_memory must persist the latest summary_text"
+
+            # T-P2: log_llm_call/get_llm_calls_today round-trip counts logged calls
+            calls_before = await get_llm_calls_today(db)
+            await log_llm_call(db, "smoke-test-model", "chat")
+            calls_after = await get_llm_calls_today(db)
+            assert calls_after >= 1, "get_llm_calls_today must return at least 1 after logging a call"
+            assert calls_after >= calls_before + 1, \
+                "log_llm_call must increase today's llm_call_log count"
+
+            # T-P3: get_project_item_count counts notes and ideas for a project
+            count_project = await create_project(db, "Count Project", "count-project")
+            await create_note(db, "Counted note", project_id=count_project["id"])
+            await create_idea(db, "Counted idea", project_id=count_project["id"])
+            project_item_count = await get_project_item_count(db, count_project["id"])
+            assert project_item_count == 2, \
+                "get_project_item_count must count 1 note + 1 idea as 2 items"
 
             # T-B1/T-O4: restart notification source query returns only recent unconfirmed parsed_events
             recent_unconfirmed = await create_parsed_event(
