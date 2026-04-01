@@ -553,6 +553,143 @@ Out-Of-Scope:
 
 ---
 
+## Phase 4 — Productization
+
+Goal:
+- simplify deployment and improve first-run onboarding so the assistant is easier to set up and orient within
+
+Entry condition:
+- Phase 3 artifacts approved (phase gate passed)
+
+Exit criteria:
+- VPS deployment is documented with a clean step-by-step guide and a working .env.example
+- systemd service file uses venv python, not system python
+- /start flow guides a new user toward creating their first project
+- emoji removed from /start (consistent with Phase 1 UX rules)
+- productization review pack confirms no regressions
+
+Web layer: deferred — DECISIONS.md condition not yet met (continuity inspectable via /memory + /reflect in chat)
+
+---
+
+[x] P4-01 — Deployment Package
+Owner: codex
+Phase: 4
+Type: config + documentation
+Depends-On: none
+Objective: |
+  Fix the systemd service file to use the venv Python binary, add a .env.example
+  template so new deployments have a clear starting point, and write a
+  docs/DEPLOY.md guide covering fresh VPS setup end-to-end.
+Why-Now: |
+  The current service file hard-codes /usr/bin/python3 (bypasses venv) and has no
+  env template. Anyone deploying fresh has no documented path.
+File-Scope:
+  - systemd/film-school-bot.service
+  - .env.example (new file)
+  - docs/DEPLOY.md (new file)
+Deterministic-Owned:
+  - service file ExecStart (use relative venv path placeholder)
+  - .env.example keys list (all keys from config loading code, no real values)
+  - DEPLOY.md structure: prerequisites, clone, venv, env setup, schema init, systemd install, smoke test
+LLM-Owned:
+  - none; all outputs are config and documentation
+Acceptance-Criteria:
+  - id: AC-1
+    description: "film-school-bot.service ExecStart uses .venv/bin/python3 (or documented venv path placeholder)."
+    test: "code review"
+  - id: AC-2
+    description: ".env.example lists all required env keys with placeholder values and a one-line comment per key."
+    test: "cross-check against config loading in src/config.py or equivalent"
+  - id: AC-3
+    description: "docs/DEPLOY.md covers: prerequisites, clone, venv setup, .env configuration, schema init, systemd unit install, verify/smoke-test."
+    test: "manual doc review"
+  - id: AC-4
+    description: "No real secrets or personal paths appear in any committed file."
+    test: "code review"
+Dependencies: none
+Review-Mode: light
+Out-Of-Scope:
+  - Docker or docker-compose
+  - multi-user deployment
+  - CI/CD pipeline setup
+
+---
+
+[ ] P4-02 — Onboarding Flow Polish
+Owner: codex
+Phase: 4
+Type: implementation
+Depends-On: P4-01
+Objective: |
+  Improve /start to give a new user a grounded first-run orientation: remove emoji,
+  explain what the assistant does in one sentence, and hint at creating a first project
+  as the recommended next step.
+Why-Now: |
+  /start currently uses emoji (inconsistent with Phase 1 UX rules) and doesn't guide
+  the user toward the first meaningful action (creating a project).
+File-Scope:
+  - src/bot.py (start_command)
+Deterministic-Owned:
+  - welcome text (static template — no LLM)
+  - first-action pointer: suggest /new_project <название>
+LLM-Owned:
+  - none
+Acceptance-Criteria:
+  - id: AC-1
+    description: "/start reply contains no emoji."
+    test: "code review of start_command text"
+  - id: AC-2
+    description: "/start reply describes what the assistant does in one or two sentences without generic AI praise."
+    test: "manual review"
+  - id: AC-3
+    description: "/start reply ends with a concrete first-step hint: /new_project <название> to create a project."
+    test: "code review"
+  - id: AC-4
+    description: "Reply stays under 10 lines."
+    test: "manual review"
+Dependencies: P4-01
+Review-Mode: light
+Out-Of-Scope:
+  - multi-step onboarding wizard
+  - interactive project creation from /start
+  - any new commands or flows
+
+---
+
+[ ] P4-03 — Phase 4 Productization Review Pack
+Owner: claude
+Phase: 4
+Type: documentation / eval
+Depends-On: P4-01, P4-02
+Objective: |
+  Deep review of Phase 4 outputs: deployment package completeness, onboarding
+  flow quality, and regression check against Phase 1 UX rules. Produce a structured
+  review pack that closes Phase 4.
+File-Scope:
+  - docs/review/productization_review_p4.md (new file)
+Deterministic-Owned:
+  - review structure: deployment / onboarding / regression check / close decision
+LLM-Owned:
+  - verdict prose
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Review covers deployment package, onboarding flow, and UX regression check."
+    test: "doc structure check"
+  - id: AC-2
+    description: "Each section has a verdict with evidence."
+    test: "manual review"
+  - id: AC-3
+    description: "Phase 4 close decision is explicit."
+    test: "CODEX_PROMPT.md update at phase close"
+Dependencies: P4-01, P4-02
+Review-Mode: deep (phase-close artifact; final phase)
+Out-Of-Scope:
+  - Phase 5 proposals
+  - web layer work
+
+---
+
 ## Phase 3 — Higher-Leverage Reflection and Guidance
 
 Goal:
