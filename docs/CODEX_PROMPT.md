@@ -14,10 +14,11 @@ Last updated: 2026-03-31
 
 ## Current Phase
 
-- Phase: 2 — COMPLETE (pending human phase-gate approval)
-- Goal: add bounded creative memory layer — project summaries, chat context injection
-- Phase review: `docs/review/continuity_eval_p2.md`
-- Next action: human approval → Phase 3 Decomposition Pass
+- Phase: 3
+- Goal: use memory layer for higher-leverage reflection and project-level guidance
+- Active Task: `P3-01 — Enhanced Idea Review with Project Context`
+- Active Task Owner: codex
+- Active Task Output: `src/reviewer.py`, `src/handlers/review.py`
 
 ---
 
@@ -129,6 +130,10 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
   - P2-02: `src/handlers/memory_cmd.py` — /memory command, bounded LLM generation, staleness cache
   - P2-03: `src/handlers/chat_handler.py` — memory injection into system prompt
   - P2-04: `docs/review/continuity_eval_p2.md` — continuity eval; 3 low-severity findings deferred to Phase 3
+- Phase 3 Decomposition Pass:
+  - decomposed Phase 3 into three tasks (P3-01 through P3-03) in `docs/tasks.md`
+  - added Phase 3 reflection behavioral requirements (RR-1 through RR-3) to `docs/spec.md` section 12
+  - advanced `docs/CODEX_PROMPT.md` to Phase 3 with P3-01 as active task
 
 ---
 

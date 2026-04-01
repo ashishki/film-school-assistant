@@ -550,3 +550,156 @@ Review-Mode: deep (phase-close artifact; human approval required before Phase 3 
 Out-Of-Scope:
   - automated benchmark pipelines
   - Phase 3 feature proposals
+
+---
+
+## Phase 3 — Higher-Leverage Reflection and Guidance
+
+Goal:
+- use the memory layer from Phase 2 to make reflection and guidance materially more useful than single-idea critique in isolation
+
+Entry condition:
+- Phase 2 artifacts approved (phase gate passed)
+
+Exit criteria:
+- idea review uses project memory as context, improving critique specificity
+- /reflect command produces grounded project-level guidance from stored state
+- reflection eval pack confirms quality improvement without hallucination regression
+
+---
+
+[ ] P3-01 — Enhanced Idea Review with Project Context
+Owner: codex
+Phase: 3
+Type: implementation
+Depends-On: none
+Objective: |
+  Inject the active project's memory summary into the idea review prompt so the LLM
+  can critique the idea in the context of where the project currently stands,
+  rather than in isolation.
+Why-Now: |
+  Phase 2 generated project memory but review.py never uses it.
+  Connecting the two is the minimum step to make review meaningfully project-aware.
+File-Scope:
+  - src/reviewer.py
+  - src/handlers/review.py
+Deterministic-Owned:
+  - fetching project_memory from DB before LLM call (in review.py)
+  - passing memory_text to review_idea as optional parameter
+  - fallback when no memory exists: proceed with original prompt unchanged
+LLM-Owned:
+  - the review itself (Sonnet-class, unchanged); now receives richer context
+Acceptance-Criteria:
+  - id: AC-1
+    description: "review_idea accepts project_memory_text: str | None parameter."
+    test: "code review"
+  - id: AC-2
+    description: "When project_memory_text is provided, prompt includes 'Контекст проекта: {text}' before the idea."
+    test: "code review of prompt construction"
+  - id: AC-3
+    description: "When project_memory_text is None, prompt is identical to the pre-Phase-3 baseline."
+    test: "code review"
+  - id: AC-4
+    description: "review.py fetches get_project_memory(db, idea['project_id']) before calling review_idea."
+    test: "code review"
+  - id: AC-5
+    description: "If get_project_memory fails, review proceeds without context — no crash."
+    test: "code review of error path"
+Dependencies: none
+Review-Mode: light
+Out-Of-Scope:
+  - changing the review JSON schema or output format
+  - adding memory to bulk review flows
+  - any new LLM model path
+
+---
+
+[ ] P3-02 — /reflect Command
+Owner: codex
+Phase: 3
+Type: implementation
+Depends-On: P3-01
+Objective: |
+  Add a /reflect command that generates a project-level reflection from stored state:
+  current project standing, creative tensions identified in ideas and reviews, and
+  one concrete recommended focus for the next work session.
+Why-Now: |
+  Single-idea review gives tactical critique. /reflect gives the user a wider view
+  of where the project is and what deserves attention — a higher-leverage output
+  only possible because Phase 2 memory now exists.
+File-Scope:
+  - src/handlers/reflect_cmd.py (new file)
+  - src/bot.py (register /reflect)
+  - src/handlers/help_cmd.py (add /reflect to help text)
+Deterministic-Owned:
+  - project resolution from active state
+  - input assembly: project memory + up to 5 most recent review summaries + active deadlines
+  - LLM call guard (daily limit check)
+  - LLM call logging
+LLM-Owned:
+  - structured reflection output (Sonnet-class): project_standing, tensions, focus
+  - system prompt: grounded in provided data only; no invented state; Russian output
+  - output format: JSON with keys project_standing, tensions, focus_recommendation
+Acceptance-Criteria:
+  - id: AC-1
+    description: "/reflect with active project and memory returns structured reflection with project_standing, tensions, focus_recommendation."
+    test: "manual test"
+  - id: AC-2
+    description: "/reflect with no active project returns a prompt to set project first."
+    test: "manual test"
+  - id: AC-3
+    description: "/reflect with active project but no memory returns a prompt to run /memory first."
+    test: "code review"
+  - id: AC-4
+    description: "LLM call uses Sonnet-class (review model path), is logged in llm_call_log."
+    test: "code review"
+  - id: AC-5
+    description: "Output contains no facts not traceable to input data."
+    test: "manual review of output against DB state"
+Dependencies: P3-01
+Review-Mode: light
+Out-Of-Scope:
+  - autonomous planning or multi-session scheduling
+  - persistent agent roles
+  - reflect without active project memory
+
+---
+
+[ ] P3-03 — Reflection Eval Pack
+Owner: claude
+Phase: 3
+Type: documentation / eval
+Depends-On: P3-01, P3-02
+Objective: |
+  Evaluate reflection quality across three dimensions: enhanced review with context,
+  /reflect command output, and hallucination risk. Produce a structured eval pack
+  that determines whether Phase 3 outputs are materially more useful than Phase 2
+  and whether any regression or fabrication occurred.
+Why-Now: |
+  Phase 3 uses Sonnet-class LLM with richer context input — higher hallucination risk
+  than Phase 2 memory generation. Eval is the evidence gate before phase close.
+File-Scope:
+  - docs/review/reflection_eval_p3.md (new file)
+Deterministic-Owned:
+  - eval structure: dimension / without-context / with-context / verdict / findings
+  - which dimensions: enhanced review, /reflect output, hallucination check
+LLM-Owned:
+  - verdict prose from session evidence
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Eval covers three dimensions: enhanced review, /reflect output, hallucination risk."
+    test: "doc structure check"
+  - id: AC-2
+    description: "Each dimension has a verdict with evidence."
+    test: "manual review"
+  - id: AC-3
+    description: "Any fabrication findings are listed explicitly with severity."
+    test: "manual review"
+  - id: AC-4
+    description: "Phase 3 close decision references this eval pack."
+    test: "CODEX_PROMPT.md update at phase close"
+Dependencies: P3-01, P3-02
+Review-Mode: deep (phase-close artifact; human approval required before Phase 4 entry)
+Out-Of-Scope:
+  - automated scoring pipelines
+  - Phase 4 feature proposals
