@@ -18,9 +18,10 @@ from src.state import get_state
 LOGGER = logging.getLogger(__name__)
 EXTRACTION_SYSTEM_PROMPT = (
     "Ты извлекатель сущностей для ассистента по учебному процессу киношколы. Извлеки структурированные данные из сообщения пользователя.\n"
-    'Верни только JSON: {"entity_type": "note|idea|homework|deadline", "content": "cleaned content", '
-    '"project_hint": "project name or empty string", "due_date": "YYYY-MM-DD or empty string"}\n'
-    "Правила: entity_type должен быть одним из четырёх значений. due_date указывай только если дата явно упомянута. Без пояснительного текста. Язык значения content: язык пользователя, без изменений."
+    'Верни только JSON: {"entities": [{"entity_type": "note|idea|homework|deadline", "content": "cleaned content", '
+    '"project_hint": "project name or empty string", "due_date": "YYYY-MM-DD or empty string"}]}\n'
+    "Правила: entity_type должен быть одним из четырёх значений. due_date указывай только если дата явно упомянута. "
+    "content не меняй. Если сущностей несколько, верни каждую отдельным объектом в массиве entities. Без пояснительного текста."
 )
 
 
@@ -85,30 +86,28 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             )
             return
 
-        try:
-            entity_type = _normalize_entity_type(parsed.get("entity_type"))
-            content = str(parsed.get("content", "")).strip()
-            project_hint = str(parsed.get("project_hint", "")).strip()
-            due_date = str(parsed.get("due_date", "")).strip()
-        except ValueError:
-            LOGGER.warning("NL extraction returned invalid schema for chat_id=%s", chat.id)
-            await reply_text(
-                update,
-                context,
-                "Не совсем понял. Попробуй переформулировать или используй команду:\n"
-                "/note текст, /idea текст, /deadline название due дата",
-            )
+        entities = parsed.get("entities", [])
+        if not isinstance(entities, list) or not entities:
+            LOGGER.warning("NL extraction returned empty entities list for chat_id=%s", chat.id)
+            await reply_text(update, context, _nl_parse_error_text())
             return
 
-        if not content:
-            LOGGER.warning("NL extraction returned empty content for chat_id=%s", chat.id)
-            await reply_text(
-                update,
-                context,
-                "Не совсем понял. Попробуй переформулировать или используй команду:\n"
-                "/note текст, /idea текст, /deadline название due дата",
-            )
+        valid_entities: list[dict[str, str | None]] = []
+        for item in entities:
+            normalized = _normalize_extracted_entity(item)
+            if normalized is not None:
+                valid_entities.append(normalized)
+
+        if not valid_entities:
+            LOGGER.warning("NL extraction returned no valid entities for chat_id=%s", chat.id)
+            await reply_text(update, context, _nl_parse_error_text())
             return
+
+        first_entity = valid_entities[0]
+        entity_type = first_entity["entity_type"]
+        content = first_entity["content"] or ""
+        project_hint = first_entity["project_hint"] or ""
+        due_date = first_entity["due_date"] or ""
 
         if entity_type is None:
             state.pending_nl_content = content
@@ -122,60 +121,48 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             )
             return
 
-        validated_due_date = validate_and_parse_date(due_date)
-        due_date_note = ""
-        if entity_type in {"deadline", "homework"} and validated_due_date is None:
-            if due_date:
-                due_date_note = (
-                    "\n⚠️ Дата не распознана — можно добавить позже.\n"
-                    "Напиши: «в пятницу» или /edit due 20 апреля"
-                )
-            else:
-                due_date_note = (
-                    "\n⚠️ Дата не указана — можно добавить позже.\n"
-                    "Напиши: «до пятницы» или /edit due 20 апреля"
-                )
-
         try:
             async with aiosqlite.connect(context.bot_data["db_path"]) as db:
                 db.row_factory = aiosqlite.Row
-                project = await _resolve_project(db, project_hint)
-                pending_entity = _build_pending_entity(
+                pending_entity, validated_due_date = await _prepare_pending_entity_from_nl(
+                    db,
                     entity_type,
                     content,
-                    validated_due_date,
-                    project["id"] if project else None,
+                    project_hint,
+                    due_date,
+                    user_text,
                 )
-                parsed_event = await create_parsed_event(
-                    db,
-                    entity_type=entity_type,
-                    extracted_json=json.dumps(
-                        {
-                            "entity_type": entity_type,
-                            "content": content,
-                            "project_hint": project_hint,
-                            "project_id": project["id"] if project else None,
-                            "project_name": project["name"] if project else None,
-                            "due_date": validated_due_date,
-                            "source_text": user_text,
-                        }
-                    ),
-                )
-                await log_llm_call(db, "intent", "extraction")
         except aiosqlite.Error:
             LOGGER.exception("Failed to persist NL parsed event for chat_id=%s", chat.id)
             await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
             return
 
-        pending_entity["parsed_event_id"] = parsed_event["id"]
         state.pending_entity = pending_entity
         state.pending_entity_type = entity_type
+        remaining_entities = [
+            {
+                "entity_type": item["entity_type"],
+                "content": item["content"],
+                "project_hint": item["project_hint"],
+                "due_date": item["due_date"],
+            }
+            for item in valid_entities[1:]
+            if item["entity_type"] is not None and item["content"]
+        ]
+        state.pending_entities = remaining_entities or None
 
         preview_text = _build_pending_preview(state)
-        if validated_due_date is None and due_date_note:
+        due_date_note = _build_due_date_note(entity_type, due_date, validated_due_date)
+        if due_date_note:
             preview_text = f"{preview_text}{due_date_note}"
         await reply_text(update, context, preview_text, reply_markup=_pending_keyboard())
-        LOGGER.info("Prepared pending NL entity type=%s parsed_event_id=%s for chat_id=%s", entity_type, parsed_event["id"], chat.id)
+        LOGGER.info(
+            "Prepared pending NL entity type=%s parsed_event_id=%s queued=%s for chat_id=%s",
+            entity_type,
+            pending_entity["parsed_event_id"],
+            len(state.pending_entities or []),
+            chat.id,
+        )
     except Exception:
         LOGGER.exception("Unhandled NL handler failure")
         await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")
@@ -190,6 +177,25 @@ def _normalize_entity_type(raw_value: object) -> str | None:
     return value
 
 
+def _normalize_extracted_entity(item: object) -> dict[str, str | None] | None:
+    if not isinstance(item, dict):
+        return None
+
+    entity_type = _normalize_entity_type(item.get("entity_type"))
+    content = str(item.get("content", "")).strip()
+    project_hint = str(item.get("project_hint", "")).strip()
+    due_date = str(item.get("due_date", "")).strip()
+    if not content:
+        return None
+
+    return {
+        "entity_type": entity_type,
+        "content": content,
+        "project_hint": project_hint,
+        "due_date": due_date,
+    }
+
+
 async def _resolve_project(db: aiosqlite.Connection, project_hint: str) -> dict | None:
     if not project_hint:
         return None
@@ -197,6 +203,42 @@ async def _resolve_project(db: aiosqlite.Connection, project_hint: str) -> dict 
     if status != "ok" or not isinstance(result, dict):
         return None
     return result
+
+
+async def _prepare_pending_entity_from_nl(
+    db: aiosqlite.Connection,
+    entity_type: str,
+    content: str,
+    project_hint: str,
+    due_date: str,
+    source_text: str,
+) -> tuple[dict[str, object], str | None]:
+    project = await _resolve_project(db, project_hint)
+    validated_due_date = validate_and_parse_date(due_date)
+    pending_entity = _build_pending_entity(
+        entity_type,
+        content,
+        validated_due_date,
+        project["id"] if project else None,
+    )
+    parsed_event = await create_parsed_event(
+        db,
+        entity_type=entity_type,
+        extracted_json=json.dumps(
+            {
+                "entity_type": entity_type,
+                "content": content,
+                "project_hint": project_hint,
+                "project_id": project["id"] if project else None,
+                "project_name": project["name"] if project else None,
+                "due_date": validated_due_date,
+                "source_text": source_text,
+            }
+        ),
+    )
+    await log_llm_call(db, "intent", "extraction")
+    pending_entity["parsed_event_id"] = parsed_event["id"]
+    return pending_entity, validated_due_date
 
 
 def _build_pending_entity(entity_type: str, content: str, due_date: str | None, project_id: int | None) -> dict[str, object]:
@@ -229,6 +271,27 @@ def _build_pending_entity(entity_type: str, content: str, due_date: str | None, 
         "project_id": project_id,
         "source": "text",
     }
+
+
+def _build_due_date_note(entity_type: str, raw_due_date: str, validated_due_date: str | None) -> str:
+    if entity_type not in {"deadline", "homework"} or validated_due_date is not None:
+        return ""
+    if raw_due_date:
+        return (
+            "\n⚠️ Дата не распознана — можно добавить позже.\n"
+            "Напиши: «в пятницу» или /edit due 20 апреля"
+        )
+    return (
+        "\n⚠️ Дата не указана — можно добавить позже.\n"
+        "Напиши: «до пятницы» или /edit due 20 апреля"
+    )
+
+
+def _nl_parse_error_text() -> str:
+    return (
+        "Не совсем понял. Попробуй переформулировать или используй команду:\n"
+        "/note текст, /idea текст, /deadline название due дата"
+    )
 
 
 def _type_selection_keyboard() -> InlineKeyboardMarkup:

@@ -37,7 +37,15 @@ from src.db import (
     update_voice_input_processed,
 )
 from src.handlers.chat_handler import handle_chat
-from src.handlers.confirm import _build_pending_preview, _do_confirm, _pending_keyboard, confirm_command, discard_command, edit_command
+from src.handlers.confirm import (
+    _build_pending_preview,
+    _do_confirm,
+    _pending_keyboard,
+    _queue_next_pending_entity,
+    confirm_command,
+    discard_command,
+    edit_command,
+)
 from src.handlers.edit_cmd import edit_deadline_command, edit_idea_command, edit_note_command
 from src.handlers.deadlines import deadline_command, dismiss_deadline_command, done_deadline_command
 from src.handlers.help_cmd import help_command
@@ -287,6 +295,14 @@ async def inline_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
             return
         result_text = await _do_confirm(chat_id, context)
         await query.edit_message_text(result_text)
+        if get_state(chat_id).pending_entity is not None:
+            return
+        next_preview, queue_error = await _queue_next_pending_entity(chat_id, context)
+        if queue_error is not None:
+            await query.message.reply_text(queue_error)
+            return
+        if next_preview is not None:
+            await query.message.reply_text(next_preview, reply_markup=_pending_keyboard())
         return
 
     if query.data == "discard":
