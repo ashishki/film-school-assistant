@@ -71,8 +71,7 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await reply_text(
                 update,
                 context,
-                "Не совсем понял. Попробуй переформулировать или используй команду:\n"
-                "/note текст, /idea текст, /deadline название due дата",
+                "Не понял — попробуй переформулировать. Что хочешь сохранить?",
             )
             return
 
@@ -81,15 +80,14 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await reply_text(
                 update,
                 context,
-                "Не совсем понял. Попробуй переформулировать или используй команду:\n"
-                "/note текст, /idea текст, /deadline название due дата",
+                "Что-то пошло не так при разборе. Попробуй ещё раз или используй /note, /idea, /deadline.",
             )
             return
 
         entities = parsed.get("entities", [])
         if not isinstance(entities, list) or not entities:
             LOGGER.warning("NL extraction returned empty entities list for chat_id=%s", chat.id)
-            await reply_text(update, context, _nl_parse_error_text())
+            await reply_text(update, context, "Не нашёл что сохранить. Уточни: это заметка, идея или дедлайн?")
             return
 
         valid_entities: list[dict[str, str | None]] = []
@@ -100,7 +98,11 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
         if not valid_entities:
             LOGGER.warning("NL extraction returned no valid entities for chat_id=%s", chat.id)
-            await reply_text(update, context, _nl_parse_error_text())
+            await reply_text(
+                update,
+                context,
+                "Не смог разобрать содержимое. Попробуй написать иначе или укажи тип: /note, /idea, /deadline.",
+            )
             return
 
         first_entity = valid_entities[0]
@@ -285,15 +287,6 @@ def _build_due_date_note(entity_type: str, raw_due_date: str, validated_due_date
         "\n⚠️ Дата не указана — можно добавить позже.\n"
         "Напиши: «до пятницы» или /edit due 20 апреля"
     )
-
-
-def _nl_parse_error_text() -> str:
-    return (
-        "Не совсем понял. Попробуй переформулировать или используй команду:\n"
-        "/note текст, /idea текст, /deadline название due дата"
-    )
-
-
 def _type_selection_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
