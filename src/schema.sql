@@ -138,3 +138,13 @@ CREATE TABLE IF NOT EXISTS project_memory (
 );
 
 CREATE INDEX IF NOT EXISTS idx_project_memory_project ON project_memory(project_id);
+
+CREATE TABLE IF NOT EXISTS user_feedback (
+    id INTEGER PRIMARY KEY,
+    content TEXT NOT NULL,
+    raw_transcript TEXT,
+    source TEXT,
+    created_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_feedback_created ON user_feedback(created_at);

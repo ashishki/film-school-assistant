@@ -26,7 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src import transcriber, voice
+from src import openclaw_client, transcriber, voice
 from src.config import load_config
 from src.db import (
     create_parsed_event,
@@ -56,6 +56,7 @@ from src.handlers.memory_cmd import memory_command
 from src.handlers.common import validate_and_parse_date
 from src.handlers.nl_handler import _build_pending_entity as build_nl_pending_entity
 from src.handlers.nl_handler import _resolve_project
+from src.handlers.feedback_cmd import feedback_command
 from src.handlers.notes import note_command
 from src.handlers.projects import archive_project_command, new_project_command, project_command, projects_command
 from src.handlers.reflect_cmd import reflect_command
@@ -204,8 +205,11 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     state.pending_entity = pending_entity
     state.pending_entity_type = detected_type
 
-    await message.reply_text(f"Расшифровка: {transcript_text}")
-    await message.reply_text(_build_pending_preview(state), reply_markup=_pending_keyboard())
+    summary = await asyncio.to_thread(_summarize_voice, detected_type, transcript_text)
+    await message.reply_text(
+        _build_voice_response(detected_type, pending_entity, summary),
+        reply_markup=_pending_keyboard(),
+    )
     LOGGER.info(
         "Prepared pending voice entity type=%s parsed_event_id=%s for chat_id=%s",
         detected_type,
@@ -458,6 +462,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.Regex(r"^/done_deadline_\d+(?:@\w+)?$"), done_deadline_command))
     application.add_handler(MessageHandler(filters.Regex(r"^/dismiss_deadline_\d+(?:@\w+)?$"), dismiss_deadline_command))
+    application.add_handler(CommandHandler("feedback", feedback_command))
     application.add_handler(CommandHandler("chat_reset", chat_reset_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_confirm_handler), group=1)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler_wrapper), group=2)
@@ -467,8 +472,19 @@ def build_application() -> Application:
     return application
 
 
+_FEEDBACK_KEYWORDS = (
+    "не хватает", "хотелось бы", "хочу чтобы", "хочу чтоб",
+    "жду от", "ожидаю от", "хотел бы", "хотела бы",
+    "было бы круто", "было бы здорово", "добавь", "сделай так чтобы",
+    "разработчику", "фидбек", "обратная связь",
+    "feedback", "wish", "suggestion",
+)
+
+
 def _detect_entity_type(transcript_text: str) -> str:
     lowered = transcript_text.lower()
+    if any(keyword in lowered for keyword in _FEEDBACK_KEYWORDS):
+        return "feedback"
     if any(keyword in lowered for keyword in ("deadline", "due", "submit")):
         return "deadline"
     if any(keyword in lowered for keyword in ("homework", "assignment")):
@@ -502,12 +518,66 @@ def _build_pending_entity(detected_type: str, transcript_text: str, project_id: 
             "project_id": project_id,
             "source": "voice",
         }
+    if detected_type == "feedback":
+        return {
+            "content": transcript_text,
+            "raw_transcript": transcript_text,
+            "source": "voice",
+        }
     return {
         "content": transcript_text,
         "project_id": project_id,
         "raw_transcript": transcript_text,
         "source": "voice",
     }
+
+
+def _summarize_voice(entity_type: str, transcript_text: str) -> str:
+    """Call LLM to extract key info from transcript. Returns short summary or falls back to truncated transcript."""
+    label_map = {
+        "note": "заметка",
+        "idea": "идея",
+        "deadline": "дедлайн",
+        "homework": "домашнее задание",
+        "feedback": "фидбек разработчику",
+    }
+    label = label_map.get(entity_type, "запись")
+    prompt = (
+        f"Голосовое сообщение студента кинематографического факультета, тип записи: {label}.\n"
+        f"Транскрипт: «{transcript_text}»\n\n"
+        "Выдели только ключевую суть — одно короткое словосочетание или 1 предложение максимум. "
+        "Никаких объяснений, только суть. Ответ на русском."
+    )
+    try:
+        return openclaw_client.complete(prompt, max_tokens=80, category="intent")
+    except Exception:
+        LOGGER.warning("Voice summary LLM call failed, falling back to transcript snippet")
+        return _preview_text(transcript_text, 80)
+
+
+def _build_voice_response(entity_type: str, pending_entity: dict, summary: str) -> str:
+    if entity_type == "note":
+        return f"Понял, записал заметку:\n{summary}"
+
+    if entity_type == "idea":
+        return f"Зафиксировал идею:\n{summary}"
+
+    if entity_type == "feedback":
+        return f"Принял фидбек:\n{summary}"
+
+    if entity_type == "deadline":
+        due = pending_entity.get("due_date")
+        if due:
+            return f"Записал дедлайн:\n{summary}\nСрок: {due}"
+        return f"Записал дедлайн:\n{summary}\n\nКогда нужно сдать? Напиши дату или /edit due 20 апреля"
+
+    if entity_type == "homework":
+        due = pending_entity.get("due_date")
+        if due:
+            return f"Записал задание:\n{summary}\nСрок: {due}"
+        return f"Записал задание:\n{summary}\n\nКогда дедлайн? Напиши дату или /edit due 20 апреля"
+
+    return f"Понял:\n{summary}"
 
 
 def _preview_text(text: str, max_length: int = 120) -> str:

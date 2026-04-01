@@ -4,7 +4,7 @@ import aiosqlite
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from src.db import confirm_parsed_event, create_deadline, create_homework, create_idea, create_note
+from src.db import confirm_parsed_event, create_deadline, create_homework, create_idea, create_note, create_user_feedback
 from src.handlers.common import reply_text, validate_and_parse_date
 from src.state import UserState, clear_pending, get_state
 
@@ -271,6 +271,15 @@ async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pendi
         )
         return entity_type, saved
 
+    if entity_type == "feedback":
+        saved = await create_user_feedback(
+            db,
+            content=pending["content"],
+            raw_transcript=pending.get("raw_transcript"),
+            source=pending.get("source", "voice"),
+        )
+        return entity_type, saved
+
     raise ValueError(f"Unsupported pending entity type: {entity_type}")
 
 
@@ -280,6 +289,7 @@ def _entity_table_name(entity_type: str) -> str:
         "idea": "ideas",
         "deadline": "deadlines",
         "homework": "homework",
+        "feedback": "user_feedback",
     }[entity_type]
 
 
@@ -339,6 +349,7 @@ def _build_pending_preview(state: UserState) -> str:
         "idea": "идея",
         "deadline": "дедлайн",
         "homework": "домашнее задание",
+        "feedback": "фидбек",
         "item": "запись",
     }
     preview = [f"Черновик ({entity_labels.get(entity_type, 'запись')}): {text_value}", f"Проект: {project_label}"]
@@ -353,7 +364,10 @@ def _confirm_success_text(entity_type: str, project_name: str | None) -> str:
         "idea": "Идея сохранена",
         "deadline": "Дедлайн сохранён",
         "homework": "Задание сохранено",
+        "feedback": "Фидбек принят, передам разработчику",
     }[entity_type]
+    if entity_type == "feedback":
+        return label
     if project_name:
         return f"{label} → {project_name}"
     return f"{label} (без проекта)"
