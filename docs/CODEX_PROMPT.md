@@ -1,6 +1,6 @@
 # Film School Assistant — Codex Session State
 
-Last updated: 2026-03-31
+Last updated: 2026-04-01
 
 ---
 
@@ -14,13 +14,21 @@ Last updated: 2026-03-31
 
 ## Current Phase
 
-- Phase: 4 — COMPLETE. All planned phases done.
-- Phase close artifact: `docs/review/productization_review_p4.md`
-- Audit Cycle 1 complete: `docs/audit/REVIEW_REPORT.md`
+- Phase: 5 — NL Interaction Quality (active)
+- Active task: P5-01 — Multi-entity extraction and queued confirmation
+- Phase entry: Audit Cycle 1 all 15 findings resolved (2026-04-01)
 
-─── Fix Queue ─── (empty — P1 fixes resolved) ──────────────────────
+─── Fix Queue ─── (empty) ───────────────────────────────────────────
 ✅ FIX-1 [P1] — log_llm_call moved after complete_json in nl_handler.py (2026-04-01)
 ✅ FIX-2 [P1] — log_llm_call moved after review_idea in review.py (2026-04-01)
+─────────────────────────────────────────────────────────────────────
+
+─── Phase 5 Task Status ─────────────────────────────────────────────
+[ ] P5-01 — Multi-entity extraction and queued confirmation (ACTIVE)
+[ ] P5-02 — Clarifying questions on parse failure
+[ ] P5-03 — Уточнить button and re-extraction flow
+[ ] P5-04 — NL context window for reference resolution
+[ ] P5-05 — Phase 5 NL Quality Review Pack
 ─────────────────────────────────────────────────────────────────────
 
 ---
@@ -141,6 +149,10 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
   - P3-01: `src/reviewer.py`, `src/handlers/review.py` — inject project memory context into idea review prompt
   - P3-02: `src/handlers/reflect_cmd.py`, `src/bot.py`, `src/handlers/help_cmd.py` — /reflect command for project-level structured reflection
   - P3-03: `docs/review/reflection_eval_p3.md` — reflection eval pack; all findings low/low-medium severity, phase CLOSED
+- Phase 5 Decomposition Pass:
+  - decomposed Phase 5 into five tasks (P5-01 through P5-05) in `docs/tasks.md`
+  - added Phase 5 NL behavioral requirements (NR-1 through NR-4) to `docs/spec.md` section 14
+  - advanced `docs/CODEX_PROMPT.md` to Phase 5 with P5-01 as active task
 - Phase 4 Implementation:
   - P4-01: `systemd/film-school-bot.service`, `.env.example`, `docs/DEPLOY.md` — deployment package
   - P4-02: `src/bot.py` (start_command) — onboarding flow: emoji removed, first-project hint added
