@@ -14,11 +14,12 @@ Last updated: 2026-03-31
 
 ## Current Phase
 
-- Phase: 3 — COMPLETE (pending human phase-gate approval for Phase 4)
-- Goal: use memory layer for higher-leverage reflection and project-level guidance
-- Active Task: none — Phase 3 closed
-- Phase close artifact: `docs/review/reflection_eval_p3.md`
-- Combined deep review (Phase 2 + Phase 3) recommended before Phase 4 planning
+- Phase: 4
+- Goal: deployment simplification and onboarding clarity
+- Active Task: `P4-01 — Deployment Package`
+- Active Task Owner: codex
+- Active Task Output: `systemd/film-school-bot.service`, `.env.example`, `docs/DEPLOY.md`
+- Web layer: deferred (DECISIONS.md condition not met)
 
 ---
 

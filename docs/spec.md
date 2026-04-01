@@ -291,3 +291,29 @@ The memory layer must not:
 - retrieve records from multiple projects simultaneously
 - autonomously update memory without an explicit trigger
 - fabricate project state not derivable from stored records
+
+## 13. Phase 4 Deployment and Onboarding Requirements
+
+### DR-1 — Deployment Package
+
+The repository must include:
+- a `.env.example` file listing all required environment variables with placeholder values and a one-line comment per key
+- a `docs/DEPLOY.md` covering: prerequisites, clone, venv setup, .env configuration, schema init, systemd unit install, smoke test
+- a corrected `systemd/film-school-bot.service` where `ExecStart` uses the venv Python binary, not system Python
+
+The deployment package must not:
+- contain real secrets, personal paths, or user-specific configuration
+- require Docker or any container runtime
+
+### DR-2 — Onboarding Flow
+
+The `/start` command reply must:
+- contain no emoji
+- describe what the assistant does in one or two sentences without generic AI praise
+- end with a concrete first-step hint pointing to `/new_project <название>`
+- stay under 10 lines
+
+The `/start` reply must not:
+- use LLM-generated content
+- be longer than the current reply (exception: adding the first-step hint)
+- repeat the full command list (that belongs in /help)
