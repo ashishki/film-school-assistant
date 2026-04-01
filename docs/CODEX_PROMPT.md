@@ -14,8 +14,8 @@ Last updated: 2026-04-01
 
 ## Current Phase
 
-- Phase: 5 — NL Interaction Quality (active)
-- Active task: P5-01 — Multi-entity extraction and queued confirmation
+- Phase: 5 — NL Interaction Quality — COMPLETE
+- Phase close artifact: `docs/review/nl_quality_review_p5.md`
 - Phase entry: Audit Cycle 1 all 15 findings resolved (2026-04-01)
 
 ─── Fix Queue ─── (empty) ───────────────────────────────────────────
@@ -24,11 +24,11 @@ Last updated: 2026-04-01
 ─────────────────────────────────────────────────────────────────────
 
 ─── Phase 5 Task Status ─────────────────────────────────────────────
-[ ] P5-01 — Multi-entity extraction and queued confirmation (ACTIVE)
-[ ] P5-02 — Clarifying questions on parse failure
-[ ] P5-03 — Уточнить button and re-extraction flow
-[ ] P5-04 — NL context window for reference resolution
-[ ] P5-05 — Phase 5 NL Quality Review Pack
+[x] P5-01 — Multi-entity extraction and queued confirmation
+[x] P5-02 — Clarifying questions on parse failure
+[x] P5-03 — Уточнить button and re-extraction flow
+[x] P5-04 — NL context window for reference resolution
+[x] P5-05 — Phase 5 NL Quality Review Pack
 ─────────────────────────────────────────────────────────────────────
 
 ---
@@ -149,6 +149,12 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
   - P3-01: `src/reviewer.py`, `src/handlers/review.py` — inject project memory context into idea review prompt
   - P3-02: `src/handlers/reflect_cmd.py`, `src/bot.py`, `src/handlers/help_cmd.py` — /reflect command for project-level structured reflection
   - P3-03: `docs/review/reflection_eval_p3.md` — reflection eval pack; all findings low/low-medium severity, phase CLOSED
+- Phase 5 Implementation:
+  - P5-01: `src/state.py`, `src/handlers/nl_handler.py`, `src/handlers/confirm.py`, `src/bot.py` — multi-entity extraction and queued confirmation
+  - P5-02: `src/handlers/nl_handler.py` — targeted clarifying questions on parse failure
+  - P5-03: `src/state.py`, `src/handlers/confirm.py`, `src/bot.py`, `src/handlers/nl_handler.py` — Уточнить button and re-extraction flow
+  - P5-04: `src/state.py`, `src/handlers/nl_handler.py` — NL context window for back-reference resolution
+  - P5-05: `docs/review/nl_quality_review_p5.md` — Phase 5 review pack; 2 low-severity findings deferred, phase CLOSED
 - Phase 5 Decomposition Pass:
   - decomposed Phase 5 into five tasks (P5-01 through P5-05) in `docs/tasks.md`
   - added Phase 5 NL behavioral requirements (NR-1 through NR-4) to `docs/spec.md` section 14

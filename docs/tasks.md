@@ -906,7 +906,7 @@ Exit criteria:
 
 ---
 
-[- ] P5-01 — Multi-entity extraction and queued confirmation
+[x] P5-01 — Multi-entity extraction and queued confirmation
 Owner: codex
 Phase: 5
 Type: implementation
@@ -957,7 +957,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P5-02 — Clarifying questions on parse failure
+[x] P5-02 — Clarifying questions on parse failure
 Owner: codex
 Phase: 5
 Type: implementation
@@ -1002,7 +1002,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P5-03 — Уточнить button and re-extraction flow
+[x] P5-03 — Уточнить button and re-extraction flow
 Owner: codex
 Phase: 5
 Type: implementation
@@ -1052,7 +1052,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P5-04 — NL context window for reference resolution
+[x] P5-04 — NL context window for reference resolution
 Owner: codex
 Phase: 5
 Type: implementation
@@ -1103,7 +1103,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P5-05 — Phase 5 NL Quality Review Pack
+[x] P5-05 — Phase 5 NL Quality Review Pack
 Owner: claude
 Phase: 5
 Type: documentation / eval
