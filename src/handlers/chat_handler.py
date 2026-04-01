@@ -8,20 +8,27 @@ import aiosqlite
 from anthropic import AsyncAnthropic
 
 from src.config import Config
-from src.db import get_llm_calls_today, log_llm_call
+from src.db import get_llm_calls_today, get_project_memory, log_llm_call
 from src.state import UserState
 from src.tools import TOOLS, execute_tool
 
 
 LOGGER = logging.getLogger(__name__)
 
-CHAT_SYSTEM_PROMPT: str = (
+_BASE_SYSTEM_PROMPT: str = (
     "Ты — помощник студента кинематографического факультета. "
     "Отвечаешь всегда на русском языке. "
     "Для сохранения и получения данных используй только инструменты (tools). "
     "Не выдумывай сущности, которых ты не получал через инструменты."
 )
+CHAT_SYSTEM_PROMPT = _BASE_SYSTEM_PROMPT  # backward-compat alias
 MAX_TOOL_ROUNDS: int = 5
+
+
+def _build_system_prompt(memory_text: str | None) -> str:
+    if not memory_text:
+        return _BASE_SYSTEM_PROMPT
+    return f"{_BASE_SYSTEM_PROMPT}\n\nКонтекст проекта: {memory_text}"
 
 
 def _extract_text_blocks(response: Any) -> str:
@@ -42,6 +49,22 @@ async def handle_chat(
     if calls_today >= config.daily_llm_call_limit:
         return "Дневной лимит запросов исчерпан. Попробуй завтра."
 
+    project_id = user_state.active_project_id
+    if project_id is not None:
+        try:
+            memory_row = await get_project_memory(db, project_id)
+            memory_text = memory_row["summary_text"] if memory_row else None
+        except Exception:
+            LOGGER.warning(
+                "Failed to read project memory for project_id=%s, proceeding without it",
+                project_id,
+            )
+            memory_text = None
+    else:
+        memory_text = None
+
+    system_prompt = _build_system_prompt(memory_text)
+
     messages: list[dict[str, Any]] = user_state.conversation_history[:] + [
         {"role": "user", "content": message_text}
     ]
@@ -61,7 +84,7 @@ async def handle_chat(
         try:
             response = await client.messages.create(
                 model=model,
-                system=CHAT_SYSTEM_PROMPT,
+                system=system_prompt,
                 max_tokens=1024,
                 messages=messages,
                 tools=TOOLS,
