@@ -6,13 +6,9 @@ _Append-only. One row per review cycle._
 
 ## Review Schedule
 
-| Cycle | Phase | Date | Scope | Stop-Ship | P0 | P1 | P2 |
-|-------|-------|------|-------|-----------|----|----|-----|
-| 1 | High-priority features (T-F1, T-F2) | 2026-03-23 | /new_project + entity editing | No | 0 | 0 | 1 |
-| 2 | Phase 2 UX features (T-F3–T-F6) | 2026-03-23 | status filter, pagination, search, archival | No | 0 | 2 | 2 |
-| 3 | Phase 3 Reliability (T-B1/T-O1/T-O2/T-T1/T-T2/T-A2-4) | 2026-03-23 | restart notify, backoff, systemd alerts, tests, docs | No | 0 | 0 | 1 |
-| 4 | Phase 4 Cleanup (T-R1/T-R2/T-R3/T-B3/T-A1/T-A5/T-O3/P3-1) | 2026-03-23 | Russian msgs, config, JSON logs, LLM guardrail, docs | No | 0 | 0 | 1 |
-| 5 | Phase 5 Chat Interface (T-CH1–T-CH4) | 2026-03-23 | tool schemas, conversation history, chat handler, bot wiring | No | 0 | 0 | 3 |
+| Cycle | Phase | Date | Scope | Stop-Ship | P0 | P1 | P2 | P3 |
+|-------|-------|------|-------|-----------|----|----|----|----|
+| 1 | Phase 1–4 (all tasks) | 2026-04-01 | Full — first audit cycle | No | 0 | 2 | 8 | 5 |
 
 ---
 
@@ -20,16 +16,12 @@ _Append-only. One row per review cycle._
 
 | Cycle | File | Phase | Health |
 |-------|------|-------|--------|
-| 1 | — (light review only, no deep review file) | T-F1 + T-F2 | ✅ Green |
-| 2 | docs/archive/PHASE_2_REVIEW.md | T-F3–T-F6 | ⚠️ Green (P1:2) |
-| 3 | docs/audit/PHASE_3_REVIEW.md | Phase 3 Reliability | ✅ Green (P2:1 maintenance note) |
-| 4 | docs/audit/PHASE_4_REVIEW.md | Phase 4 Cleanup | ✅ Green (P3:1 cosmetic) |
-| 5 | docs/audit/PHASE_5_REVIEW.md | Phase 5 Chat Interface | ✅ Green (P2:3 cosmetic/docs) |
+| 1 | docs/audit/REVIEW_REPORT.md | Phase 1–4 | ✅ Green (no P0; P1 fixes queued) |
 
 ---
 
 ## Notes
 
-- Cycle 1: two light reviews (T-F1, T-F2), both PASS. No phase-boundary deep review yet.
-- P2 open: FINDING-09 — pre-existing f-string in db.py:60 `_insert_and_fetch`. Internal constant, not user input. Low risk.
-- Deep review triggers at next true phase boundary.
+- Cycle 1: first audit after completing all 4 planned phases.
+- P1 fixes (CODE-1, CODE-2: log_llm_call ordering) queued for Codex before any new phase.
+- Web layer remains deferred per DECISIONS.md.

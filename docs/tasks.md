@@ -11,6 +11,52 @@ Current phase goal:
 
 ---
 
+## Fix Queue — Audit Cycle 1 (resolve before any new phase)
+
+[ ] FIX-1 — log_llm_call ordering fix in nl_handler.py
+Owner: codex
+Phase: fix
+Type: implementation
+Depends-On: none
+Objective: |
+  Move log_llm_call to after complete_json succeeds so the daily quota
+  counter is not incremented on transient LLM failures.
+File-Scope:
+  - src/handlers/nl_handler.py
+Acceptance-Criteria:
+  - id: AC-1
+    description: "log_llm_call is called only after complete_json returns without raising."
+    test: "code review"
+  - id: AC-2
+    description: "On LLMError, llm_call_log row count is unchanged."
+    test: "code review of error path"
+Review-Mode: light
+
+---
+
+[ ] FIX-2 — log_llm_call ordering fix in review.py
+Owner: codex
+Phase: fix
+Type: implementation
+Depends-On: none
+Objective: |
+  Move log_llm_call to after review_idea() succeeds so the daily quota
+  counter is not incremented on transient LLM or DB failures.
+File-Scope:
+  - src/handlers/review.py
+Acceptance-Criteria:
+  - id: AC-1
+    description: "log_llm_call is called only after review_idea returns without raising."
+    test: "code review"
+  - id: AC-2
+    description: "On LLMError in review_idea, llm_call_log row count is unchanged."
+    test: "code review of error path"
+Review-Mode: light
+
+---
+
+---
+
 ## Phase 0 — Documentation and Product Clarity Foundation
 
 Goal:

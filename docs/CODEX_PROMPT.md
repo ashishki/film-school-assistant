@@ -14,11 +14,17 @@ Last updated: 2026-03-31
 
 ## Current Phase
 
-- Phase: 4 — COMPLETE (pending human phase-gate approval)
-- Goal: deployment simplification and onboarding clarity
-- Active Task: none — Phase 4 closed
+- Phase: 4 — COMPLETE. All planned phases done.
 - Phase close artifact: `docs/review/productization_review_p4.md`
-- This is the final planned phase. The development loop is complete.
+- Audit Cycle 1 complete: `docs/audit/REVIEW_REPORT.md`
+
+─── Fix Queue (resolve before any new phase) ────────────────────────
+🟡 FIX-1 [P1] — Move log_llm_call after LLM success in nl_handler.py
+  File: src/handlers/nl_handler.py:56 · Change: move log_llm_call to after complete_json succeeds · Test: assert llm_call_log count unchanged on LLMError
+
+🟡 FIX-2 [P1] — Move log_llm_call after LLM success in review.py
+  File: src/handlers/review.py:49 · Change: move log_llm_call to after review_idea succeeds · Test: assert llm_call_log count unchanged on LLMError
+─────────────────────────────────────────────────────────────────────
 
 ---
 
@@ -149,6 +155,28 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
 
 - Earlier retrofit work: aligned the project with the AI workflow playbook artifact system
 - Current pass: integrated product framing, architecture clarity, UX principles, and phased next-step planning into that artifact system
+
+---
+
+## Open Findings (Audit Cycle 1 — 2026-04-01)
+
+| ID | Sev | Description | Files | Status |
+|----|-----|-------------|-------|--------|
+| CODE-1 | P1 | log_llm_call fires before LLM in nl_handler | src/handlers/nl_handler.py:56 | Open |
+| CODE-2 | P1 | log_llm_call fires before LLM in review.py | src/handlers/review.py:49 | Open |
+| CODE-3 | P2 | due_date not validated before DB write | src/tools.py:269-271 | Open |
+| CODE-4 | P2 | chat_handler bypasses openclaw_client retry | src/handlers/chat_handler.py:77 | Open |
+| CODE-5 | P2 | reflect input text no per-item cap | src/handlers/reflect_cmd.py:77 | Open |
+| CODE-6 | P2 | REVIEW_SYSTEM_PROMPT in English (mixed with Russian context) | src/reviewer.py:15 | Open |
+| CODE-7 | P2 | send_summary emoji + English section headers | scripts/send_summary.py:292 | Open |
+| CODE-8 | P2 | Memory cap inconsistent: spec/prompt/API disagree | src/handlers/memory_cmd.py:20,:163 | Open |
+| CODE-9 | P2 | smoke_test EXPECTED_TABLES missing project_memory, llm_call_log | scripts/smoke_test_db.py:58 | Open |
+| CODE-10 | P2 | smoke_test no Phase 2/3 DB function coverage | scripts/smoke_test_db.py | Open |
+| CODE-11 | P3 | confirm.py project name edge case (G3) | src/handlers/confirm.py:134 | Open |
+| CODE-12 | P3 | /memory cache-hit no staleness date (F1) | src/handlers/memory_cmd.py:136 | Open |
+| CODE-13 | P3 | memory injection no user indicator on fail (F2) | src/handlers/chat_handler.py:57 | Open |
+| CODE-14 | P3 | review_history excluded from staleness counter (F3) | src/db.py:588 | Open |
+| CODE-15 | P3 | get_status unbounded scan limit=1_000_000 | src/tools.py:347 | Open |
 
 ---
 
