@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Any
 
 import aiosqlite
+import anthropic
 from anthropic import AsyncAnthropic
 
 from src.config import Config
@@ -82,13 +84,24 @@ async def handle_chat(
 
     while True:
         try:
-            response = await client.messages.create(
-                model=model,
-                system=system_prompt,
-                max_tokens=1024,
-                messages=messages,
-                tools=TOOLS,
-            )
+            for attempt in range(1, 4):
+                try:
+                    response = await client.messages.create(
+                        model=model,
+                        system=system_prompt,
+                        max_tokens=1024,
+                        messages=messages,
+                        tools=TOOLS,
+                    )
+                    break
+                except (
+                    anthropic.APIConnectionError,
+                    anthropic.APITimeoutError,
+                    anthropic.RateLimitError,
+                ):
+                    if attempt >= 3:
+                        raise
+                    await asyncio.sleep(0.5 * attempt)
             await log_llm_call(db, model, "chat")
         except Exception:
             LOGGER.exception("Claude chat request failed")
