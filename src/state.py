@@ -17,12 +17,18 @@ class UserState:
     pending_nl_content: str | None = None
     pending_nl_due_date: str | None = None
     pending_nl_project_hint: str | None = None
+    nl_context: list[str] = field(default_factory=list)
     conversation_history: list[dict] = field(default_factory=list)
 
     def add_message(self, role: str, content: str) -> None:
         self.conversation_history.append({"role": role, "content": content})
         if len(self.conversation_history) > MAX_HISTORY_MESSAGES:
             self.conversation_history = self.conversation_history[-MAX_HISTORY_MESSAGES:]
+
+    def add_nl_context(self, text: str) -> None:
+        self.nl_context.append(text)
+        if len(self.nl_context) > 5:
+            self.nl_context = self.nl_context[-5:]
 
     def reset_history(self) -> None:
         self.conversation_history = []
