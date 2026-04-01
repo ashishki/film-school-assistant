@@ -46,7 +46,6 @@ async def review_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         f"Достигнут дневной лимит LLM запросов ({daily_llm_call_limit}). Попробуй завтра.",
                     )
                     return
-                await log_llm_call(db, "review", "review")
 
         if idea is None:
             await reply_text(update, context, f"Идея #{idea_id} не найдена.")
@@ -55,6 +54,11 @@ async def review_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await reply_text(update, context, f"Обрабатываю идею #{idea_id}...")
         review_text = await review_idea(idea, context.bot_data["config"], project_memory_text)
         await reply_text(update, context, review_text)
+        try:
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                await log_llm_call(db, "review", "review")
+        except aiosqlite.Error:
+            LOGGER.warning("Failed to log LLM call for review idea_id=%s", idea_id)
         LOGGER.info("Completed /review for idea_id=%s", idea_id)
     except Exception:
         LOGGER.exception("Unhandled review command failure")

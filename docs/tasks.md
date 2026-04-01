@@ -13,7 +13,7 @@ Current phase goal:
 
 ## Fix Queue — Audit Cycle 1 (resolve before any new phase)
 
-[ ] FIX-1 — log_llm_call ordering fix in nl_handler.py
+[x] FIX-1 — log_llm_call ordering fix in nl_handler.py
 Owner: codex
 Phase: fix
 Type: implementation
@@ -34,7 +34,7 @@ Review-Mode: light
 
 ---
 
-[ ] FIX-2 — log_llm_call ordering fix in review.py
+[x] FIX-2 — log_llm_call ordering fix in review.py
 Owner: codex
 Phase: fix
 Type: implementation

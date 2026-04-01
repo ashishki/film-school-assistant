@@ -18,12 +18,9 @@ Last updated: 2026-03-31
 - Phase close artifact: `docs/review/productization_review_p4.md`
 - Audit Cycle 1 complete: `docs/audit/REVIEW_REPORT.md`
 
-─── Fix Queue (resolve before any new phase) ────────────────────────
-🟡 FIX-1 [P1] — Move log_llm_call after LLM success in nl_handler.py
-  File: src/handlers/nl_handler.py:56 · Change: move log_llm_call to after complete_json succeeds · Test: assert llm_call_log count unchanged on LLMError
-
-🟡 FIX-2 [P1] — Move log_llm_call after LLM success in review.py
-  File: src/handlers/review.py:49 · Change: move log_llm_call to after review_idea succeeds · Test: assert llm_call_log count unchanged on LLMError
+─── Fix Queue ─── (empty — P1 fixes resolved) ──────────────────────
+✅ FIX-1 [P1] — log_llm_call moved after complete_json in nl_handler.py (2026-04-01)
+✅ FIX-2 [P1] — log_llm_call moved after review_idea in review.py (2026-04-01)
 ─────────────────────────────────────────────────────────────────────
 
 ---
@@ -162,8 +159,8 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
 
 | ID | Sev | Description | Files | Status |
 |----|-----|-------------|-------|--------|
-| CODE-1 | P1 | log_llm_call fires before LLM in nl_handler | src/handlers/nl_handler.py:56 | Open |
-| CODE-2 | P1 | log_llm_call fires before LLM in review.py | src/handlers/review.py:49 | Open |
+| CODE-1 | P1 | log_llm_call fires before LLM in nl_handler | src/handlers/nl_handler.py | ✅ Fixed 2026-04-01 |
+| CODE-2 | P1 | log_llm_call fires before LLM in review.py | src/handlers/review.py | ✅ Fixed 2026-04-01 |
 | CODE-3 | P2 | due_date not validated before DB write | src/tools.py:269-271 | Open |
 | CODE-4 | P2 | chat_handler bypasses openclaw_client retry | src/handlers/chat_handler.py:77 | Open |
 | CODE-5 | P2 | reflect input text no per-item cap | src/handlers/reflect_cmd.py:77 | Open |
