@@ -127,3 +127,14 @@ CREATE INDEX IF NOT EXISTS idx_deadlines_status_due ON deadlines(status, due_dat
 CREATE INDEX IF NOT EXISTS idx_notes_project_created ON notes(project_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_ideas_project_created ON ideas(project_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_homework_status_due ON homework(status, due_date);
+CREATE TABLE IF NOT EXISTS project_memory (
+    id INTEGER PRIMARY KEY,
+    project_id INTEGER NOT NULL UNIQUE,
+    summary_text TEXT NOT NULL,
+    generated_at TEXT NOT NULL,
+    item_count_snapshot INTEGER NOT NULL DEFAULT 0,
+    model_used TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_memory_project ON project_memory(project_id);

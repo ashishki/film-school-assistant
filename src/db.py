@@ -74,6 +74,7 @@ _ALLOWED_TABLES = frozenset({
     "projects", "notes", "ideas", "homework", "deadlines",
     "voice_inputs", "transcripts", "parsed_events",
     "reminder_log", "review_history", "weekly_reports",
+    "project_memory",
 })
 
 
@@ -548,6 +549,54 @@ async def update_weekly_report_sent(db: aiosqlite.Connection, report_id: int, se
         (sent_at, report_id),
     )
     await db.commit()
+
+
+async def upsert_project_memory(
+    db: aiosqlite.Connection,
+    project_id: int,
+    summary_text: str,
+    item_count_snapshot: int,
+    model_used: str,
+) -> dict[str, Any]:
+    generated_at = _utcnow_iso()
+    await db.execute(
+        """
+        INSERT INTO project_memory (project_id, summary_text, generated_at, item_count_snapshot, model_used)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(project_id) DO UPDATE SET
+            summary_text = excluded.summary_text,
+            generated_at = excluded.generated_at,
+            item_count_snapshot = excluded.item_count_snapshot,
+            model_used = excluded.model_used
+        """,
+        (project_id, summary_text, generated_at, item_count_snapshot, model_used),
+    )
+    await db.commit()
+    result = await _fetch_one_dict(db, "SELECT * FROM project_memory WHERE project_id = ?", (project_id,))
+    if result is None:
+        raise RuntimeError(f"Failed to fetch project_memory for project_id={project_id}")
+    return result
+
+
+async def get_project_memory(db: aiosqlite.Connection, project_id: int) -> dict[str, Any] | None:
+    return await _fetch_one_dict(
+        db, "SELECT * FROM project_memory WHERE project_id = ?", (project_id,)
+    )
+
+
+async def get_project_item_count(db: aiosqlite.Connection, project_id: int) -> int:
+    cursor = await db.execute(
+        """
+        SELECT
+            (SELECT COUNT(*) FROM notes WHERE project_id = ?) +
+            (SELECT COUNT(*) FROM ideas WHERE project_id = ?) +
+            (SELECT COUNT(*) FROM deadlines WHERE project_id = ? AND status = 'active')
+        """,
+        (project_id, project_id, project_id),
+    )
+    row = await cursor.fetchone()
+    await cursor.close()
+    return int(row[0]) if row else 0
 
 
 async def list_active_deadlines_for_reminder(db: aiosqlite.Connection) -> list[dict[str, Any]]:
