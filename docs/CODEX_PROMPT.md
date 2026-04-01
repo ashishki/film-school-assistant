@@ -161,14 +161,14 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
 |----|-----|-------------|-------|--------|
 | CODE-1 | P1 | log_llm_call fires before LLM in nl_handler | src/handlers/nl_handler.py | ✅ Fixed 2026-04-01 |
 | CODE-2 | P1 | log_llm_call fires before LLM in review.py | src/handlers/review.py | ✅ Fixed 2026-04-01 |
-| CODE-3 | P2 | due_date not validated before DB write | src/tools.py:269-271 | Open |
-| CODE-4 | P2 | chat_handler bypasses openclaw_client retry | src/handlers/chat_handler.py:77 | Open |
-| CODE-5 | P2 | reflect input text no per-item cap | src/handlers/reflect_cmd.py:77 | Open |
-| CODE-6 | P2 | REVIEW_SYSTEM_PROMPT in English (mixed with Russian context) | src/reviewer.py:15 | Open |
-| CODE-7 | P2 | send_summary emoji + English section headers | scripts/send_summary.py:292 | Open |
-| CODE-8 | P2 | Memory cap inconsistent: spec/prompt/API disagree | src/handlers/memory_cmd.py:20,:163 | Open |
-| CODE-9 | P2 | smoke_test EXPECTED_TABLES missing project_memory, llm_call_log | scripts/smoke_test_db.py:58 | Open |
-| CODE-10 | P2 | smoke_test no Phase 2/3 DB function coverage | scripts/smoke_test_db.py | Open |
+| CODE-3 | P2 | due_date not validated before DB write | src/tools.py | ✅ Fixed 2026-04-01 |
+| CODE-4 | P2 | chat_handler bypasses openclaw_client retry | src/handlers/chat_handler.py | ✅ Fixed 2026-04-01 |
+| CODE-5 | P2 | reflect input text no per-item cap | src/handlers/reflect_cmd.py | ✅ Fixed 2026-04-01 |
+| CODE-6 | P2 | REVIEW_SYSTEM_PROMPT in English (mixed with Russian context) | src/reviewer.py | ✅ Fixed 2026-04-01 |
+| CODE-7 | P2 | send_summary emoji + English section headers | scripts/send_summary.py | ✅ Fixed 2026-04-01 |
+| CODE-8 | P2 | Memory cap inconsistent: spec/prompt/API disagree | src/handlers/memory_cmd.py | ✅ Fixed 2026-04-01 |
+| CODE-9 | P2 | smoke_test EXPECTED_TABLES missing project_memory, llm_call_log | scripts/smoke_test_db.py | ✅ Fixed 2026-04-01 |
+| CODE-10 | P2 | smoke_test no Phase 2/3 DB function coverage | scripts/smoke_test_db.py | ✅ Fixed 2026-04-01 |
 | CODE-11 | P3 | confirm.py project name edge case (G3) | src/handlers/confirm.py:134 | Open |
 | CODE-12 | P3 | /memory cache-hit no staleness date (F1) | src/handlers/memory_cmd.py:136 | Open |
 | CODE-13 | P3 | memory injection no user indicator on fail (F2) | src/handlers/chat_handler.py:57 | Open |
