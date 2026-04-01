@@ -257,3 +257,37 @@ The memory layer must not:
 - retrieve records from multiple projects simultaneously
 - autonomously update memory without an explicit trigger
 - fabricate project state not derivable from stored records
+
+## 12. Phase 3 Reflection Behavioral Requirements
+
+### RR-1 — Enhanced Review Context Injection
+
+When an idea belongs to a project with stored memory:
+- the review prompt must include a labeled project context block before the idea
+- the block format: `Контекст проекта: {summary_text}`
+- the LLM must use this context to make the critique project-specific, not generic
+- when no memory exists, the review prompt is identical to the Phase 1/2 baseline
+
+### RR-2 — /reflect Output Contract
+
+The /reflect command must produce a structured response with three sections:
+- **Состояние проекта** — one paragraph describing where the project currently stands based on stored records
+- **Творческие напряжения** — identified tensions or unresolved questions from ideas and reviews (concrete, not generic)
+- **Фокус** — one concrete recommended action for the next work session, grounded in stored state
+
+The output must not:
+- invent facts not present in the input data
+- give generic advice ("explore your themes", "trust your instincts")
+- exceed the scope of the stored records
+
+### RR-3 — Reflection Anti-Goals
+
+- /reflect must not run without project memory (require /memory first)
+- reflection output must not be longer than a focused short message (3 sections, no padding)
+- no persistent agent role or follow-up scheduling from reflection output
+
+The memory layer must not:
+- use embeddings or vector similarity at any point
+- retrieve records from multiple projects simultaneously
+- autonomously update memory without an explicit trigger
+- fabricate project state not derivable from stored records
