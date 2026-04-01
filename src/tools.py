@@ -1,4 +1,5 @@
 import re
+from datetime import date
 from typing import Any
 
 import aiosqlite
@@ -266,7 +267,13 @@ async def execute_tool(
         if error is not None:
             return error
         title = str(tool_input["title"])
-        due_date = str(tool_input["due_date"])
+        due_date = tool_input.get("due_date")
+        if due_date is not None:
+            due_date = str(due_date)
+            try:
+                date.fromisoformat(due_date)
+            except ValueError:
+                due_date = None
         await db_module.create_deadline(db, title=title, due_date=due_date, project_id=project_id, source="text")
         return "Дедлайн сохранён: {} — {}".format(title, due_date)
 
@@ -275,7 +282,13 @@ async def execute_tool(
         if error is not None:
             return error
         title = str(tool_input["title"])
-        due_date = str(tool_input["due_date"])
+        due_date = tool_input.get("due_date")
+        if due_date is not None:
+            due_date = str(due_date)
+            try:
+                date.fromisoformat(due_date)
+            except ValueError:
+                due_date = None
         await db_module.create_homework(
             db,
             title=title,
