@@ -356,3 +356,197 @@ Out-Of-Scope:
   - automated eval pipelines or benchmark scoring
   - Phase 2 feature proposals (belong in Phase 2 decomposition pass)
   - new transcript capture tooling
+
+---
+
+## Phase 2 — Creative Memory Layer
+
+Goal:
+- give the assistant bounded memory of each project's current state so it can maintain continuity across sessions without requiring the user to re-explain context
+
+Entry condition:
+- Phase 1 artifacts approved (phase gate passed)
+
+Exit criteria:
+- project_memory table exists and is populated via /memory command
+- chat handler injects active project memory into system prompt when available
+- memory generation is bounded LLM, input assembly is deterministic
+- continuity eval pack confirms chat quality improvement
+
+---
+
+[ ] P2-01 — project_memory Schema and DB Layer
+Owner: codex
+Phase: 2
+Type: schema + implementation
+Depends-On: none
+Objective: |
+  Add the project_memory table to the schema and the corresponding db.py functions.
+  This is the storage layer for Phase 2 — no LLM involved in this task.
+Why-Now: |
+  All other Phase 2 tasks depend on having a stable storage layer first.
+  Defining the schema and DB API before generation or retrieval prevents drift.
+File-Scope:
+  - src/schema.sql
+  - src/db.py
+Deterministic-Owned:
+  - table definition, constraints, indexes
+  - upsert, get, and list functions
+  - _ALLOWED_TABLES whitelist update
+LLM-Owned:
+  - none
+Acceptance-Criteria:
+  - id: AC-1
+    description: "project_memory table created with: id, project_id (FK projects), summary_text, generated_at, item_count_snapshot, model_used."
+    test: "smoke test passes; schema inspect confirms table"
+  - id: AC-2
+    description: "db.py exposes: upsert_project_memory, get_project_memory(project_id), list_projects_without_memory."
+    test: "functions importable; smoke test passes"
+  - id: AC-3
+    description: "project_memory added to _ALLOWED_TABLES."
+    test: "code review"
+  - id: AC-4
+    description: "UNIQUE constraint on project_id (one memory row per project)."
+    test: "schema review"
+Dependencies: none
+Review-Mode: light
+Out-Of-Scope:
+  - memory generation logic
+  - chat injection
+  - any LLM calls
+
+---
+
+[ ] P2-02 — Project Memory Generation Command
+Owner: codex
+Phase: 2
+Type: implementation
+Depends-On: P2-01
+Objective: |
+  Add a /memory command that generates a bounded LLM summary of the active project
+  from its stored records and saves it to project_memory. The command also displays
+  the current memory to the user if one exists.
+Why-Now: |
+  Memory must be generated before it can be injected into chat context.
+  The command gives the user explicit control over when memory is refreshed.
+File-Scope:
+  - src/handlers/memory_cmd.py (new file)
+  - src/bot.py (register /memory command handler)
+  - src/handlers/help_cmd.py (add /memory to help text)
+Deterministic-Owned:
+  - project resolution (use active project from state, or first arg as project name/slug)
+  - input assembly: fetch recent notes, ideas, deadlines, review_history for the project
+  - storage: upsert_project_memory after generation
+  - staleness check: if memory exists and item_count_snapshot matches current count, return cached
+  - LLM call log entry
+LLM-Owned:
+  - bounded summary generation: one paragraph, max 200 tokens, grounded in assembled records
+  - model: Haiku-class (intent path)
+  - system prompt: factual summary only; no invention; no advice
+Acceptance-Criteria:
+  - id: AC-1
+    description: "/memory with active project set generates and stores a summary, returns it to the user."
+    test: "manual test with active project and at least one note/idea"
+  - id: AC-2
+    description: "/memory with no active project returns a clear prompt to set a project first."
+    test: "manual test with no active project"
+  - id: AC-3
+    description: "If item_count_snapshot matches current count, returns cached memory without LLM call."
+    test: "code review of staleness check; call log count before/after"
+  - id: AC-4
+    description: "LLM call is logged in llm_call_log."
+    test: "code review"
+  - id: AC-5
+    description: "Memory summary contains no invented facts — only references to stored records."
+    test: "manual review of output against actual DB state"
+Dependencies: P2-01
+Review-Mode: light
+Out-Of-Scope:
+  - automatic background memory refresh
+  - memory for multiple projects in one command
+  - embeddings or semantic indexing
+
+---
+
+[ ] P2-03 — Memory Injection into Chat Context
+Owner: codex
+Phase: 2
+Type: implementation
+Depends-On: P2-01, P2-02
+Objective: |
+  When the chat handler is invoked and the active project has a memory entry,
+  inject the project memory summary into the system prompt so the LLM has
+  project context without the user needing to re-explain it.
+Why-Now: |
+  Without injection, generated memory is only useful when the user explicitly reads it.
+  Injection is the step that makes memory act as continuity rather than just storage.
+File-Scope:
+  - src/handlers/chat_handler.py
+  - src/db.py (get_project_memory — already added in P2-01)
+Deterministic-Owned:
+  - reading project_id from user_state.active_project_id
+  - DB lookup of project memory
+  - constructing the augmented system prompt
+  - fallback to base system prompt when no memory exists
+LLM-Owned:
+  - none new; the LLM receives the injected context but does not manage it
+Acceptance-Criteria:
+  - id: AC-1
+    description: "When active project has memory, system prompt includes a 'Project context:' block with the summary."
+    test: "code review of handle_chat; verify prompt construction"
+  - id: AC-2
+    description: "When no active project or no memory exists, system prompt is unchanged from current base."
+    test: "code review; no regression on existing chat behaviour"
+  - id: AC-3
+    description: "Memory injection is a DB read only — no LLM call added in this task."
+    test: "code review; llm_call_log count unchanged for injection-only path"
+  - id: AC-4
+    description: "If DB read fails, chat proceeds with base system prompt (no crash, no silent wrong state)."
+    test: "code review of error path"
+Dependencies: P2-01, P2-02
+Review-Mode: light
+Out-Of-Scope:
+  - dynamic memory update during a chat session
+  - injecting memory for multiple projects
+  - vector similarity retrieval
+
+---
+
+[ ] P2-04 — Continuity Eval Pack
+Owner: claude
+Phase: 2
+Type: documentation / eval
+Depends-On: P2-02, P2-03
+Objective: |
+  Review representative sessions (real or synthetic) with and without memory injection
+  active. Produce a structured eval pack that documents whether memory improved
+  continuity quality, and whether any issues (hallucination, noise, over-injection) were
+  observed.
+Why-Now: |
+  Phase 2 should not close on code review alone. Memory is an LLM-touching feature
+  and its quality must be verified before Phase 3 builds on top of it.
+File-Scope:
+  - docs/review/continuity_eval_p2.md (new file)
+Deterministic-Owned:
+  - eval structure: session, without-memory response, with-memory response, verdict, notes
+  - which dimensions to evaluate: continuity accuracy, hallucination risk, response relevance
+LLM-Owned:
+  - drafting verdict prose from session evidence
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Eval covers at least 3 interaction types: project-context question, capture confirmation, idea review."
+    test: "doc structure check"
+  - id: AC-2
+    description: "Each dimension has a verdict: improved / unchanged / regressed, with evidence."
+    test: "manual review"
+  - id: AC-3
+    description: "Any hallucination or over-injection findings are listed explicitly."
+    test: "manual review"
+  - id: AC-4
+    description: "Phase 2 close decision references this eval pack."
+    test: "CODEX_PROMPT.md update at phase close"
+Dependencies: P2-02, P2-03
+Review-Mode: deep (phase-close artifact; human approval required before Phase 3 entry)
+Out-Of-Scope:
+  - automated benchmark pipelines
+  - Phase 3 feature proposals

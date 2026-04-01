@@ -215,3 +215,45 @@ Across all Phase 1 changes:
 - no reply should be longer after changes than before, except where the added content is the project name that was previously absent
 - confirmations, digests, and review completions must not accumulate decorative language
 - longer is not better; grounded and brief is better
+
+## 11. Phase 2 Memory Behavioral Requirements
+
+These requirements are implementation-explicit for Phase 2. They define expected system behavior for the creative memory layer.
+
+### MR-1 — project_memory Storage Contract
+
+One memory row per project. A memory row contains:
+- `summary_text`: bounded LLM output, one paragraph, max 200 tokens
+- `generated_at`: UTC ISO timestamp of last generation
+- `item_count_snapshot`: count of notes+ideas+deadlines at generation time (used for staleness check)
+- `model_used`: model identifier used for generation
+
+The memory row must not:
+- contain invented facts not traceable to stored records
+- exceed one paragraph in summary_text
+- be generated without an LLM call being logged in llm_call_log
+
+### MR-2 — Memory Generation Rules
+
+Memory generation is triggered by `/memory` command only. It is not automatic.
+
+Staleness check: if `item_count_snapshot` equals current count of notes+ideas+deadlines for the project, return cached memory without an LLM call.
+
+If the project has no notes, ideas, or deadlines yet, the command must return a clear message that there is not enough stored material to generate memory, rather than generating a placeholder.
+
+### MR-3 — Memory Injection Rules
+
+When the chat handler is invoked:
+- if `user_state.active_project_id` is set and a memory row exists for that project, prepend it to the system prompt as a labeled block: `Контекст проекта: {summary_text}`
+- if no active project or no memory row, system prompt is unchanged
+- injection must not prevent the chat from working if the DB read fails — fall back to base prompt silently
+
+The injected context is read-only. The LLM may not update or delete the memory row through tool calls.
+
+### MR-4 — Memory Anti-Goals
+
+The memory layer must not:
+- use embeddings or vector similarity at any point
+- retrieve records from multiple projects simultaneously
+- autonomously update memory without an explicit trigger
+- fabricate project state not derivable from stored records
