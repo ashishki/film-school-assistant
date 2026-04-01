@@ -23,6 +23,15 @@ async def confirm_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         result_text = await _do_confirm(chat_id, context)
         await reply_text(update, context, result_text)
+        if get_state(chat_id).pending_entity is not None:
+            return
+
+        next_preview, queue_error = await _queue_next_pending_entity(chat_id, context)
+        if queue_error is not None:
+            await reply_text(update, context, queue_error)
+            return
+        if next_preview is not None:
+            await reply_text(update, context, next_preview, reply_markup=_pending_keyboard())
     except Exception:
         LOGGER.exception("Unhandled confirm command failure")
         await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")
@@ -152,9 +161,71 @@ async def _do_confirm(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> str:
     else:
         project_name = None
 
+    queued_entities = state.pending_entities
     clear_pending(chat_id)
+    state.pending_entities = queued_entities
     LOGGER.info("Confirmed pending %s for chat_id=%s as id=%s", saved_type, chat_id, saved_row["id"])
     return _confirm_success_text(saved_type, project_name)
+
+
+async def _queue_next_pending_entity(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> tuple[str | None, str | None]:
+    state = get_state(chat_id)
+    queued_entities = state.pending_entities
+    if not queued_entities:
+        state.pending_entities = None
+        return None, None
+
+    from src.handlers.nl_handler import (
+        _build_due_date_note,
+        _normalize_entity_type,
+        _prepare_pending_entity_from_nl,
+    )
+
+    while queued_entities:
+        raw_entity = queued_entities.pop(0)
+        entity_type = _normalize_entity_type(raw_entity.get("entity_type"))
+        content = str(raw_entity.get("content", "")).strip()
+        project_hint = str(raw_entity.get("project_hint", "")).strip()
+        due_date = str(raw_entity.get("due_date", "")).strip()
+        if entity_type is None or not content:
+            LOGGER.warning("Skipping malformed queued entity for chat_id=%s", chat_id)
+            continue
+
+        try:
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                db.row_factory = aiosqlite.Row
+                pending_entity, validated_due_date = await _prepare_pending_entity_from_nl(
+                    db,
+                    entity_type,
+                    content,
+                    project_hint,
+                    due_date,
+                    content,
+                )
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to prepare queued NL entity for chat_id=%s", chat_id)
+            return None, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)"
+
+        state.pending_entity = pending_entity
+        state.pending_entity_type = entity_type
+        state.pending_entities = queued_entities or None
+
+        preview_text = _build_pending_preview(state)
+        due_date_note = _build_due_date_note(entity_type, due_date, validated_due_date)
+        if due_date_note:
+            preview_text = f"{preview_text}{due_date_note}"
+
+        LOGGER.info(
+            "Queued next pending entity type=%s parsed_event_id=%s remaining=%s for chat_id=%s",
+            entity_type,
+            pending_entity.get("parsed_event_id"),
+            len(state.pending_entities or []),
+            chat_id,
+        )
+        return preview_text, None
+
+    state.pending_entities = None
+    return None, None
 
 
 async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pending: dict) -> tuple[str, dict]:
