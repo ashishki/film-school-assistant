@@ -4,7 +4,7 @@ import aiosqlite
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.db import get_idea, get_llm_calls_today, log_llm_call
+from src.db import get_idea, get_llm_calls_today, get_project_memory, log_llm_call
 from src.handlers.common import reply_text
 from src.reviewer import review_idea
 
@@ -28,7 +28,15 @@ async def review_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         async with aiosqlite.connect(context.bot_data["db_path"]) as db:
             db.row_factory = aiosqlite.Row
             idea = await get_idea(db, idea_id)
+            project_memory_text: str | None = None
             if idea is not None:
+                if idea.get("project_id") is not None:
+                    try:
+                        memory_row = await get_project_memory(db, idea["project_id"])
+                        project_memory_text = memory_row["summary_text"] if memory_row else None
+                    except Exception:
+                        LOGGER.warning("Failed to fetch project memory for review idea_id=%s", idea_id)
+                        project_memory_text = None
                 daily_llm_call_limit = context.bot_data["config"].daily_llm_call_limit
                 today_calls = await get_llm_calls_today(db)
                 if today_calls >= daily_llm_call_limit:
@@ -45,7 +53,7 @@ async def review_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
 
         await reply_text(update, context, f"Обрабатываю идею #{idea_id}...")
-        review_text = await review_idea(idea, context.bot_data["config"])
+        review_text = await review_idea(idea, context.bot_data["config"], project_memory_text)
         await reply_text(update, context, review_text)
         LOGGER.info("Completed /review for idea_id=%s", idea_id)
     except Exception:

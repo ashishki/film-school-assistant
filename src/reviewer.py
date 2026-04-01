@@ -27,9 +27,15 @@ REVIEW_SYSTEM_PROMPT = (
 )
 
 
-async def review_idea(idea: dict, config) -> str:
+async def review_idea(idea: dict, config, project_memory_text: str | None = None) -> str:
     idea_id = idea["id"]
-    prompt = f"Review this film idea:\n\n{idea['content']}"
+    if project_memory_text:
+        prompt = (
+            f"Контекст проекта: {project_memory_text}\n\n"
+            f"Review this film idea in the context of the project above:\n\n{idea['content']}"
+        )
+    else:
+        prompt = f"Review this film idea:\n\n{idea['content']}"
 
     try:
         response = await asyncio.to_thread(
