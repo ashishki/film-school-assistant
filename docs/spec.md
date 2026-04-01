@@ -317,3 +317,42 @@ The `/start` reply must not:
 - use LLM-generated content
 - be longer than the current reply (exception: adding the first-step hint)
 - repeat the full command list (that belongs in /help)
+
+## 14. Phase 5 NL Interaction Quality Requirements
+
+### NR-1 — Multi-entity Extraction
+
+When a single user message contains more than one distinct entity (e.g. a deadline and a note):
+- the extraction schema returns `{"entities": [...]}` where each item has `entity_type`, `content`, `project_hint`, `due_date`
+- the first entity is presented as the current pending entity
+- remaining entities are stored in `state.pending_entities` (queue)
+- after the user confirms the current entity, the next queued entity is auto-presented
+- single-entity messages behave identically to the pre-Phase-5 baseline
+- the queue is cleared when the user discards or the last entity is confirmed
+
+### NR-2 — Clarifying Questions on Parse Failure
+
+When NL extraction fails, the reply must be a targeted clarifying question, not a generic error:
+- on LLMError or non-dict response: ask the user to rephrase as a question (under two lines)
+- on empty content extraction: ask what exactly to save
+- no failure branch may show the full command list as the primary response
+- no branch may use the old generic 4-line "Не совсем понял" message
+
+### NR-3 — Уточнить Button
+
+The pending entity keyboard must have three buttons: "✅ Сохранить", "❌ Удалить", "✏️ Уточнить".
+
+When the user taps "✏️ Уточнить":
+- the bot replies asking the user to write a corrected version of their message
+- `state.pending_clarify` is set to True
+- the next free-text message clears the current pending entity and re-runs NL extraction on the new text
+- no fields from the discarded pending entity are preserved into the re-extraction
+
+### NR-4 — NL Context Window
+
+The nl_handler must maintain a rolling context of the last 5 raw user messages (`state.nl_context`):
+- `nl_context` is appended after each NL extraction attempt (success or failure)
+- `nl_context` is not cleared by `clear_pending` (survives across confirms and discards)
+- when `nl_context` is non-empty, the extraction prompt includes a labeled context block before the current message
+- when `nl_context` is empty, the extraction prompt is identical to the pre-Phase-5 baseline
+- the context window must not be persisted to DB

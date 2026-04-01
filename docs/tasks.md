@@ -886,3 +886,255 @@ Review-Mode: deep (phase-close artifact; human approval required before Phase 4 
 Out-Of-Scope:
   - automated scoring pipelines
   - Phase 4 feature proposals
+
+---
+
+## Phase 5 — NL Interaction Quality
+
+Goal:
+- make free-text capture smarter: handle multi-item messages, recover gracefully from parse failures, and let the user refine a pending entity without retyping from scratch
+
+Entry condition:
+- Audit Cycle 1 all findings resolved (✅ done)
+
+Exit criteria:
+- one user message can produce multiple queued entities, each confirmed individually
+- parse failure returns a targeted clarifying question, not a generic error
+- confirmation keyboard has a third "Уточнить ✏️" button that lets the user rewrite the input
+- nl_handler has access to the last few raw messages so references like "а ещё добавь к этому дедлайн" resolve correctly
+- phase review pack confirms no regressions
+
+---
+
+[- ] P5-01 — Multi-entity extraction and queued confirmation
+Owner: codex
+Phase: 5
+Type: implementation
+Depends-On: none
+Objective: |
+  Change the NL extraction schema to return an array of entities. When more than one
+  entity is extracted from a single message, queue them: present the first as the current
+  pending entity, store the rest in state. After each confirmation, auto-present the next
+  queued entity until the queue is empty.
+Why-Now: |
+  Users naturally send compound messages ("сдать короткий метр в пятницу и позвонить
+  продюсеру насчёт бюджета"). Currently only one entity is extracted and the second is
+  lost. The fix is a schema change plus a small state queue — no new LLM model needed.
+File-Scope:
+  - src/state.py
+  - src/handlers/nl_handler.py
+  - src/handlers/confirm.py
+Deterministic-Owned:
+  - queue storage in UserState (pending_entities: list[dict] | None)
+  - clear_pending clears pending_entities
+  - after each confirm: pop next from pending_entities and present it, or finish normally
+  - single-entity path unchanged (backward compatible)
+LLM-Owned:
+  - extraction schema change: {"entities": [{"entity_type":..., "content":..., "project_hint":..., "due_date":...}]}
+  - EXTRACTION_SYSTEM_PROMPT updated to return entities array
+Acceptance-Criteria:
+  - id: AC-1
+    description: "UserState has pending_entities: list[dict] | None = None; clear_pending resets it."
+    test: "code review of state.py"
+  - id: AC-2
+    description: "EXTRACTION_SYSTEM_PROMPT returns {\"entities\": [...]} array."
+    test: "code review of nl_handler.py prompt"
+  - id: AC-3
+    description: "Single-entity messages work identically to before the change."
+    test: "code review of single-entity path"
+  - id: AC-4
+    description: "Multi-entity message: first entity shown as pending; after confirm, next entity shown automatically."
+    test: "code review of confirm flow"
+  - id: AC-5
+    description: "Ruff passes; no import errors."
+    test: "CI: ruff check src/"
+Dependencies: none
+Review-Mode: light
+Out-Of-Scope:
+  - bulk save without per-entity confirmation
+  - entity type inference changes
+  - UI changes beyond queue presentation
+
+---
+
+[ ] P5-02 — Clarifying questions on parse failure
+Owner: codex
+Phase: 5
+Type: implementation
+Depends-On: none
+Objective: |
+  Replace all four generic "Не совсем понял" error branches in nl_handler.py with
+  specific clarifying questions that tell the user exactly what was unclear and how
+  to fix it, without listing the full command menu.
+Why-Now: |
+  The current error messages are identical across all failure modes (LLM error, non-dict
+  response, bad schema, empty content). Each mode has a different root cause and a
+  different most-helpful clarification. Targeted messages reduce confusion and abandonment.
+File-Scope:
+  - src/handlers/nl_handler.py
+Deterministic-Owned:
+  - mapping each failure mode to its own specific message
+  - message must be a question or actionable prompt, under two lines
+  - no full command menu appended (keep it brief)
+LLM-Owned:
+  - none; all messages are static strings
+Acceptance-Criteria:
+  - id: AC-1
+    description: "LLMError branch: message asks the user to rephrase as a question (не команду)."
+    test: "code review of LLMError path"
+  - id: AC-2
+    description: "non-dict branch: message clarifies the response was unparseable and suggests a specific entity command."
+    test: "code review"
+  - id: AC-3
+    description: "empty content branch: message asks what exactly to save."
+    test: "code review"
+  - id: AC-4
+    description: "No branch still uses the old generic 4-line message with the command list."
+    test: "grep check: old message string not present"
+  - id: AC-5
+    description: "Ruff passes."
+    test: "CI: ruff check src/"
+Dependencies: none
+Review-Mode: light
+Out-Of-Scope:
+  - LLM-driven clarification generation
+  - multi-turn clarification dialogue
+
+---
+
+[ ] P5-03 — Уточнить button and re-extraction flow
+Owner: codex
+Phase: 5
+Type: implementation
+Depends-On: P5-01
+Objective: |
+  Add a third button to the pending entity keyboard: "✏️ Уточнить" (callback_data="clarify").
+  When tapped, the bot replies asking the user to rewrite their input. The next free-text
+  message clears the current pending entity and re-runs NL extraction on the new text,
+  effectively replacing the draft.
+Why-Now: |
+  Currently the only options after a bad extraction are to discard (lose everything) or
+  accept and use /edit (requires knowing the command syntax). A clarify button gives a
+  low-friction correction path that matches how users naturally fix mistakes.
+File-Scope:
+  - src/handlers/confirm.py
+  - src/state.py
+  - src/bot.py
+Deterministic-Owned:
+  - pending_clarify: bool = False added to UserState; clear_pending resets it
+  - _pending_keyboard() adds third button: InlineKeyboardButton("✏️ Уточнить", callback_data="clarify")
+  - clarify callback handler: sets state.pending_clarify = True, replies "Напиши исправленный вариант — переработаю."
+  - nl_handler: at entry, if state.pending_clarify is True, set it to False, call clear_pending, then continue normally
+LLM-Owned:
+  - none; clarify entry re-uses existing extraction path
+Acceptance-Criteria:
+  - id: AC-1
+    description: "UserState has pending_clarify: bool = False; clear_pending sets it to False."
+    test: "code review of state.py"
+  - id: AC-2
+    description: "_pending_keyboard() returns three buttons: Сохранить, Удалить, Уточнить."
+    test: "code review of confirm.py"
+  - id: AC-3
+    description: "Pressing Уточнить sets pending_clarify=True and sends a reply prompting rewrite."
+    test: "code review of clarify callback"
+  - id: AC-4
+    description: "Next free-text message after pending_clarify=True clears old pending entity and re-runs extraction."
+    test: "code review of nl_handler entry check"
+  - id: AC-5
+    description: "Ruff passes."
+    test: "CI: ruff check src/"
+Dependencies: P5-01
+Review-Mode: light
+Out-Of-Scope:
+  - multi-turn guided correction dialogue
+  - preserving any field from the old pending entity into the re-extraction
+  - clarify for voice messages
+
+---
+
+[ ] P5-04 — NL context window for reference resolution
+Owner: codex
+Phase: 5
+Type: implementation
+Depends-On: none
+Objective: |
+  Add a short rolling context window of the last 5 raw user messages to UserState.
+  When nl_handler calls the LLM for extraction, prepend the context window to the
+  extraction prompt so the model can resolve references like "а ещё добавь к этому
+  дедлайн" without re-explanation.
+Why-Now: |
+  nl_handler currently processes every message in isolation. Short back-references
+  that rely on a previous message are silently lost. Adding the last 5 messages as
+  context to the extraction prompt resolves this with minimal code change and no new
+  LLM call.
+File-Scope:
+  - src/state.py
+  - src/handlers/nl_handler.py
+Deterministic-Owned:
+  - nl_context: list[str] = field(default_factory=list) added to UserState; max 5 items
+  - clear_pending does NOT clear nl_context (context survives confirms/discards)
+  - after each NL extraction attempt (success or failure), append user_text to nl_context; cap at 5
+  - prompt construction: if nl_context non-empty, prepend context block before user_text
+  - context block format: "Предыдущие сообщения:\n- {msg1}\n- {msg2}\n\nТекущее сообщение: {user_text}"
+LLM-Owned:
+  - none new; existing extraction LLM now receives richer prompt
+Acceptance-Criteria:
+  - id: AC-1
+    description: "UserState has nl_context: list[str] = field(default_factory=list); not cleared by clear_pending."
+    test: "code review of state.py and clear_pending"
+  - id: AC-2
+    description: "After each NL extraction attempt, user_text is appended to nl_context; list capped at 5."
+    test: "code review of nl_handler"
+  - id: AC-3
+    description: "When nl_context is non-empty, extraction prompt includes a context block before user_text."
+    test: "code review of prompt construction"
+  - id: AC-4
+    description: "When nl_context is empty, extraction prompt is identical to before the change."
+    test: "code review"
+  - id: AC-5
+    description: "Ruff passes."
+    test: "CI: ruff check src/"
+Dependencies: none
+Review-Mode: light
+Out-Of-Scope:
+  - context window for chat_handler (it has its own conversation_history)
+  - semantic or vector-based context retrieval
+  - persisting nl_context to DB
+
+---
+
+[ ] P5-05 — Phase 5 NL Quality Review Pack
+Owner: claude
+Phase: 5
+Type: documentation / eval
+Depends-On: P5-01, P5-02, P5-03, P5-04
+Objective: |
+  Review Phase 5 implementation against the NR-1..NR-4 behavioral requirements.
+  Produce a structured review pack that confirms multi-entity queuing, clarifying
+  questions, the Уточнить button, and context window each work as specified, and
+  documents any regressions or deferred findings.
+File-Scope:
+  - docs/review/nl_quality_review_p5.md (new file)
+Deterministic-Owned:
+  - review structure: feature / spec-ref / verdict / evidence / findings
+  - which features: multi-entity, clarify questions, Уточнить button, context window
+LLM-Owned:
+  - verdict prose from code review evidence
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Review covers all four NR requirements."
+    test: "doc structure check"
+  - id: AC-2
+    description: "Each feature has a verdict (met / partial / not met) with evidence."
+    test: "manual review"
+  - id: AC-3
+    description: "Any regression findings are listed with severity."
+    test: "manual review"
+  - id: AC-4
+    description: "Phase 5 close decision references this review pack."
+    test: "CODEX_PROMPT.md update at phase close"
+Dependencies: P5-01, P5-02, P5-03, P5-04
+Review-Mode: deep (phase-close artifact; human approval required)
+Out-Of-Scope:
+  - automated test pipelines
+  - Phase 6 proposals
