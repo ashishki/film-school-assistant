@@ -30,6 +30,8 @@ It is intentionally single-user, private, and operationally simple.
 3. Attach entries to projects so work stays contextual, not flat.
 4. Review, search, edit, archive, and revisit work without losing continuity.
 5. Receive reminders and a weekly digest that turn stored material into forward motion.
+6. Run `/memory` to generate a bounded summary of the current project state.
+7. Run `/reflect` to get a grounded orientation: where the project stands, what tensions are active, and what to focus on next.
 
 ## Why It Is Not Just Notes, ChatGPT, or Telegram
 
@@ -44,36 +46,44 @@ It is intentionally single-user, private, and operationally simple.
 - Storage: local SQLite
 - Voice transcription: local Whisper
 - Intent extraction: Claude Haiku
+- Project memory: Claude Haiku (bounded summary, one paragraph per project)
 - Idea review: Claude Sonnet
+- Project reflection: Claude Sonnet (`/reflect` command)
 - Automation: deterministic reminder and weekly summary scripts
 
-See [Product Overview](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/PRODUCT_OVERVIEW.md), [Architecture](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/ARCHITECTURE.md), and [Phase Plan](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/PHASE_PLAN.md).
+See [Product Overview](docs/PRODUCT_OVERVIEW.md), [Architecture](docs/ARCHITECTURE.md), and [Phase Plan](docs/PHASE_PLAN.md).
 
 ## Current Status
 
-The implemented foundation is real:
-- Telegram-first capture and management flows exist
-- reminders and weekly summary exist
-- local voice transcription exists
-- structured idea review exists
-
-The current weakness is not "missing AI." It is product framing, documentation coherence, UX continuity, and disciplined sequencing for the next phases.
+The system is now complete through four development phases and one audit cycle:
+- Telegram-first capture, management, reminders, and local voice transcription are implemented
+- confirmation and edit replies are project-aware and include the project name
+- the weekly digest is framed in Russian with project-level next-step pointers
+- `/memory` generates a bounded project-state summary and stores one paragraph per project
+- stored project memory is injected into chat context so the assistant retains project state without re-explanation
+- idea review uses project memory when available so critique is specific to the active project
+- `/reflect` produces a structured project reflection: current state, creative tensions, and next focus
+- deployment is documented for VPS setup with `.env.example`, `docs/DEPLOY.md`, and corrected `systemd` service files
 
 ## Documentation Map
 
-- [Product Overview](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/PRODUCT_OVERVIEW.md): product category, user, boundaries, differentiation
-- [Architecture](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/ARCHITECTURE.md): system shape, governance, runtime, ownership boundaries
-- [Workflow Boundaries](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/WORKFLOW_BOUNDARIES.md): deterministic vs LLM rules and approval gates
-- [User Experience](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/USER_EXPERIENCE.md): UX principles for a creative assistant
-- [Phase Plan](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/PHASE_PLAN.md): what is built, what comes next, what is deferred
-- [Decisions](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/DECISIONS.md): key architectural and product decisions for the current phase
-- [Setup Spec](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/spec.md): implementation-facing product contract
-- [Task Graph](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/tasks.md): playbook-compatible execution backlog
+- [Product Overview](docs/PRODUCT_OVERVIEW.md): product category, user, boundaries, differentiation
+- [Architecture](docs/ARCHITECTURE.md): system shape, governance, runtime, ownership boundaries
+- [Workflow Boundaries](docs/WORKFLOW_BOUNDARIES.md): deterministic vs LLM rules and approval gates
+- [User Experience](docs/USER_EXPERIENCE.md): UX principles for a creative assistant
+- [Phase Plan](docs/PHASE_PLAN.md): build phases, shipped scope, and deferred work
+- [Decisions](docs/DECISIONS.md): key architectural and product decisions
+- [Setup Spec](docs/spec.md): implementation-facing product contract
+- [Deployment Guide](docs/DEPLOY.md): step-by-step VPS deployment instructions
+- [Audit Review Report](docs/audit/REVIEW_REPORT.md): audit cycle findings and follow-up priorities
+- [Task Graph](docs/tasks.md): playbook-compatible execution backlog
 
 ## Setup
 
 Start with the implementation-facing setup and runtime details already in the repo:
-- [Product Spec](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/spec.md)
-- [Ops / Security](/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/ops-security.md)
+- [Product Spec](docs/spec.md)
+- [Ops / Security](docs/ops-security.md)
+
+See [docs/DEPLOY.md](docs/DEPLOY.md) for step-by-step VPS deployment instructions.
 
 The repository remains intentionally private-deployment-first. A public SaaS posture is not the current target.
