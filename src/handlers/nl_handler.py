@@ -53,7 +53,6 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                         f"Достигнут дневной лимит LLM запросов ({daily_llm_call_limit}). Попробуй завтра.",
                     )
                     return
-                await log_llm_call(db, "intent", "extraction")
         except aiosqlite.Error:
             LOGGER.exception("Failed to read/write LLM call log for chat_id=%s", chat.id)
             await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
@@ -162,6 +161,7 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                         }
                     ),
                 )
+                await log_llm_call(db, "intent", "extraction")
         except aiosqlite.Error:
             LOGGER.exception("Failed to persist NL parsed event for chat_id=%s", chat.id)
             await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
