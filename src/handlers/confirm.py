@@ -297,6 +297,7 @@ def _pending_keyboard() -> InlineKeyboardMarkup:
         [[
             InlineKeyboardButton("✅ Сохранить", callback_data="confirm"),
             InlineKeyboardButton("❌ Удалить", callback_data="discard"),
+            InlineKeyboardButton("✏️ Уточнить", callback_data="clarify"),
         ]]
     )
 

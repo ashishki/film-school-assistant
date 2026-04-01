@@ -313,6 +313,14 @@ async def inline_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text("Запись удалена.")
         return
 
+    if query.data == "clarify":
+        if state.pending_entity is None:
+            await query.edit_message_text("Нечего уточнять.")
+            return
+        state.pending_clarify = True
+        await query.edit_message_text("Напиши исправленный вариант — переработаю.")
+        return
+
     if query.data in {"type_note", "type_idea", "type_deadline", "type_homework"}:
         content = state.pending_nl_content
         if not content:

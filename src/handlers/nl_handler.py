@@ -12,7 +12,7 @@ from src.db import create_parsed_event, get_llm_calls_today, log_llm_call
 from src.handlers.common import reply_text, resolve_project_match, validate_and_parse_date
 from src.handlers.confirm import _build_pending_preview, _pending_keyboard
 from src.openclaw_client import LLMError, LLMSchemaError, complete_json
-from src.state import get_state
+from src.state import clear_pending, get_state
 
 
 LOGGER = logging.getLogger(__name__)
@@ -33,6 +33,9 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             return
 
         state = get_state(chat.id)
+        if state.pending_clarify:
+            state.pending_clarify = False
+            clear_pending(chat.id)
         if state.pending_entity is not None:
             LOGGER.info("Skipping NL parse because a pending entity exists for chat_id=%s", chat.id)
             await reply_text(update, context, "Есть незавершённая запись. Сначала /confirm, /edit или /discard.")
