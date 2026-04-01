@@ -44,6 +44,7 @@ from src.handlers.help_cmd import help_command
 from src.handlers.homework import homework_command
 from src.handlers.ideas import idea_command
 from src.handlers.list_cmd import list_command
+from src.handlers.memory_cmd import memory_command
 from src.handlers.common import validate_and_parse_date
 from src.handlers.nl_handler import _build_pending_entity as build_nl_pending_entity
 from src.handlers.nl_handler import _resolve_project
@@ -415,6 +416,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("list", list_command))
     application.add_handler(CommandHandler("search", search_command))
     application.add_handler(CommandHandler("review", review_handler))
+    application.add_handler(CommandHandler("memory", memory_command))
     application.add_handler(CommandHandler("confirm", confirm_command))
     application.add_handler(CommandHandler("edit", edit_command))
     application.add_handler(CommandHandler("discard", discard_command))
