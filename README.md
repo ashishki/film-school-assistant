@@ -25,8 +25,8 @@ It is intentionally single-user, private, and operationally simple.
 
 ## Core Workflow
 
-1. Capture thoughts quickly by text or voice in Telegram.
-2. Convert messy input into structured entities: notes, ideas, deadlines, homework.
+1. Capture thoughts quickly by text or voice in Telegram — one message can contain multiple items at once.
+2. Convert messy input into structured entities: notes, ideas, deadlines, homework — each confirmed individually.
 3. Attach entries to projects so work stays contextual, not flat.
 4. Review, search, edit, archive, and revisit work without losing continuity.
 5. Receive reminders and a weekly digest that turn stored material into forward motion.
@@ -45,7 +45,7 @@ It is intentionally single-user, private, and operationally simple.
 - Runtime: Python service on a private VPS with `systemd`
 - Storage: local SQLite
 - Voice transcription: local Whisper
-- Intent extraction: Claude Haiku
+- Intent extraction: Claude Haiku — multi-entity, context-aware, with targeted error recovery
 - Project memory: Claude Haiku (bounded summary, one paragraph per project)
 - Idea review: Claude Sonnet
 - Project reflection: Claude Sonnet (`/reflect` command)
@@ -55,14 +55,26 @@ See [Product Overview](docs/PRODUCT_OVERVIEW.md), [Architecture](docs/ARCHITECTU
 
 ## Current Status
 
-The system is now complete through four development phases and one audit cycle:
-- Telegram-first capture, management, reminders, and local voice transcription are implemented
+The system is complete through five development phases and one audit cycle:
+
+**Capture and confirmation**
+- Telegram-first capture by text or voice; local Whisper transcription
+- one free-text message can contain multiple entities — each is confirmed individually in sequence
+- confirmation keyboard has three options: save, discard, or rewrite (✏️ Уточнить — re-runs extraction on next message)
+- when extraction fails, the assistant asks a specific clarifying question instead of a generic error
+- NL handler uses the last five messages as context so back-references ("а ещё добавь дедлайн") resolve correctly
+
+**Project continuity**
 - confirmation and edit replies are project-aware and include the project name
 - the weekly digest is framed in Russian with project-level next-step pointers
 - `/memory` generates a bounded project-state summary and stores one paragraph per project
 - stored project memory is injected into chat context so the assistant retains project state without re-explanation
+
+**Reflection and review**
 - idea review uses project memory when available so critique is specific to the active project
 - `/reflect` produces a structured project reflection: current state, creative tensions, and next focus
+
+**Deployment**
 - deployment is documented for VPS setup with `.env.example`, `docs/DEPLOY.md`, and corrected `systemd` service files
 
 ## Documentation Map
