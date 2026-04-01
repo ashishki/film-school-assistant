@@ -14,12 +14,11 @@ Last updated: 2026-03-31
 
 ## Current Phase
 
-- Phase: 4
+- Phase: 4 — COMPLETE (pending human phase-gate approval)
 - Goal: deployment simplification and onboarding clarity
-- Active Task: `P4-02 — Onboarding Flow Polish`
-- Active Task Owner: codex
-- Active Task Output: `src/bot.py` (start_command)
-- Web layer: deferred (DECISIONS.md condition not met)
+- Active Task: none — Phase 4 closed
+- Phase close artifact: `docs/review/productization_review_p4.md`
+- This is the final planned phase. The development loop is complete.
 
 ---
 
@@ -139,6 +138,10 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
   - P3-01: `src/reviewer.py`, `src/handlers/review.py` — inject project memory context into idea review prompt
   - P3-02: `src/handlers/reflect_cmd.py`, `src/bot.py`, `src/handlers/help_cmd.py` — /reflect command for project-level structured reflection
   - P3-03: `docs/review/reflection_eval_p3.md` — reflection eval pack; all findings low/low-medium severity, phase CLOSED
+- Phase 4 Implementation:
+  - P4-01: `systemd/film-school-bot.service`, `.env.example`, `docs/DEPLOY.md` — deployment package
+  - P4-02: `src/bot.py` (start_command) — onboarding flow: emoji removed, first-project hint added
+  - P4-03: `docs/review/productization_review_p4.md` — productization review pack; no regressions, phase CLOSED
 
 ---
 
