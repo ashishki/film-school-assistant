@@ -137,6 +137,18 @@ async def _do_confirm(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> str:
         and state.active_project_name
     ):
         project_name = state.active_project_name
+    elif project_id is not None:
+        project_name = None
+        try:
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                db.row_factory = aiosqlite.Row
+                cursor = await db.execute("SELECT name FROM projects WHERE id = ?", (project_id,))
+                project_row = await cursor.fetchone()
+                await cursor.close()
+            if project_row is not None:
+                project_name = project_row["name"]
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to resolve project name for project_id=%s", project_id)
     else:
         project_name = None
 

@@ -193,6 +193,17 @@ async def _resolve_project(
     return int(project["id"]), None
 
 
+async def _count_rows(
+    db: aiosqlite.Connection,
+    query: str,
+    params: tuple[Any, ...] = (),
+) -> int:
+    cursor = await db.execute(query, params)
+    row = await cursor.fetchone()
+    await cursor.close()
+    return int(row[0]) if row else 0
+
+
 def _format_list_items(item_type: str, items: list[dict[str, Any]]) -> str:
     if not items:
         return "Записей не найдено."
@@ -357,12 +368,12 @@ async def execute_tool(
         return _format_projects(items, include_archived)
 
     if tool_name == "get_status":
-        active_deadlines = await db_module.list_deadlines(db, status="active", project_id=None, limit=1_000_000, offset=0)
-        pending_homework = await db_module.list_homework(db, status="pending", project_id=None, limit=1_000_000, offset=0)
-        notes = await db_module.list_notes(db, project_id=None, limit=1_000_000, offset=0)
-        ideas = await db_module.list_ideas(db, project_id=None, limit=1_000_000, offset=0)
+        active_deadlines = await _count_rows(db, "SELECT COUNT(*) FROM deadlines WHERE status = ?", ("active",))
+        pending_homework = await _count_rows(db, "SELECT COUNT(*) FROM homework WHERE status = ?", ("pending",))
+        notes = await _count_rows(db, "SELECT COUNT(*) FROM notes")
+        ideas = await _count_rows(db, "SELECT COUNT(*) FROM ideas")
         return (
             "Статус системы: активных дедлайнов — {}, домашних заданий к сдаче — {}, заметок — {}, идей — {}."
-        ).format(len(active_deadlines), len(pending_homework), len(notes), len(ideas))
+        ).format(active_deadlines, pending_homework, notes, ideas)
 
     return "Неизвестный инструмент: {}".format(tool_name)
