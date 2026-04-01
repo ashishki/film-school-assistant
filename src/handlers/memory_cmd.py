@@ -17,7 +17,7 @@ LOGGER = logging.getLogger(__name__)
 MEMORY_SYSTEM_PROMPT = (
     "Ты — помощник режиссёра. Напиши одним абзацем текущее состояние проекта, основываясь ТОЛЬКО на данных ниже.\n"
     "Не выдумывай ничего, чего нет в данных. Не давай советов. Только факты о проекте.\n"
-    "Максимум 200 слов. Ответь на русском языке.\n"
+    "Максимум 200 слов. Один абзац.\n"
     "Формат: сплошной абзац без заголовков и списков."
 )
 
@@ -160,7 +160,7 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         complete,
                         input_text,
                         MEMORY_SYSTEM_PROMPT,
-                        220,
+                        350,
                         "intent",
                     )
                 except LLMError:
