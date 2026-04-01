@@ -14,11 +14,10 @@ Last updated: 2026-03-31
 
 ## Current Phase
 
-- Phase: 2
+- Phase: 2 — COMPLETE (pending human phase-gate approval)
 - Goal: add bounded creative memory layer — project summaries, chat context injection
-- Active Task: `P2-01 — project_memory Schema and DB Layer`
-- Active Task Owner: codex
-- Active Task Output: `src/schema.sql`, `src/db.py`
+- Phase review: `docs/review/continuity_eval_p2.md`
+- Next action: human approval → Phase 3 Decomposition Pass
 
 ---
 
@@ -125,6 +124,11 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
   - decomposed Phase 2 into four tasks (P2-01 through P2-04) in `docs/tasks.md`
   - added Phase 2 memory behavioral requirements (MR-1 through MR-4) to `docs/spec.md` section 11
   - advanced `docs/CODEX_PROMPT.md` to Phase 2 with P2-01 as active task
+- Phase 2 Implementation:
+  - P2-01: `src/schema.sql`, `src/db.py` — project_memory table + upsert/get/item_count
+  - P2-02: `src/handlers/memory_cmd.py` — /memory command, bounded LLM generation, staleness cache
+  - P2-03: `src/handlers/chat_handler.py` — memory injection into system prompt
+  - P2-04: `docs/review/continuity_eval_p2.md` — continuity eval; 3 low-severity findings deferred to Phase 3
 
 ---
 
