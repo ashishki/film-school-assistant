@@ -616,7 +616,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P4-02 — Onboarding Flow Polish
+[x] P4-02 — Onboarding Flow Polish
 Owner: codex
 Phase: 4
 Type: implementation
@@ -657,7 +657,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P4-03 — Phase 4 Productization Review Pack
+[x] P4-03 — Phase 4 Productization Review Pack
 Owner: claude
 Phase: 4
 Type: documentation / eval
