@@ -74,7 +74,7 @@ _ALLOWED_TABLES = frozenset({
     "projects", "notes", "ideas", "homework", "deadlines",
     "voice_inputs", "transcripts", "parsed_events",
     "reminder_log", "review_history", "weekly_reports",
-    "project_memory",
+    "project_memory", "user_feedback",
 })
 
 
@@ -598,6 +598,31 @@ async def get_project_item_count(db: aiosqlite.Connection, project_id: int) -> i
     row = await cursor.fetchone()
     await cursor.close()
     return int(row[0]) if row else 0
+
+
+async def create_user_feedback(
+    db: aiosqlite.Connection,
+    content: str,
+    raw_transcript: str | None = None,
+    source: str = "text",
+) -> dict[str, Any]:
+    return await _insert_and_fetch(
+        db,
+        """
+        INSERT INTO user_feedback (content, raw_transcript, source, created_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        (content, raw_transcript, source, _utcnow_iso()),
+        "user_feedback",
+    )
+
+
+async def list_user_feedback(db: aiosqlite.Connection, limit: int = 200) -> list[dict[str, Any]]:
+    return await _fetch_all_dicts(
+        db,
+        "SELECT * FROM user_feedback ORDER BY created_at DESC LIMIT ?",
+        (limit,),
+    )
 
 
 async def list_active_deadlines_for_reminder(db: aiosqlite.Connection) -> list[dict[str, Any]]:
