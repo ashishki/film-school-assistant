@@ -375,7 +375,7 @@ Exit criteria:
 
 ---
 
-[ ] P2-01 — project_memory Schema and DB Layer
+[x] P2-01 — project_memory Schema and DB Layer
 Owner: codex
 Phase: 2
 Type: schema + implementation
@@ -417,7 +417,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P2-02 — Project Memory Generation Command
+[x] P2-02 — Project Memory Generation Command
 Owner: codex
 Phase: 2
 Type: implementation
@@ -468,7 +468,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P2-03 — Memory Injection into Chat Context
+[x] P2-03 — Memory Injection into Chat Context
 Owner: codex
 Phase: 2
 Type: implementation
@@ -512,7 +512,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P2-04 — Continuity Eval Pack
+[x] P2-04 — Continuity Eval Pack
 Owner: claude
 Phase: 2
 Type: documentation / eval
