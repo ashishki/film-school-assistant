@@ -44,6 +44,18 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         user_text = message.text.strip()
         if not user_text:
             return
+        state.add_nl_context(user_text)
+
+        if len(state.nl_context) > 1:
+            prior = state.nl_context[:-1]
+            context_block = (
+                "Предыдущие сообщения пользователя:\n"
+                + "\n".join(f"- {message_text}" for message_text in prior)
+                + "\n\nТекущее сообщение: "
+            )
+            extraction_prompt = context_block + user_text
+        else:
+            extraction_prompt = user_text
 
         daily_llm_call_limit = context.bot_data["config"].daily_llm_call_limit
         try:
@@ -65,7 +77,7 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         try:
             parsed = await asyncio.to_thread(
                 complete_json,
-                user_text,
+                extraction_prompt,
                 EXTRACTION_SYSTEM_PROMPT,
                 "intent",
             )
