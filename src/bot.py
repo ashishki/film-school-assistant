@@ -50,6 +50,7 @@ from src.handlers.nl_handler import _build_pending_entity as build_nl_pending_en
 from src.handlers.nl_handler import _resolve_project
 from src.handlers.notes import note_command
 from src.handlers.projects import archive_project_command, new_project_command, project_command, projects_command
+from src.handlers.reflect_cmd import reflect_command
 from src.handlers.review import review_handler
 from src.handlers.search_cmd import search_command
 from src.state import clear_pending, get_state
@@ -417,6 +418,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("search", search_command))
     application.add_handler(CommandHandler("review", review_handler))
     application.add_handler(CommandHandler("memory", memory_command))
+    application.add_handler(CommandHandler("reflect", reflect_command))
     application.add_handler(CommandHandler("confirm", confirm_command))
     application.add_handler(CommandHandler("edit", edit_command))
     application.add_handler(CommandHandler("discard", discard_command))
