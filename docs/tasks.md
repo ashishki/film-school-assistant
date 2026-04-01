@@ -568,7 +568,7 @@ Exit criteria:
 
 ---
 
-[ ] P3-01 — Enhanced Idea Review with Project Context
+[x] P3-01 — Enhanced Idea Review with Project Context
 Owner: codex
 Phase: 3
 Type: implementation
@@ -614,7 +614,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P3-02 — /reflect Command
+[x] P3-02 — /reflect Command
 Owner: codex
 Phase: 3
 Type: implementation
@@ -665,7 +665,7 @@ Out-Of-Scope:
 
 ---
 
-[ ] P3-03 — Reflection Eval Pack
+[x] P3-03 — Reflection Eval Pack
 Owner: claude
 Phase: 3
 Type: documentation / eval

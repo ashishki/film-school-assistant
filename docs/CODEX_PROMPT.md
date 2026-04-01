@@ -14,11 +14,11 @@ Last updated: 2026-03-31
 
 ## Current Phase
 
-- Phase: 3
+- Phase: 3 — COMPLETE (pending human phase-gate approval for Phase 4)
 - Goal: use memory layer for higher-leverage reflection and project-level guidance
-- Active Task: `P3-01 — Enhanced Idea Review with Project Context`
-- Active Task Owner: codex
-- Active Task Output: `src/reviewer.py`, `src/handlers/review.py`
+- Active Task: none — Phase 3 closed
+- Phase close artifact: `docs/review/reflection_eval_p3.md`
+- Combined deep review (Phase 2 + Phase 3) recommended before Phase 4 planning
 
 ---
 
@@ -134,6 +134,10 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
   - decomposed Phase 3 into three tasks (P3-01 through P3-03) in `docs/tasks.md`
   - added Phase 3 reflection behavioral requirements (RR-1 through RR-3) to `docs/spec.md` section 12
   - advanced `docs/CODEX_PROMPT.md` to Phase 3 with P3-01 as active task
+- Phase 3 Implementation:
+  - P3-01: `src/reviewer.py`, `src/handlers/review.py` — inject project memory context into idea review prompt
+  - P3-02: `src/handlers/reflect_cmd.py`, `src/bot.py`, `src/handlers/help_cmd.py` — /reflect command for project-level structured reflection
+  - P3-03: `docs/review/reflection_eval_p3.md` — reflection eval pack; all findings low/low-medium severity, phase CLOSED
 
 ---
 
