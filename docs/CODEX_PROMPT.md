@@ -169,11 +169,11 @@ Do not assume that a full-project Strategist rerun or original full-repo Phase 1
 | CODE-8 | P2 | Memory cap inconsistent: spec/prompt/API disagree | src/handlers/memory_cmd.py | ✅ Fixed 2026-04-01 |
 | CODE-9 | P2 | smoke_test EXPECTED_TABLES missing project_memory, llm_call_log | scripts/smoke_test_db.py | ✅ Fixed 2026-04-01 |
 | CODE-10 | P2 | smoke_test no Phase 2/3 DB function coverage | scripts/smoke_test_db.py | ✅ Fixed 2026-04-01 |
-| CODE-11 | P3 | confirm.py project name edge case (G3) | src/handlers/confirm.py:134 | Open |
-| CODE-12 | P3 | /memory cache-hit no staleness date (F1) | src/handlers/memory_cmd.py:136 | Open |
-| CODE-13 | P3 | memory injection no user indicator on fail (F2) | src/handlers/chat_handler.py:57 | Open |
-| CODE-14 | P3 | review_history excluded from staleness counter (F3) | src/db.py:588 | Open |
-| CODE-15 | P3 | get_status unbounded scan limit=1_000_000 | src/tools.py:347 | Open |
+| CODE-11 | P3 | confirm.py project name edge case (G3) | src/handlers/confirm.py | ✅ Fixed 2026-04-01 |
+| CODE-12 | P3 | /memory cache-hit no staleness date (F1) | src/handlers/memory_cmd.py | ✅ Fixed 2026-04-01 |
+| CODE-13 | P3 | memory injection no user indicator on fail (F2) | src/handlers/chat_handler.py | ✅ Fixed 2026-04-01 |
+| CODE-14 | P3 | review_history excluded from staleness counter (F3) | src/db.py | ✅ Fixed 2026-04-01 |
+| CODE-15 | P3 | get_status unbounded scan limit=1_000_000 | src/tools.py | ✅ Fixed 2026-04-01 |
 
 ---
 
