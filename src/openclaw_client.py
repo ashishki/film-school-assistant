@@ -44,6 +44,10 @@ def _get_client() -> Anthropic:
 def _get_model(category: str) -> str:
     if category == "review":
         return os.environ.get("LLM_MODEL_REVIEW", DEFAULT_REVIEW_MODEL)
+    if category == "feature_capture":
+        return os.environ.get("LLM_MODEL_FEATURE_CAPTURE", DEFAULT_INTENT_MODEL)
+    if category == "feature_spec":
+        return os.environ.get("LLM_MODEL_FEATURE_SPEC", DEFAULT_REVIEW_MODEL)
     return os.environ.get("LLM_MODEL_INTENT", DEFAULT_INTENT_MODEL)
 
 

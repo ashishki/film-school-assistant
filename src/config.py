@@ -16,6 +16,8 @@ class Config:
     audio_path: str = "data/audio/"
     audio_retention_days: int = 30
     daily_llm_call_limit: int = 20
+    feature_capture_daily_llm_limit: int = 12
+    feature_capture_max_questions: int = 3
     reminder_buckets: tuple[int, ...] = (7, 3, 1, 0)
     log_level: str = "INFO"
 
@@ -56,6 +58,8 @@ def load_config() -> Config:
         audio_path=os.environ.get("AUDIO_PATH", "data/audio/"),
         audio_retention_days=int(os.environ.get("AUDIO_RETENTION_DAYS", "30")),
         daily_llm_call_limit=int(os.environ.get("DAILY_LLM_CALL_LIMIT", "20")),
+        feature_capture_daily_llm_limit=int(os.environ.get("FEATURE_CAPTURE_DAILY_LLM_LIMIT", "12")),
+        feature_capture_max_questions=int(os.environ.get("FEATURE_CAPTURE_MAX_QUESTIONS", "3")),
         reminder_buckets=reminder_buckets,
         log_level=os.environ.get("LOG_LEVEL", "INFO"),
     )
