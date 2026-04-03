@@ -20,6 +20,7 @@ class UserState:
     pending_feature_offer: dict | None = None
     feature_capture_session: dict | None = None
     pending_feature_draft: dict | None = None
+    pending_practice_setup: dict | None = None
     nl_context: list[str] = field(default_factory=list)
     conversation_history: list[dict] = field(default_factory=list)
 

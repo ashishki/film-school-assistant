@@ -69,7 +69,9 @@ from src.handlers.feature_feedback import (
 )
 from src.handlers.notes import note_command
 from src.handlers.practice_cmd import (
+    build_practice_time_question,
     execute_practice_intent,
+    parse_practice_times,
     parse_practice_intent,
     pause_daily_practice_command,
     practices_command,
@@ -144,6 +146,9 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if state.pending_entity is not None:
         await message.reply_text("Есть незавершённая запись. Сначала /confirm, /edit или /discard.")
         return
+    if state.pending_practice_setup is not None:
+        await message.reply_text("Сначала укажи время для ежедневных практик текстом в формате HH:MM.")
+        return
 
     await message.reply_text("Расшифровываю...")
 
@@ -191,6 +196,10 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     practice_intent = parse_practice_intent(transcript_text)
     if practice_intent is not None:
+        if bool(practice_intent.get("requires_time_confirmation")):
+            state.pending_practice_setup = practice_intent
+            await message.reply_text(build_practice_time_question(practice_intent))
+            return
         try:
             async with aiosqlite.connect(context.bot_data["db_path"]) as db:
                 db.row_factory = aiosqlite.Row
@@ -339,8 +348,52 @@ async def chat_handler_wrapper(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text("Сейчас есть готовый черновик пожелания. Сохрани его, уточни или отмени.")
         return
 
+    if state.pending_practice_setup is not None:
+        pending_intent = state.pending_practice_setup
+        kinds = set(pending_intent.get("kinds", []))
+        morning_time, evening_time = parse_practice_times(text)
+        if kinds == {"morning_pages", "evening_review"}:
+            parts = text.split()
+            if len(parts) == 2:
+                morning_time = morning_time or parts[0]
+                evening_time = evening_time or parts[1]
+            if morning_time is None or evening_time is None:
+                await message.reply_text("Нужно два времени в формате HH:MM HH:MM, например: 09:00 21:00.")
+                return
+        elif "morning_pages" in kinds:
+            candidate = morning_time or text.strip()
+            parsed_morning, _ = parse_practice_times(f"{candidate} утро")
+            if parsed_morning is None:
+                await message.reply_text("Напиши время для утра в формате HH:MM, например 09:00.")
+                return
+            morning_time = parsed_morning
+        else:
+            candidate = evening_time or text.strip()
+            _, parsed_evening = parse_practice_times(f"вечер {candidate}")
+            if parsed_evening is None:
+                await message.reply_text("Напиши время для вечера в формате HH:MM, например 21:00.")
+                return
+            evening_time = parsed_evening
+
+        pending_intent["morning_time"] = morning_time or pending_intent.get("morning_time")
+        pending_intent["evening_time"] = evening_time or pending_intent.get("evening_time")
+        pending_intent["requires_time_confirmation"] = False
+        state.pending_practice_setup = None
+        try:
+            result = await execute_practice_intent(context.bot_data["db_path"], pending_intent)
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to execute pending practice setup for chat_id=%s", chat.id)
+            await message.reply_text("Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
+            return
+        await message.reply_text(result)
+        return
+
     practice_intent = parse_practice_intent(text)
     if practice_intent is not None:
+        if bool(practice_intent.get("requires_time_confirmation")):
+            state.pending_practice_setup = practice_intent
+            await message.reply_text(build_practice_time_question(practice_intent))
+            return
         try:
             result = await execute_practice_intent(context.bot_data["db_path"], practice_intent)
         except aiosqlite.Error:

@@ -55,6 +55,7 @@ ENABLE_MARKERS = (
     "ежедневные",
     "каждый день",
 )
+EXPLICIT_TIME_MARKERS = ("во ", "в ", "время ", "к ", "с ")
 PAUSE_MARKERS = ("пауза", "поставь на паузу", "выключи", "отключи", "останови")
 RESUME_MARKERS = ("возобнови", "включи", "снова включи", "верни", "продолжи")
 LIST_MARKERS = ("какие практики", "какие напоминания", "покажи практики", "покажи напоминания", "статус практик")
@@ -69,6 +70,21 @@ def _parse_hhmm(value: str) -> str | None:
 
 def _resolve_practice_kind(raw_value: str) -> str | None:
     return PRACTICE_KIND_ALIASES.get(raw_value.strip().lower())
+
+
+def parse_practice_times(text: str) -> tuple[str | None, str | None]:
+    lowered = " ".join(text.strip().lower().split())
+    found_times = TIME_SEARCH_RE.findall(lowered)
+    if len(found_times) >= 2:
+        return found_times[0], found_times[1]
+    if len(found_times) == 1:
+        if lowered == found_times[0]:
+            return found_times[0], found_times[0]
+        if any(marker in lowered for marker in MORNING_MARKERS) and not any(marker in lowered for marker in EVENING_MARKERS):
+            return found_times[0], None
+        if any(marker in lowered for marker in EVENING_MARKERS) and not any(marker in lowered for marker in MORNING_MARKERS):
+            return None, found_times[0]
+    return None, None
 
 
 def parse_practice_intent(text: str) -> dict[str, object] | None:
@@ -101,6 +117,12 @@ def parse_practice_intent(text: str) -> dict[str, object] | None:
         found_times = TIME_SEARCH_RE.findall(lowered)
         morning_time = found_times[0] if len(found_times) >= 1 else DEFAULT_MORNING_TIME
         evening_time = found_times[1] if len(found_times) >= 2 else DEFAULT_EVENING_TIME
+        requires_time_confirmation = not found_times and (
+            "каждое утро" in lowered
+            or "каждый вечер" in lowered
+            or "утро" in lowered
+            or "вечер" in lowered
+        )
         if not mentioned_kinds:
             mentioned_kinds = [MORNING_KIND, EVENING_KIND]
         return {
@@ -108,9 +130,22 @@ def parse_practice_intent(text: str) -> dict[str, object] | None:
             "kinds": mentioned_kinds,
             "morning_time": morning_time,
             "evening_time": evening_time,
+            "requires_time_confirmation": requires_time_confirmation,
         }
 
     return None
+
+
+def build_practice_time_question(intent: dict[str, object]) -> str:
+    kinds = set(intent.get("kinds", []))
+    if kinds == {MORNING_KIND, EVENING_KIND}:
+        return (
+            "Во сколько присылать эти напоминания?\n"
+            "Напиши двумя временами в формате HH:MM HH:MM, например: 09:00 21:00"
+        )
+    if MORNING_KIND in kinds:
+        return "Во сколько присылать утреннее напоминание? Напиши время в формате HH:MM, например 09:00."
+    return "Во сколько присылать вечернее напоминание? Напиши время в формате HH:MM, например 21:00."
 
 
 async def execute_practice_intent(db_path: str, intent: dict[str, object]) -> str:
