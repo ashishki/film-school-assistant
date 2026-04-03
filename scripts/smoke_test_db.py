@@ -51,7 +51,7 @@ from src.db import (
     update_note_content,
     update_project_status,
 )
-from src.handlers.practice_cmd import EVENING_KIND, MORNING_KIND, parse_practice_intent
+from src.practice_intents import EVENING_KIND, MORNING_KIND, parse_practice_intent
 import re
 
 
