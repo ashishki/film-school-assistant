@@ -60,6 +60,15 @@ Required values to set:
 
 All other variables have sensible defaults; adjust as needed (see `.env.example` for documentation).
 
+Notable optional variables added in the current version:
+
+| Variable | Description |
+|---|---|
+| `FEATURE_CAPTURE_DAILY_LLM_LIMIT` | separate daily LLM budget for feature-request capture |
+| `FEATURE_CAPTURE_MAX_QUESTIONS` | max clarification turns when converting a missing feature into a short brief |
+| `LLM_MODEL_FEATURE_CAPTURE` | model for bounded clarification questions |
+| `LLM_MODEL_FEATURE_SPEC` | model for final feature-brief assembly |
+
 ---
 
 ## 4. Initialize the database schema
@@ -108,6 +117,11 @@ sudo systemctl status film-school-bot.service
 sudo journalctl -u film-school-bot.service -f
 ```
 
+Current reminder behavior:
+- `reminder.timer` runs the reminder job every 15 minutes
+- the script sends both deadline reminders and recurring daily-practice prompts
+- recurring practice deduplication is per reminder kind per calendar day
+
 ---
 
 ## 6. Smoke test — verify the bot is running
@@ -115,6 +129,7 @@ sudo journalctl -u film-school-bot.service -f
 1. Open Telegram and send `/start` to your bot.
 2. You should receive a greeting message within a few seconds.
 3. Try sending a short text like "Идея для документального фильма" — the bot should parse it and offer to save it.
+4. Try a recurring-practice request like "Напоминай мне утром и вечером каждый день" — the bot should either ask for times or confirm the setup.
 
 ---
 

@@ -1,7 +1,7 @@
 # Film School Assistant — Product Spec
 
-Version: 3.0
-Last updated: 2026-03-30
+Version: 3.1
+Last updated: 2026-04-03
 Status: Active
 
 ## 1. Product Goal
@@ -27,8 +27,9 @@ The current product must support:
 - text and voice entry
 - confirmation-first handling for ambiguous NL capture
 - editing, search, listing, and archive flows
-- reminders
+- deterministic deadline reminders and recurring daily-practice reminders
 - weekly summary
+- structured feature-feedback capture when the assistant cannot satisfy a user request
 - idea review / critique
 
 ## 4. Core User Outcomes
@@ -74,6 +75,7 @@ Persistence, editing, scheduling, reminder windows, archive state, and search re
 Acceptance:
 - reminder and summary delivery do not depend on model judgment
 - CRUD behavior is explicit and testable
+- recurring daily-practice scheduling and deduplication remain deterministic
 
 ### FR-5 Bounded AI assistance
 
@@ -82,7 +84,28 @@ LLM behavior is allowed only where interpretation or reflection is needed.
 Acceptance:
 - free-text capture can use bounded extraction
 - bounded conversational tool use stays inside explicit tool limits
+- feature-feedback clarification may use a bounded multi-step LLM flow with explicit question limits
 - idea review uses a stronger model only on explicit review request
+
+### FR-7 Feature feedback capture
+
+When the assistant cannot satisfy a request with current capabilities, it may offer to convert that gap into developer feedback.
+
+Acceptance:
+- the user must explicitly accept the capture flow after the assistant says it cannot do the requested action
+- the clarification flow must be bounded to a small number of questions
+- the final result may be saved both as raw feedback and as a structured feature brief
+- the flow must not promise that the requested feature will be implemented
+
+### FR-8 Recurring daily practices
+
+The assistant must support recurring daily creative practices such as morning pages and end-of-day reflection prompts.
+
+Acceptance:
+- recurring practices may be configured by command or by natural language in text and voice
+- if the user requests a recurring practice without explicit times, the assistant asks for times instead of silently assuming them
+- delivery must deduplicate by reminder kind and calendar day
+- users can list, pause, and resume recurring practices
 
 ### FR-6 Continuity support
 
@@ -103,6 +126,8 @@ Acceptance:
 - bounded LLM use
 - local voice transcription
 - deterministic reminders and weekly digest
+- recurring daily-practice prompts
+- structured developer-feedback capture
 
 ### Out of scope now
 
@@ -122,6 +147,7 @@ Acceptance:
 - search
 - edit flows
 - reminder logic
+- recurring-practice scheduling and deduplication
 - weekly report state
 - project archive state
 - delivery rules
@@ -130,6 +156,7 @@ Acceptance:
 
 - NL extraction for messy input
 - bounded chat tool selection
+- feature-gap clarification and brief assembly
 - idea reflection / critique
 
 The default is deterministic unless ambiguity or interpretive output makes LLM use necessary.

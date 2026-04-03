@@ -1,6 +1,6 @@
 # Film School Assistant
 
-Film School Assistant is a Telegram-first AI assistant for directors and creative thinkers that helps capture ideas, reduce workflow chaos, and maintain continuity across projects, deadlines, and reflections.
+Film School Assistant is a Telegram-first AI assistant for directors and creative thinkers that helps capture ideas, reduce workflow chaos, and maintain continuity across projects, deadlines, reflections, and recurring creative practices.
 
 It is not positioned as "a Telegram bot for notes." Telegram is the current interface layer. The product is a private creative workflow assistant: a system for turning scattered voice notes, loose ideas, deadlines, and homework into a structured working rhythm.
 
@@ -12,7 +12,7 @@ Creative work often breaks down in the gaps between thinking and execution:
 - notes become piles instead of momentum
 - projects lose continuity between sessions
 
-This project is designed to reduce that chaos for a solo director or film student by combining fast capture, structured storage, reminders, and bounded AI assistance.
+This project is designed to reduce that chaos for a solo director or film student by combining fast capture, structured storage, reminders, recurring practice prompts, and bounded AI assistance.
 
 ## Who It Is For
 
@@ -29,9 +29,10 @@ It is intentionally single-user, private, and operationally simple.
 2. Convert messy input into structured entities: notes, ideas, deadlines, homework — each confirmed individually.
 3. Attach entries to projects so work stays contextual, not flat.
 4. Review, search, edit, archive, and revisit work without losing continuity.
-5. Receive reminders and a weekly digest that turn stored material into forward motion.
+5. Receive deadline reminders, recurring daily practice prompts, and a weekly digest that turn stored material into forward motion.
 6. Run `/memory` to generate a bounded summary of the current project state.
 7. Run `/reflect` to get a grounded orientation: where the project stands, what tensions are active, and what to focus on next.
+8. Turn missing-feature requests into stored developer feedback, either as raw feedback or as a short structured feature brief.
 
 ## Why It Is Not Just Notes, ChatGPT, or Telegram
 
@@ -49,7 +50,8 @@ It is intentionally single-user, private, and operationally simple.
 - Project memory: Claude Haiku (bounded summary, one paragraph per project)
 - Idea review: Claude Sonnet
 - Project reflection: Claude Sonnet (`/reflect` command)
-- Automation: deterministic reminder and weekly summary scripts
+- Feature-feedback capture: bounded multi-step LLM flow with separate quota and structured storage
+- Automation: deterministic deadline reminders, recurring daily-practice prompts, and weekly summary scripts
 
 See [Product Overview](docs/PRODUCT_OVERVIEW.md), [Architecture](docs/ARCHITECTURE.md), and [Phase Plan](docs/PHASE_PLAN.md).
 
@@ -69,6 +71,12 @@ The system is complete through five development phases and one audit cycle:
 - the weekly digest is framed in Russian with project-level next-step pointers
 - `/memory` generates a bounded project-state summary and stores one paragraph per project
 - stored project memory is injected into chat context so the assistant retains project state without re-explanation
+
+**Feedback and practices**
+- when the assistant cannot do something yet, it can offer to turn that gap into a developer-facing feature request
+- feature requests can be captured as short structured briefs and stored separately from raw user feedback
+- the bot supports recurring daily practices such as morning pages and end-of-day reflection prompts
+- these practices can be configured by command or natural language, including text and voice requests
 
 **Reflection and review**
 - idea review uses project memory when available so critique is specific to the active project

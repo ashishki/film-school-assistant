@@ -19,7 +19,7 @@ The product is intentionally optimized for a single operator-user, not for a tea
 
 ## 3. Job To Be Done
 
-When I am juggling ideas, deadlines, coursework, and half-formed project thinking,
+When I am juggling ideas, deadlines, coursework, recurring creative rituals, and half-formed project thinking,
 help me capture fast, keep context attached to the right project, recover what matters later,
 and reduce the feeling that my work is dissolving into fragments.
 
@@ -64,6 +64,8 @@ The differentiation is:
 - project-scoped creative structure
 - local voice privacy
 - bounded AI reflection instead of vague AI chat
+- recurring creative practice prompts inside the same workflow surface
+- developer-feedback capture when the product hits a real capability gap
 - continuity-oriented workflow design
 
 ## 7. Why Telegram Is Still Correct
@@ -72,7 +74,7 @@ Telegram is correct now because the main high-frequency use case is capture:
 - text notes
 - voice notes
 - fast save and confirm flows
-- reminders back into the same channel
+- reminders and recurring practice prompts back into the same channel
 
 Telegram is not the long-term identity of the product. It is the current best surface for minimum-sufficient delivery.
 

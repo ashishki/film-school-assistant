@@ -147,3 +147,39 @@ The following documents are source-of-truth for implementation planning:
 - `docs/CODEX_PROMPT.md`
 
 Implementation should not proceed against informal chat intent when these artifacts disagree.
+
+## 10. Recurring practices are part of the workflow
+
+### Decision
+
+Recurring daily practices such as morning pages and end-of-day reflection prompts are in scope.
+
+### Why this is valid
+
+- they reinforce continuity rather than expanding the product into a generic habit tracker
+- they use the same Telegram surface and deterministic reminder infrastructure already justified by the product
+- they help turn the assistant from passive storage into a steadier creative rhythm aid
+
+### What this does not imply
+
+- a general habits platform
+- streak mechanics, gamification, or motivational coaching
+- open-ended wellness features outside the creative workflow
+
+## 11. Capability gaps should become feedback artifacts
+
+### Decision
+
+When the assistant cannot do something the user wants, it may offer to convert that gap into developer feedback.
+
+### Why this is valid
+
+- it reduces dead-end refusals
+- it creates product evidence from real user friction
+- it keeps the feedback loop inside the same interface where the gap was discovered
+
+### Boundaries
+
+- the flow must be bounded and brief
+- it must not promise implementation
+- the final artifact must remain inspectable in structured storage
