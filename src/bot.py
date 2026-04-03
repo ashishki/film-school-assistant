@@ -69,6 +69,8 @@ from src.handlers.feature_feedback import (
 )
 from src.handlers.notes import note_command
 from src.handlers.practice_cmd import (
+    execute_practice_intent,
+    parse_practice_intent,
     pause_daily_practice_command,
     practices_command,
     resume_daily_practice_command,
@@ -186,6 +188,26 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     voice.delete_wav(wav_path)
+
+    practice_intent = parse_practice_intent(transcript_text)
+    if practice_intent is not None:
+        try:
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                db.row_factory = aiosqlite.Row
+                await create_transcript(
+                    db,
+                    voice_input_id=voice_input["id"],
+                    raw_text=transcript_text,
+                    model_used="small",
+                )
+                await update_voice_input_processed(db, voice_input["id"])
+            result = await execute_practice_intent(context.bot_data["db_path"], practice_intent)
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to persist voice practice command for voice_input_id=%s", voice_input["id"])
+            await message.reply_text("Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
+            return
+        await message.reply_text(result)
+        return
 
     try:
         detected_type = _detect_entity_type(transcript_text)
@@ -315,6 +337,17 @@ async def chat_handler_wrapper(update: Update, context: ContextTypes.DEFAULT_TYP
             await message.reply_text("Черновик пожелания отменён.")
             return
         await message.reply_text("Сейчас есть готовый черновик пожелания. Сохрани его, уточни или отмени.")
+        return
+
+    practice_intent = parse_practice_intent(text)
+    if practice_intent is not None:
+        try:
+            result = await execute_practice_intent(context.bot_data["db_path"], practice_intent)
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to execute practice intent for chat_id=%s", chat.id)
+            await message.reply_text("Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
+            return
+        await message.reply_text(result)
         return
 
     if is_feedback_message(text, last_assistant_message):

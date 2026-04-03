@@ -51,6 +51,7 @@ from src.db import (
     update_note_content,
     update_project_status,
 )
+from src.handlers.practice_cmd import EVENING_KIND, MORNING_KIND, parse_practice_intent
 import re
 
 
@@ -345,6 +346,17 @@ async def run_smoke_test() -> None:
             paused_items = await list_recurring_reminders(db, status="paused")
             assert updated_recurring["id"] in {item["id"] for item in paused_items}, \
                 "paused recurring reminder must appear in paused listing"
+
+            nl_practice_intent = parse_practice_intent(
+                "Присылай мне напоминания каждое утро про утренние страницы и каждый вечер про итоги дня"
+            )
+            assert nl_practice_intent is not None, "parse_practice_intent must detect free-text daily practice setup"
+            assert nl_practice_intent["action"] == "setup", \
+                "free-text daily practice request must parse as setup action"
+            assert MORNING_KIND in nl_practice_intent["kinds"], \
+                "free-text daily practice request must include morning practice"
+            assert EVENING_KIND in nl_practice_intent["kinds"], \
+                "free-text daily practice request must include evening practice"
 
             # T-P3: get_project_item_count counts notes and ideas for a project
             count_project = await create_project(db, "Count Project", "count-project")
