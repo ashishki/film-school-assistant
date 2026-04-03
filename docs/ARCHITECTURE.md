@@ -1,7 +1,7 @@
 # Film School Assistant — Architecture
 
-Version: 3.0
-Last updated: 2026-03-30
+Version: 3.1
+Last updated: 2026-04-03
 Status: Active
 
 ## 1. System Definition
@@ -45,7 +45,7 @@ That later category may justify additional surfaces such as a web review layer, 
 - **Bounded LLM layer**
   Owns natural-language intent extraction, tool selection inside the chat loop, and idea review output.
 - **Workflow orchestration**
-  Owns recurring jobs such as reminders and weekly digest generation through `systemd`.
+  Owns recurring jobs such as deadline reminders, recurring practice prompts, and weekly digest generation through `systemd`.
 
 This is the minimum sufficient shape. It does not justify planner agents, delegated workers, open-ended memory agents, or runtime mutation.
 
@@ -100,11 +100,13 @@ T2/T3 are unjustified because there is no privileged autonomous execution and no
 | `src/bot.py` | Telegram entry point, authorization guard, routing, voice and command flow coordination |
 | `src/handlers/nl_handler.py` | Structured entity extraction from free text with confirmation-first save flow |
 | `src/handlers/chat_handler.py` | Bounded tool-using assistant loop for conversational queries and actions |
+| `src/handlers/feature_feedback.py` | Bounded feature-request capture flow when the assistant cannot satisfy a request |
+| `src/practice_intents.py` and `src/handlers/practice_cmd.py` | Deterministic parsing and configuration of recurring daily practices |
 | `src/tools.py` | Approved tool catalog for the bounded chat loop |
 | `src/reviewer.py` | Structured idea review generation |
 | `src/transcriber.py` and `src/voice.py` | Local voice transcription pipeline |
 | `src/db.py` and `src/schema.sql` | SQLite persistence and query layer |
-| `scripts/send_reminders.py` | Deterministic reminder job |
+| `scripts/send_reminders.py` | Deterministic deadline reminder and recurring-practice delivery job |
 | `scripts/send_summary.py` | Deterministic weekly digest job |
 | `systemd/*.service`, `systemd/*.timer` | VPS scheduling and service management |
 
@@ -116,10 +118,12 @@ T2/T3 are unjustified because there is no privileged autonomous execution and no
 | Schema, IDs, timestamps, persistence | Deterministic | State must be reliable and testable |
 | Reminder logic and due buckets | Deterministic | Time-based logic is formalizable |
 | Weekly summary triggering and dedup | Deterministic | Delivery state must not depend on model judgment |
+| Recurring practice scheduling and dedup | Deterministic | Time-based delivery is explicit and testable |
 | Search, list, edit, archive | Deterministic | CRUD behavior is formalizable |
 | Voice transcription execution | Local ML / deterministic pipeline | Audio stays local and predictable |
 | Free-text entity extraction | LLM, bounded | Natural-language inputs are variable |
 | Conversational tool selection | LLM, bounded | Flexible requests benefit from tool-choice reasoning |
+| Feature-request clarification and brief assembly | LLM, bounded | Used only when the product hits a real capability gap |
 | Idea review / reflection output | LLM, bounded | This is interpretive, not transactional |
 
 Rule:
@@ -138,6 +142,8 @@ What exists now:
 - ideas
 - deadlines
 - homework
+- raw developer feedback
+- structured feature-request briefs
 - parsed voice and text capture history
 - review history
 - weekly report history
@@ -202,6 +208,8 @@ These are valid constraints, not shortcomings to hide.
 |------|---------------------|---------|
 | Free-text capture / intent extraction | Haiku-class | Cheap, bounded interpretation |
 | Conversational tool use | Haiku-class | Fast routing and tool choice |
+| Feature-gap clarification | Haiku-class | Short bounded follow-up questions |
+| Feature brief assembly | Sonnet-class | Cleaner short spec when enough facts are known |
 | Idea review | Sonnet-class | Better reflective quality where it matters |
 | Voice transcription | Local Whisper | Keep audio local |
 
