@@ -74,6 +74,7 @@ _ALLOWED_TABLES = frozenset({
     "projects", "notes", "ideas", "homework", "deadlines",
     "voice_inputs", "transcripts", "parsed_events",
     "reminder_log", "review_history", "weekly_reports",
+    "recurring_reminders", "recurring_reminder_log",
     "project_memory", "user_feedback", "feature_feedback",
 })
 
@@ -698,3 +699,107 @@ async def list_active_deadlines_for_reminder(db: aiosqlite.Connection) -> list[d
         ORDER BY due_date ASC, created_at DESC
         """,
     )
+
+
+async def upsert_recurring_reminder(
+    db: aiosqlite.Connection,
+    kind: str,
+    title: str,
+    prompt_text: str,
+    schedule_time: str,
+    status: str = "active",
+) -> dict[str, Any]:
+    now = _utcnow_iso()
+    await db.execute(
+        """
+        INSERT INTO recurring_reminders (kind, title, prompt_text, schedule_time, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(kind) DO UPDATE SET
+            title = excluded.title,
+            prompt_text = excluded.prompt_text,
+            schedule_time = excluded.schedule_time,
+            status = excluded.status,
+            updated_at = excluded.updated_at
+        """,
+        (kind, title, prompt_text, schedule_time, status, now, now),
+    )
+    await db.commit()
+    result = await _fetch_one_dict(db, "SELECT * FROM recurring_reminders WHERE kind = ?", (kind,))
+    if result is None:
+        raise RuntimeError(f"Failed to fetch recurring_reminders row for kind={kind}")
+    return result
+
+
+async def list_recurring_reminders(
+    db: aiosqlite.Connection,
+    status: str | None = None,
+) -> list[dict[str, Any]]:
+    if status is None:
+        return await _fetch_all_dicts(
+            db,
+            "SELECT * FROM recurring_reminders ORDER BY schedule_time ASC, id ASC",
+        )
+    return await _fetch_all_dicts(
+        db,
+        "SELECT * FROM recurring_reminders WHERE status = ? ORDER BY schedule_time ASC, id ASC",
+        (status,),
+    )
+
+
+async def update_recurring_reminder_status(db: aiosqlite.Connection, kind: str, status: str) -> bool:
+    cursor = await db.execute(
+        "UPDATE recurring_reminders SET status = ?, updated_at = ? WHERE kind = ?",
+        (status, _utcnow_iso(), kind),
+    )
+    await db.commit()
+    return (cursor.rowcount or 0) > 0
+
+
+async def list_due_recurring_reminders(
+    db: aiosqlite.Connection,
+    sent_on: str,
+    current_time: str,
+) -> list[dict[str, Any]]:
+    return await _fetch_all_dicts(
+        db,
+        """
+        SELECT rr.*
+        FROM recurring_reminders rr
+        LEFT JOIN recurring_reminder_log rrl
+            ON rrl.recurring_reminder_id = rr.id AND rrl.sent_on = ?
+        WHERE rr.status = 'active'
+          AND rr.schedule_time <= ?
+          AND rrl.id IS NULL
+        ORDER BY rr.schedule_time ASC, rr.id ASC
+        """,
+        (sent_on, current_time),
+    )
+
+
+async def log_recurring_reminder(
+    db: aiosqlite.Connection,
+    recurring_reminder_id: int,
+    sent_on: str,
+    message_text: str,
+) -> dict[str, Any]:
+    sent_at = _utcnow_iso()
+    cursor = await db.execute(
+        """
+        INSERT INTO recurring_reminder_log (recurring_reminder_id, sent_on, sent_at, message_text)
+        VALUES (?, ?, ?, ?)
+        """,
+        (recurring_reminder_id, sent_on, sent_at, message_text),
+    )
+    await cursor.close()
+    await db.commit()
+    result = await _fetch_one_dict(
+        db,
+        """
+        SELECT * FROM recurring_reminder_log
+        WHERE recurring_reminder_id = ? AND sent_on = ?
+        """,
+        (recurring_reminder_id, sent_on),
+    )
+    if result is None:
+        raise RuntimeError(f"Failed to fetch recurring_reminder_log row for reminder_id={recurring_reminder_id}")
+    return result

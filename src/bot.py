@@ -68,6 +68,12 @@ from src.handlers.feature_feedback import (
     continue_feature_capture,
 )
 from src.handlers.notes import note_command
+from src.handlers.practice_cmd import (
+    pause_daily_practice_command,
+    practices_command,
+    resume_daily_practice_command,
+    setup_daily_practice_command,
+)
 from src.handlers.projects import archive_project_command, new_project_command, project_command, projects_command
 from src.handlers.reflect_cmd import reflect_command
 from src.handlers.review import review_handler
@@ -552,6 +558,10 @@ def build_application() -> Application:
     application.add_handler(MessageHandler(filters.Regex(r"^/done_deadline_\d+(?:@\w+)?$"), done_deadline_command))
     application.add_handler(MessageHandler(filters.Regex(r"^/dismiss_deadline_\d+(?:@\w+)?$"), dismiss_deadline_command))
     application.add_handler(CommandHandler("feedback", feedback_command))
+    application.add_handler(CommandHandler("setup_daily_practice", setup_daily_practice_command))
+    application.add_handler(CommandHandler("practices", practices_command))
+    application.add_handler(CommandHandler("pause_daily_practice", pause_daily_practice_command))
+    application.add_handler(CommandHandler("resume_daily_practice", resume_daily_practice_command))
     application.add_handler(CommandHandler("chat_reset", chat_reset_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, natural_confirm_handler), group=1)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler_wrapper), group=2)

@@ -28,7 +28,10 @@ from src.db import (
     get_project_by_slug,
     get_project_memory,
     get_reminder_log,
+    list_due_recurring_reminders,
+    list_recurring_reminders,
     init_db,
+    log_recurring_reminder,
     log_reminder,
     log_llm_call,
     list_all_projects,
@@ -38,6 +41,8 @@ from src.db import (
     list_projects,
     search_ideas,
     search_notes,
+    update_recurring_reminder_status,
+    upsert_recurring_reminder,
     upsert_project_memory,
     update_deadline_due_date,
     update_deadline_status,
@@ -72,8 +77,12 @@ EXPECTED_TABLES = {
     "reminder_log",
     "review_history",
     "weekly_reports",
+    "recurring_reminders",
+    "recurring_reminder_log",
     "project_memory",
     "llm_call_log",
+    "user_feedback",
+    "feature_feedback",
 }
 
 
@@ -301,6 +310,41 @@ async def run_smoke_test() -> None:
             assert calls_after >= 1, "get_llm_calls_today must return at least 1 after logging a call"
             assert calls_after >= calls_before + 1, \
                 "log_llm_call must increase today's llm_call_log count"
+
+            recurring = await upsert_recurring_reminder(
+                db,
+                kind="morning_pages",
+                title="Morning Pages",
+                prompt_text="Write the morning pages",
+                schedule_time="09:00",
+            )
+            assert recurring["status"] == "active", "upsert_recurring_reminder must default status to active"
+            updated_recurring = await upsert_recurring_reminder(
+                db,
+                kind="morning_pages",
+                title="Morning Pages Updated",
+                prompt_text="Updated prompt",
+                schedule_time="09:30",
+                status="active",
+            )
+            assert updated_recurring["id"] == recurring["id"], "upsert_recurring_reminder must update by kind"
+            recurring_items = await list_recurring_reminders(db, status="active")
+            assert updated_recurring["id"] in {item["id"] for item in recurring_items}, \
+                "list_recurring_reminders(status='active') must include active reminders"
+            due_recurring = await list_due_recurring_reminders(db, "2026-04-03", "10:00")
+            assert updated_recurring["id"] in {item["id"] for item in due_recurring}, \
+                "list_due_recurring_reminders must return reminders due before current_time"
+            recurring_log = await log_recurring_reminder(db, updated_recurring["id"], "2026-04-03", "Morning reminder")
+            assert recurring_log["sent_on"] == "2026-04-03", \
+                "log_recurring_reminder must persist sent_on date"
+            due_after_send = await list_due_recurring_reminders(db, "2026-04-03", "10:00")
+            assert updated_recurring["id"] not in {item["id"] for item in due_after_send}, \
+                "already sent recurring reminders must not be returned again on the same day"
+            paused = await update_recurring_reminder_status(db, "morning_pages", "paused")
+            assert paused, "update_recurring_reminder_status must return True for existing kind"
+            paused_items = await list_recurring_reminders(db, status="paused")
+            assert updated_recurring["id"] in {item["id"] for item in paused_items}, \
+                "paused recurring reminder must appear in paused listing"
 
             # T-P3: get_project_item_count counts notes and ideas for a project
             count_project = await create_project(db, "Count Project", "count-project")
