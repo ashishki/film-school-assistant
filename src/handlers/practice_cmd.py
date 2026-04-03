@@ -11,6 +11,7 @@ from src.handlers.common import get_command_text, reply_text
 
 LOGGER = logging.getLogger(__name__)
 TIME_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+TIME_SEARCH_RE = re.compile(r"\b(?:[01]\d|2[0-3]):[0-5]\d\b")
 PRACTICE_KIND_ALIASES = {
     "morning": "morning_pages",
     "утро": "morning_pages",
@@ -30,6 +31,34 @@ MORNING_PROMPT = "Утренние страницы. О чем был утрен
 EVENING_TITLE = "Неснятый фильм дня"
 EVENING_PROMPT = "Вечерняя заметка. Что случилось за день и какие моменты были неснятым фильмом? Если хочешь, просто ответь сюда."
 
+MORNING_MARKERS = (
+    "утро",
+    "утрен",
+    "утренние страницы",
+    "утренний кофе",
+)
+EVENING_MARKERS = (
+    "вечер",
+    "в конце дня",
+    "конце дня",
+    "за день",
+    "неснятым фильмом",
+    "неснятый фильм",
+)
+ENABLE_MARKERS = (
+    "напомин",
+    "присылай",
+    "напоминай",
+    "каждое утро",
+    "каждый вечер",
+    "ежедневно",
+    "ежедневные",
+    "каждый день",
+)
+PAUSE_MARKERS = ("пауза", "поставь на паузу", "выключи", "отключи", "останови")
+RESUME_MARKERS = ("возобнови", "включи", "снова включи", "верни", "продолжи")
+LIST_MARKERS = ("какие практики", "какие напоминания", "покажи практики", "покажи напоминания", "статус практик")
+
 
 def _parse_hhmm(value: str) -> str | None:
     candidate = value.strip()
@@ -40,6 +69,104 @@ def _parse_hhmm(value: str) -> str | None:
 
 def _resolve_practice_kind(raw_value: str) -> str | None:
     return PRACTICE_KIND_ALIASES.get(raw_value.strip().lower())
+
+
+def parse_practice_intent(text: str) -> dict[str, object] | None:
+    lowered = " ".join(text.strip().lower().split())
+    if not lowered:
+        return None
+
+    if any(marker in lowered for marker in LIST_MARKERS):
+        return {"action": "list"}
+
+    mentioned_kinds: list[str] = []
+    if any(marker in lowered for marker in MORNING_MARKERS):
+        mentioned_kinds.append(MORNING_KIND)
+    if any(marker in lowered for marker in EVENING_MARKERS):
+        mentioned_kinds.append(EVENING_KIND)
+
+    if any(marker in lowered for marker in PAUSE_MARKERS):
+        if not mentioned_kinds:
+            mentioned_kinds = [MORNING_KIND, EVENING_KIND]
+        return {"action": "pause", "kinds": mentioned_kinds}
+
+    if any(marker in lowered for marker in RESUME_MARKERS):
+        if not mentioned_kinds:
+            mentioned_kinds = [MORNING_KIND, EVENING_KIND]
+        return {"action": "resume", "kinds": mentioned_kinds}
+
+    has_enable_marker = any(marker in lowered for marker in ENABLE_MARKERS)
+    references_daily_practice = bool(mentioned_kinds) and ("напомин" in lowered or "ежеднев" in lowered or "кажд" in lowered)
+    if has_enable_marker or references_daily_practice:
+        found_times = TIME_SEARCH_RE.findall(lowered)
+        morning_time = found_times[0] if len(found_times) >= 1 else DEFAULT_MORNING_TIME
+        evening_time = found_times[1] if len(found_times) >= 2 else DEFAULT_EVENING_TIME
+        if not mentioned_kinds:
+            mentioned_kinds = [MORNING_KIND, EVENING_KIND]
+        return {
+            "action": "setup",
+            "kinds": mentioned_kinds,
+            "morning_time": morning_time,
+            "evening_time": evening_time,
+        }
+
+    return None
+
+
+async def execute_practice_intent(db_path: str, intent: dict[str, object]) -> str:
+    action = str(intent.get("action") or "")
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        if action == "list":
+            reminders = await list_recurring_reminders(db)
+            if not reminders:
+                return "Ежедневные практики пока не настроены. Напиши, например: «Напоминай мне утром и вечером каждый день»."
+            lines = []
+            for item in reminders:
+                status = "включено" if item["status"] == "active" else "пауза"
+                alias = "morning" if item["kind"] == MORNING_KIND else "evening"
+                lines.append(f"- {item['title']} — {item['schedule_time']} ({status}, ключ: {alias})")
+            return "Ежедневные практики:\n" + "\n".join(lines)
+
+        if action == "setup":
+            kinds = set(intent.get("kinds", []))
+            morning_time = str(intent.get("morning_time") or DEFAULT_MORNING_TIME)
+            evening_time = str(intent.get("evening_time") or DEFAULT_EVENING_TIME)
+            if MORNING_KIND in kinds:
+                await upsert_recurring_reminder(
+                    db,
+                    kind=MORNING_KIND,
+                    title=MORNING_TITLE,
+                    prompt_text=MORNING_PROMPT,
+                    schedule_time=morning_time,
+                )
+            if EVENING_KIND in kinds:
+                await upsert_recurring_reminder(
+                    db,
+                    kind=EVENING_KIND,
+                    title=EVENING_TITLE,
+                    prompt_text=EVENING_PROMPT,
+                    schedule_time=evening_time,
+                )
+            enabled_lines = []
+            if MORNING_KIND in kinds:
+                enabled_lines.append(f"Утренние страницы — {morning_time}")
+            if EVENING_KIND in kinds:
+                enabled_lines.append(f"Неснятый фильм дня — {evening_time}")
+            return "Ежедневные практики включены.\n" + "\n".join(enabled_lines)
+
+        if action in {"pause", "resume"}:
+            target_status = "paused" if action == "pause" else "active"
+            kinds = list(dict.fromkeys(intent.get("kinds", []))) or [MORNING_KIND, EVENING_KIND]
+            changed = 0
+            for kind in kinds:
+                if await update_recurring_reminder_status(db, str(kind), target_status):
+                    changed += 1
+            if changed == 0:
+                return "Не нашла такую practice. Проверь /practices."
+            return "Ежедневная практика поставлена на паузу." if action == "pause" else "Ежедневная практика снова включена."
+
+    return "Не поняла запрос по ежедневным практикам."
 
 
 async def setup_daily_practice_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -66,33 +193,16 @@ async def setup_daily_practice_command(update: Update, context: ContextTypes.DEF
             morning_time = parsed_morning
             evening_time = parsed_evening
 
-        async with aiosqlite.connect(context.bot_data["db_path"]) as db:
-            db.row_factory = aiosqlite.Row
-            await upsert_recurring_reminder(
-                db,
-                kind=MORNING_KIND,
-                title=MORNING_TITLE,
-                prompt_text=MORNING_PROMPT,
-                schedule_time=morning_time,
-            )
-            await upsert_recurring_reminder(
-                db,
-                kind=EVENING_KIND,
-                title=EVENING_TITLE,
-                prompt_text=EVENING_PROMPT,
-                schedule_time=evening_time,
-            )
-
-        await reply_text(
-            update,
-            context,
-            (
-                "Ежедневные практики включены.\n"
-                f"Утренние страницы — {morning_time}\n"
-                f"Неснятый фильм дня — {evening_time}\n"
-                "Список: /practices"
-            ),
+        result = await execute_practice_intent(
+            context.bot_data["db_path"],
+            {
+                "action": "setup",
+                "kinds": [MORNING_KIND, EVENING_KIND],
+                "morning_time": morning_time,
+                "evening_time": evening_time,
+            },
         )
+        await reply_text(update, context, f"{result}\nСписок: /practices")
     except aiosqlite.Error:
         LOGGER.exception("Failed to configure daily practices")
         await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
@@ -103,20 +213,8 @@ async def setup_daily_practice_command(update: Update, context: ContextTypes.DEF
 
 async def practices_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        async with aiosqlite.connect(context.bot_data["db_path"]) as db:
-            db.row_factory = aiosqlite.Row
-            reminders = await list_recurring_reminders(db)
-
-        if not reminders:
-            await reply_text(update, context, "Ежедневные практики пока не настроены. Используй /setup_daily_practice.")
-            return
-
-        lines = []
-        for item in reminders:
-            status = "включено" if item["status"] == "active" else "пауза"
-            alias = "morning" if item["kind"] == MORNING_KIND else "evening"
-            lines.append(f"- {item['title']} — {item['schedule_time']} ({status}, ключ: {alias})")
-        await reply_text(update, context, "Ежедневные практики:\n" + "\n".join(lines))
+        result = await execute_practice_intent(context.bot_data["db_path"], {"action": "list"})
+        await reply_text(update, context, result)
     except aiosqlite.Error:
         LOGGER.exception("Failed to list daily practices")
         await reply_text(update, context, "Не удалось прочитать список. Попробуй ещё раз. (ERR:DB)")
@@ -146,28 +244,16 @@ async def _change_practice_status(update: Update, context: ContextTypes.DEFAULT_
             )
             return
 
-        async with aiosqlite.connect(context.bot_data["db_path"]) as db:
-            db.row_factory = aiosqlite.Row
-            if raw_target == "all":
-                changed = 0
-                for kind in (MORNING_KIND, EVENING_KIND):
-                    if await update_recurring_reminder_status(db, kind, target_status):
-                        changed += 1
-            else:
-                kind = _resolve_practice_kind(raw_target)
-                if kind is None:
-                    await reply_text(update, context, "Используй: morning, evening или all.")
-                    return
-                changed = 1 if await update_recurring_reminder_status(db, kind, target_status) else 0
-
-        if changed == 0:
-            await reply_text(update, context, "Не нашла такую practice. Проверь /practices.")
+        kinds = [MORNING_KIND, EVENING_KIND] if raw_target == "all" else [_resolve_practice_kind(raw_target)]
+        if any(kind is None for kind in kinds):
+            await reply_text(update, context, "Используй: morning, evening или all.")
             return
 
-        if target_status == "paused":
-            await reply_text(update, context, "Ежедневная практика поставлена на паузу.")
-        else:
-            await reply_text(update, context, "Ежедневная практика снова включена.")
+        result = await execute_practice_intent(
+            context.bot_data["db_path"],
+            {"action": "pause" if target_status == "paused" else "resume", "kinds": kinds},
+        )
+        await reply_text(update, context, result)
     except aiosqlite.Error:
         LOGGER.exception("Failed to change daily practice status")
         await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
