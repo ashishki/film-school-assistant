@@ -69,15 +69,13 @@ from src.handlers.feature_feedback import (
 )
 from src.handlers.notes import note_command
 from src.handlers.practice_cmd import (
-    build_practice_time_question,
     execute_practice_intent,
-    parse_practice_times,
-    parse_practice_intent,
     pause_daily_practice_command,
     practices_command,
     resume_daily_practice_command,
     setup_daily_practice_command,
 )
+from src.practice_intents import build_practice_time_question, parse_practice_intent, parse_practice_times
 from src.handlers.projects import archive_project_command, new_project_command, project_command, projects_command
 from src.handlers.reflect_cmd import reflect_command
 from src.handlers.review import review_handler
