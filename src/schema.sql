@@ -149,6 +149,31 @@ CREATE TABLE IF NOT EXISTS user_feedback (
 
 CREATE INDEX IF NOT EXISTS idx_user_feedback_created ON user_feedback(created_at);
 
+CREATE TABLE IF NOT EXISTS recurring_reminders (
+    id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    prompt_text TEXT NOT NULL,
+    schedule_time TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_recurring_reminders_status_time ON recurring_reminders(status, schedule_time);
+
+CREATE TABLE IF NOT EXISTS recurring_reminder_log (
+    id INTEGER PRIMARY KEY,
+    recurring_reminder_id INTEGER NOT NULL,
+    sent_on TEXT NOT NULL,
+    sent_at TEXT NOT NULL,
+    message_text TEXT NOT NULL,
+    UNIQUE(recurring_reminder_id, sent_on),
+    FOREIGN KEY (recurring_reminder_id) REFERENCES recurring_reminders(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_recurring_reminder_log_sent_on ON recurring_reminder_log(sent_on);
+
 CREATE TABLE IF NOT EXISTS feature_feedback (
     id INTEGER PRIMARY KEY,
     source TEXT NOT NULL,

@@ -5,7 +5,7 @@ import json
 import logging
 import sys
 import time
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import aiosqlite
@@ -16,7 +16,13 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.config import load_config
-from src.db import get_reminder_log, list_active_deadlines_for_reminder, log_reminder
+from src.db import (
+    get_reminder_log,
+    list_active_deadlines_for_reminder,
+    list_due_recurring_reminders,
+    log_recurring_reminder,
+    log_reminder,
+)
 
 
 LOGGER = logging.getLogger(__name__)
@@ -64,6 +70,15 @@ def build_message(deadline: dict[str, object], days_until: int, due_date: date) 
     )
 
 
+def build_recurring_message(reminder: dict[str, object]) -> str:
+    kind = str(reminder.get("kind") or "")
+    pause_hint = "morning" if kind == "morning_pages" else "evening"
+    return (
+        f"{reminder['prompt_text']}\n"
+        f"Если хочешь поставить на паузу, напиши /pause_daily_practice {pause_hint}."
+    )
+
+
 def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> None:
     last_error: Exception | None = None
 
@@ -104,7 +119,9 @@ async def process_reminders() -> int:
     config = load_config()
     configure_logging(config.log_level)
 
-    today = date.today()
+    now = datetime.now()
+    today = now.date()
+    current_time = now.strftime("%H:%M")
     sent_count = 0
 
     async with aiosqlite.connect(config.db_path) as db:
@@ -155,6 +172,34 @@ async def process_reminders() -> int:
                 deadline["title"],
                 days_until,
                 due_date.isoformat(),
+            )
+
+        recurring_reminders = await list_due_recurring_reminders(db, today.isoformat(), current_time)
+        for reminder in recurring_reminders:
+            message_text = build_recurring_message(reminder)
+            try:
+                send_telegram_message(config.telegram_bot_token, config.telegram_allowed_chat_id, message_text)
+            except requests.RequestException:
+                LOGGER.warning(
+                    "Telegram API request failed for recurring_reminder_id=%s; skipping send",
+                    reminder["id"],
+                    exc_info=True,
+                )
+                continue
+            except RuntimeError:
+                LOGGER.warning(
+                    "Telegram API returned unsuccessful payload for recurring_reminder_id=%s; skipping send",
+                    reminder["id"],
+                    exc_info=True,
+                )
+                continue
+            await log_recurring_reminder(db, int(reminder["id"]), today.isoformat(), message_text)
+            sent_count += 1
+            LOGGER.info(
+                "Sent recurring reminder kind=%s id=%s schedule_time=%s",
+                reminder["kind"],
+                reminder["id"],
+                reminder["schedule_time"],
             )
 
     LOGGER.info("Reminder run complete: sent=%s", sent_count)

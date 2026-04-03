@@ -3,7 +3,7 @@ Description=Film School Assistant — Daily Reminder Timer
 Requires=reminder.service
 
 [Timer]
-OnCalendar=*-*-* 08:00:00
+OnCalendar=*-*-* *:00,15,30,45:00
 Persistent=true
 
 [Install]
