@@ -74,7 +74,7 @@ _ALLOWED_TABLES = frozenset({
     "projects", "notes", "ideas", "homework", "deadlines",
     "voice_inputs", "transcripts", "parsed_events",
     "reminder_log", "review_history", "weekly_reports",
-    "project_memory", "user_feedback",
+    "project_memory", "user_feedback", "feature_feedback",
 })
 
 
@@ -113,6 +113,17 @@ async def get_llm_calls_today(db: aiosqlite.Connection) -> int:
     cursor = await db.execute(
         "SELECT COUNT(*) FROM llm_call_log WHERE date(called_at) = date(?)",
         (today,),
+    )
+    row = await cursor.fetchone()
+    await cursor.close()
+    return int(row[0]) if row else 0
+
+
+async def get_llm_calls_today_by_prefix(db: aiosqlite.Connection, call_type_prefix: str) -> int:
+    today = datetime.now(timezone.utc).date().isoformat()
+    cursor = await db.execute(
+        "SELECT COUNT(*) FROM llm_call_log WHERE date(called_at) = date(?) AND call_type LIKE ?",
+        (today, f"{call_type_prefix}%"),
     )
     row = await cursor.fetchone()
     await cursor.close()
@@ -621,6 +632,56 @@ async def list_user_feedback(db: aiosqlite.Connection, limit: int = 200) -> list
     return await _fetch_all_dicts(
         db,
         "SELECT * FROM user_feedback ORDER BY created_at DESC LIMIT ?",
+        (limit,),
+    )
+
+
+async def create_feature_feedback(
+    db: aiosqlite.Connection,
+    source: str,
+    original_request: str,
+    summary_title: str,
+    problem: str,
+    desired_behavior: str,
+    trigger_condition: str,
+    success_result: str,
+    conversation_json: str,
+) -> dict[str, Any]:
+    return await _insert_and_fetch(
+        db,
+        """
+        INSERT INTO feature_feedback (
+            source,
+            original_request,
+            summary_title,
+            problem,
+            desired_behavior,
+            trigger_condition,
+            success_result,
+            conversation_json,
+            created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            source,
+            original_request,
+            summary_title,
+            problem,
+            desired_behavior,
+            trigger_condition,
+            success_result,
+            conversation_json,
+            _utcnow_iso(),
+        ),
+        "feature_feedback",
+    )
+
+
+async def list_feature_feedback(db: aiosqlite.Connection, limit: int = 200) -> list[dict[str, Any]]:
+    return await _fetch_all_dicts(
+        db,
+        "SELECT * FROM feature_feedback ORDER BY created_at DESC LIMIT ?",
         (limit,),
     )
 

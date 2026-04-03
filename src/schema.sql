@@ -148,3 +148,18 @@ CREATE TABLE IF NOT EXISTS user_feedback (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_feedback_created ON user_feedback(created_at);
+
+CREATE TABLE IF NOT EXISTS feature_feedback (
+    id INTEGER PRIMARY KEY,
+    source TEXT NOT NULL,
+    original_request TEXT NOT NULL,
+    summary_title TEXT NOT NULL,
+    problem TEXT NOT NULL,
+    desired_behavior TEXT NOT NULL,
+    trigger_condition TEXT NOT NULL,
+    success_result TEXT NOT NULL,
+    conversation_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_feature_feedback_created ON feature_feedback(created_at);

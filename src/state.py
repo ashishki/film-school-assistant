@@ -17,6 +17,9 @@ class UserState:
     pending_nl_content: str | None = None
     pending_nl_due_date: str | None = None
     pending_nl_project_hint: str | None = None
+    pending_feature_offer: dict | None = None
+    feature_capture_session: dict | None = None
+    pending_feature_draft: dict | None = None
     nl_context: list[str] = field(default_factory=list)
     conversation_history: list[dict] = field(default_factory=list)
 
@@ -56,3 +59,11 @@ def clear_pending(chat_id: int) -> None:
     state.pending_nl_due_date = None
     state.pending_nl_project_hint = None
     LOGGER.debug("Cleared pending entity for chat_id=%s", chat_id)
+
+
+def clear_feature_feedback_state(chat_id: int) -> None:
+    state = get_state(chat_id)
+    state.pending_feature_offer = None
+    state.feature_capture_session = None
+    state.pending_feature_draft = None
+    LOGGER.debug("Cleared feature feedback state for chat_id=%s", chat_id)

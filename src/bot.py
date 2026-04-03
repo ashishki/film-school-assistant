@@ -56,18 +56,33 @@ from src.handlers.memory_cmd import memory_command
 from src.handlers.common import validate_and_parse_date
 from src.handlers.nl_handler import _build_pending_entity as build_nl_pending_entity
 from src.handlers.nl_handler import _resolve_project
-from src.handlers.feedback_cmd import feedback_command
+from src.handlers.feedback_cmd import feedback_command, is_feedback_message
+from src.handlers.feature_feedback import (
+    FEATURE_ACCEPT_WORDS,
+    FEATURE_DECLINE_WORDS,
+    feature_offer_keyboard,
+    is_incapable_response,
+    save_feature_draft,
+    start_feature_capture,
+    start_feature_refinement,
+    continue_feature_capture,
+)
 from src.handlers.notes import note_command
 from src.handlers.projects import archive_project_command, new_project_command, project_command, projects_command
 from src.handlers.reflect_cmd import reflect_command
 from src.handlers.review import review_handler
 from src.handlers.search_cmd import search_command
-from src.state import clear_pending, get_state
+from src.state import clear_feature_feedback_state, clear_pending, get_state
 
 
 LOGGER = logging.getLogger(__name__)
 CONFIRM_WORDS = {"да", "ок", "окей", "давай", "сохрани", "сохранить", "подтверждаю", "yes", "yep"}
 DISCARD_WORDS = {"нет", "стоп", "удали", "удалить", "отмена", "отменить", "выброси", "no", "nope", "cancel"}
+
+
+def _matches_any_phrase(text: str, phrases: set[str]) -> bool:
+    lowered = text.strip().lower()
+    return lowered in phrases or any(lowered.startswith(f"{phrase} ") for phrase in phrases)
 
 
 class _JsonFormatter(logging.Formatter):
@@ -262,10 +277,55 @@ async def chat_handler_wrapper(update: Update, context: ContextTypes.DEFAULT_TYP
     config = context.bot_data["config"]
     state = get_state(chat.id)
     text = message.text.strip()
+    normalized_text = text.lower()
+    last_assistant_message = None
+    for item in reversed(state.conversation_history):
+        if item.get("role") == "assistant":
+            last_assistant_message = str(item.get("content") or "")
+            break
+
+    if state.pending_feature_offer is not None:
+        if _matches_any_phrase(normalized_text, FEATURE_ACCEPT_WORDS):
+            await start_feature_capture(update, context, state.pending_feature_offer["original_request"])
+            return
+        if _matches_any_phrase(normalized_text, FEATURE_DECLINE_WORDS):
+            clear_feature_feedback_state(chat.id)
+            await message.reply_text("Хорошо, не сохраняю это как пожелание к новой функции.")
+            return
+        await message.reply_text("Если хочешь, нажми «Оформить пожелание» или ответь коротко: да / нет.")
+        return
+
+    if state.feature_capture_session is not None:
+        await continue_feature_capture(update, context, text)
+        return
+
+    if state.pending_feature_draft is not None:
+        if _matches_any_phrase(normalized_text, FEATURE_ACCEPT_WORDS):
+            _, reply = await save_feature_draft(chat.id, context)
+            await message.reply_text(reply)
+            return
+        if _matches_any_phrase(normalized_text, FEATURE_DECLINE_WORDS):
+            clear_feature_feedback_state(chat.id)
+            await message.reply_text("Черновик пожелания отменён.")
+            return
+        await message.reply_text("Сейчас есть готовый черновик пожелания. Сохрани его, уточни или отмени.")
+        return
+
+    if is_feedback_message(text, last_assistant_message):
+        await start_feature_capture(update, context, text)
+        return
+
     try:
         async with aiosqlite.connect(context.bot_data["db_path"]) as db:
             db.row_factory = aiosqlite.Row
             result = await handle_chat(text, db, config, state)
+        if is_incapable_response(result):
+            state.pending_feature_offer = {"original_request": text}
+            await message.reply_text(
+                f"{result}\n\nЕсли хочешь, я могу оформить это как пожелание к новой функции для разработчика.",
+                reply_markup=feature_offer_keyboard(),
+            )
+            return
         await message.reply_text(result)
     except Exception:
         LOGGER.exception("chat_handler_wrapper failed for chat_id=%s", chat.id)
@@ -290,6 +350,35 @@ async def inline_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
     chat_id = query.message.chat_id
     state = get_state(chat_id)
+
+    if query.data == "feature_offer_start":
+        pending_offer = state.pending_feature_offer
+        if pending_offer is None:
+            await query.edit_message_text("Не вижу запроса для оформления.")
+            return
+        await query.edit_message_text("Собираю пожелание к новой функции.")
+        await start_feature_capture(update, context, pending_offer["original_request"])
+        return
+
+    if query.data == "feature_offer_cancel":
+        clear_feature_feedback_state(chat_id)
+        await query.edit_message_text("Хорошо, не сохраняю это как пожелание к новой функции.")
+        return
+
+    if query.data == "feature_draft_save":
+        ok, text = await save_feature_draft(chat_id, context)
+        await query.edit_message_text(text)
+        return
+
+    if query.data == "feature_draft_refine":
+        await query.edit_message_text("Запросила уточнение по черновику.")
+        await start_feature_refinement(update, context)
+        return
+
+    if query.data == "feature_draft_cancel":
+        clear_feature_feedback_state(chat_id)
+        await query.edit_message_text("Черновик пожелания отменён.")
+        return
 
     if query.data == "confirm":
         if state.pending_entity is None:
@@ -472,19 +561,10 @@ def build_application() -> Application:
     return application
 
 
-_FEEDBACK_KEYWORDS = (
-    "не хватает", "хотелось бы", "хочу чтобы", "хочу чтоб",
-    "жду от", "ожидаю от", "хотел бы", "хотела бы",
-    "было бы круто", "было бы здорово", "добавь", "сделай так чтобы",
-    "разработчику", "фидбек", "обратная связь",
-    "feedback", "wish", "suggestion",
-)
-
-
 def _detect_entity_type(transcript_text: str) -> str:
-    lowered = transcript_text.lower()
-    if any(keyword in lowered for keyword in _FEEDBACK_KEYWORDS):
+    if is_feedback_message(transcript_text):
         return "feedback"
+    lowered = transcript_text.lower()
     if any(keyword in lowered for keyword in ("deadline", "due", "submit")):
         return "deadline"
     if any(keyword in lowered for keyword in ("homework", "assignment")):
