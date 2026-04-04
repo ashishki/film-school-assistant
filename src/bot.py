@@ -54,6 +54,7 @@ from src.handlers.ideas import idea_command
 from src.handlers.list_cmd import list_command
 from src.handlers.memory_cmd import memory_command
 from src.handlers.common import validate_and_parse_date
+from src.handlers.nl_handler import maybe_handle_nl_capture
 from src.handlers.nl_handler import _build_pending_entity as build_nl_pending_entity
 from src.handlers.nl_handler import _resolve_project
 from src.handlers.feedback_cmd import feedback_command, is_feedback_message
@@ -81,6 +82,7 @@ from src.handlers.reflect_cmd import reflect_command
 from src.handlers.review import review_handler
 from src.handlers.search_cmd import search_command
 from src.state import clear_feature_feedback_state, clear_pending, get_state
+from src.user_context import build_user_context_pending_entity, is_user_context_capture_request
 
 
 LOGGER = logging.getLogger(__name__)
@@ -399,6 +401,36 @@ async def chat_handler_wrapper(update: Update, context: ContextTypes.DEFAULT_TYP
             await message.reply_text("Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
             return
         await message.reply_text(result)
+        return
+
+    if is_user_context_capture_request(text, last_assistant_message):
+        pending_entity = build_user_context_pending_entity(text)
+        try:
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                db.row_factory = aiosqlite.Row
+                parsed_event = await create_parsed_event(
+                    db,
+                    entity_type="user_context",
+                    extracted_json=json.dumps(
+                        {
+                            "entity_type": "user_context",
+                            "content": pending_entity["content"],
+                            "source_text": text,
+                        }
+                    ),
+                )
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to persist user_context parsed event for chat_id=%s", chat.id)
+            await message.reply_text("Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
+            return
+
+        pending_entity["parsed_event_id"] = parsed_event["id"]
+        state.pending_entity = pending_entity
+        state.pending_entity_type = "user_context"
+        await message.reply_text(_build_pending_preview(state), reply_markup=_pending_keyboard())
+        return
+
+    if await maybe_handle_nl_capture(update, context):
         return
 
     if is_feedback_message(text, last_assistant_message):

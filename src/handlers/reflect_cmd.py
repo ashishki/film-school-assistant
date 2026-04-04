@@ -10,6 +10,7 @@ from src.db import get_llm_calls_today, get_project_memory, log_llm_call
 from src.handlers.common import reply_text
 from src.openclaw_client import LLMError, complete_json
 from src.state import get_state
+from src.user_context import get_user_context_prompt_text, refresh_user_context_summary
 
 
 LOGGER = logging.getLogger(__name__)
@@ -87,9 +88,15 @@ def _build_input_text(
     summary_text: str,
     next_steps: list[str],
     deadlines: list[dict],
+    user_context_text: str | None,
 ) -> str:
     return (
-        f"Проект: {project_name}\n\n"
+        (
+            f"{user_context_text}\n\n"
+            if user_context_text
+            else ""
+        )
+        + f"Проект: {project_name}\n\n"
         f"Текущее состояние (из памяти проекта):\n{summary_text}\n\n"
         + (
             "Рекомендации из последних разборов идей:\n"
@@ -146,6 +153,12 @@ async def reflect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 review_rows = await _fetch_recent_review_rows(db, project_id)
                 next_steps = _extract_next_steps(review_rows)
                 deadlines = await _fetch_active_deadlines(db, project_id)
+                try:
+                    await refresh_user_context_summary(db, context.bot_data["config"].daily_llm_call_limit)
+                    user_context_text = await get_user_context_prompt_text(db)
+                except Exception:
+                    LOGGER.warning("Failed to fetch user context for /reflect project_id=%s", project_id)
+                    user_context_text = None
 
                 daily_llm_call_limit = context.bot_data["config"].daily_llm_call_limit
                 today_calls = await get_llm_calls_today(db)
@@ -153,7 +166,13 @@ async def reflect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     await reply_text(update, context, "Дневной лимит запросов исчерпан. Попробуй завтра.")
                     return
 
-                input_text = _build_input_text(project_name, memory_row["summary_text"], next_steps, deadlines)
+                input_text = _build_input_text(
+                    project_name,
+                    memory_row["summary_text"],
+                    next_steps,
+                    deadlines,
+                    user_context_text,
+                )
 
                 try:
                     response = await asyncio.to_thread(

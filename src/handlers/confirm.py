@@ -4,9 +4,18 @@ import aiosqlite
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from src.db import confirm_parsed_event, create_deadline, create_homework, create_idea, create_note, create_user_feedback
+from src.db import (
+    confirm_parsed_event,
+    create_deadline,
+    create_homework,
+    create_idea,
+    create_note,
+    create_user_context_entry,
+    create_user_feedback,
+)
 from src.handlers.common import reply_text, validate_and_parse_date
 from src.state import UserState, clear_pending, get_state
+from src.user_context import refresh_user_context_summary
 
 
 LOGGER = logging.getLogger(__name__)
@@ -131,6 +140,8 @@ async def _do_confirm(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> str:
         async with aiosqlite.connect(context.bot_data["db_path"]) as db:
             db.row_factory = aiosqlite.Row
             saved_type, saved_row = await _save_pending_entity(db, entity_type, pending)
+            if saved_type == "user_context":
+                await refresh_user_context_summary(db, context.bot_data["config"].daily_llm_call_limit)
 
             parsed_event_id = pending.get("parsed_event_id")
             if parsed_event_id is not None:
@@ -280,6 +291,15 @@ async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pendi
         )
         return entity_type, saved
 
+    if entity_type == "user_context":
+        saved = await create_user_context_entry(
+            db,
+            content=pending["content"],
+            raw_transcript=pending.get("raw_transcript"),
+            source=pending.get("source", "text"),
+        )
+        return entity_type, saved
+
     raise ValueError(f"Unsupported pending entity type: {entity_type}")
 
 
@@ -290,6 +310,7 @@ def _entity_table_name(entity_type: str) -> str:
         "deadline": "deadlines",
         "homework": "homework",
         "feedback": "user_feedback",
+        "user_context": "user_context_entries",
     }[entity_type]
 
 
@@ -350,9 +371,12 @@ def _build_pending_preview(state: UserState) -> str:
         "deadline": "дедлайн",
         "homework": "домашнее задание",
         "feedback": "фидбек",
+        "user_context": "контекст о тебе",
         "item": "запись",
     }
-    preview = [f"Черновик ({entity_labels.get(entity_type, 'запись')}): {text_value}", f"Проект: {project_label}"]
+    preview = [f"Черновик ({entity_labels.get(entity_type, 'запись')}): {text_value}"]
+    if entity_type != "user_context":
+        preview.append(f"Проект: {project_label}")
     if due_date:
         preview.insert(1, f"Срок: {due_date}")
     return "\n".join(preview)
@@ -365,8 +389,9 @@ def _confirm_success_text(entity_type: str, project_name: str | None) -> str:
         "deadline": "Дедлайн сохранён",
         "homework": "Задание сохранено",
         "feedback": "Фидбек принят, передам разработчику",
+        "user_context": "Контекст о тебе сохранён",
     }[entity_type]
-    if entity_type == "feedback":
+    if entity_type in {"feedback", "user_context"}:
         return label
     if project_name:
         return f"{label} → {project_name}"

@@ -149,12 +149,31 @@ CREATE TABLE IF NOT EXISTS user_feedback (
 
 CREATE INDEX IF NOT EXISTS idx_user_feedback_created ON user_feedback(created_at);
 
+CREATE TABLE IF NOT EXISTS user_context_entries (
+    id INTEGER PRIMARY KEY,
+    content TEXT NOT NULL,
+    raw_transcript TEXT,
+    source TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_context_entries_created ON user_context_entries(created_at);
+
+CREATE TABLE IF NOT EXISTS user_context_summary (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    summary_text TEXT NOT NULL,
+    generated_at TEXT NOT NULL,
+    entry_count_snapshot INTEGER NOT NULL DEFAULT 0,
+    model_used TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS recurring_reminders (
     id INTEGER PRIMARY KEY,
     kind TEXT NOT NULL UNIQUE,
     title TEXT NOT NULL,
     prompt_text TEXT NOT NULL,
     schedule_time TEXT NOT NULL,
+    timezone TEXT NOT NULL DEFAULT 'Europe/Berlin',
     status TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL

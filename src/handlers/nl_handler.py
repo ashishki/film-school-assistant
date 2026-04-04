@@ -16,6 +16,22 @@ from src.state import clear_pending, get_state
 
 
 LOGGER = logging.getLogger(__name__)
+NL_CAPTURE_MARKERS = (
+    "сохрани",
+    "запиши",
+    "запомни",
+    "зафиксируй",
+    "добавь",
+    "создай",
+    "идея",
+    "заметка",
+    "дедлайн",
+    "домаш",
+    "задание",
+    "напомни",
+    "напомин",
+    "срок",
+)
 EXTRACTION_SYSTEM_PROMPT = (
     "Ты извлекатель сущностей для ассистента по учебному процессу киношколы. Извлеки структурированные данные из сообщения пользователя.\n"
     'Верни только JSON: {"entities": [{"entity_type": "note|idea|homework|deadline", "content": "cleaned content", '
@@ -23,6 +39,25 @@ EXTRACTION_SYSTEM_PROMPT = (
     "Правила: entity_type должен быть одним из четырёх значений. due_date указывай только если дата явно упомянута. "
     "content не меняй. Если сущностей несколько, верни каждую отдельным объектом в массиве entities. Без пояснительного текста."
 )
+
+
+def should_try_nl_capture(text: str) -> bool:
+    lowered = " ".join(text.strip().lower().split())
+    if not lowered:
+        return False
+    if lowered.startswith(("что ", "какие ", "какая ", "какой ", "покажи ", "найди ", "где ", "когда ")):
+        return False
+    return any(marker in lowered for marker in NL_CAPTURE_MARKERS)
+
+
+async def maybe_handle_nl_capture(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    message = update.effective_message
+    if message is None or not message.text:
+        return False
+    if not should_try_nl_capture(message.text):
+        return False
+    await nl_handler(update, context)
+    return True
 
 
 async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

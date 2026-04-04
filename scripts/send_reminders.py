@@ -5,7 +5,7 @@ import json
 import logging
 import sys
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import aiosqlite
@@ -120,8 +120,8 @@ async def process_reminders() -> int:
     configure_logging(config.log_level)
 
     now = datetime.now()
+    now_utc = datetime.now(timezone.utc)
     today = now.date()
-    current_time = now.strftime("%H:%M")
     sent_count = 0
 
     async with aiosqlite.connect(config.db_path) as db:
@@ -174,7 +174,11 @@ async def process_reminders() -> int:
                 due_date.isoformat(),
             )
 
-        recurring_reminders = await list_due_recurring_reminders(db, today.isoformat(), current_time)
+        recurring_reminders = await list_due_recurring_reminders(
+            db,
+            utc_now=now_utc,
+            default_timezone=config.default_timezone,
+        )
         for reminder in recurring_reminders:
             message_text = build_recurring_message(reminder)
             try:
@@ -193,13 +197,19 @@ async def process_reminders() -> int:
                     exc_info=True,
                 )
                 continue
-            await log_recurring_reminder(db, int(reminder["id"]), today.isoformat(), message_text)
+            await log_recurring_reminder(
+                db,
+                int(reminder["id"]),
+                str(reminder.get("effective_sent_on") or today.isoformat()),
+                message_text,
+            )
             sent_count += 1
             LOGGER.info(
-                "Sent recurring reminder kind=%s id=%s schedule_time=%s",
+                "Sent recurring reminder kind=%s id=%s schedule_time=%s timezone=%s",
                 reminder["kind"],
                 reminder["id"],
                 reminder["schedule_time"],
+                reminder.get("effective_timezone"),
             )
 
     LOGGER.info("Reminder run complete: sent=%s", sent_count)

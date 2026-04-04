@@ -13,6 +13,7 @@ from src.config import Config
 from src.db import get_llm_calls_today, get_project_memory, log_llm_call
 from src.state import UserState
 from src.tools import TOOLS, execute_tool
+from src.user_context import get_user_context_prompt_text, refresh_user_context_summary
 
 
 LOGGER = logging.getLogger(__name__)
@@ -27,10 +28,13 @@ CHAT_SYSTEM_PROMPT = _BASE_SYSTEM_PROMPT  # backward-compat alias
 MAX_TOOL_ROUNDS: int = 5
 
 
-def _build_system_prompt(memory_text: str | None) -> str:
-    if not memory_text:
-        return _BASE_SYSTEM_PROMPT
-    return f"{_BASE_SYSTEM_PROMPT}\n\nКонтекст проекта: {memory_text}"
+def _build_system_prompt(memory_text: str | None, user_context_text: str | None) -> str:
+    sections = [_BASE_SYSTEM_PROMPT]
+    if user_context_text:
+        sections.append(user_context_text)
+    if memory_text:
+        sections.append(f"Контекст проекта: {memory_text}")
+    return "\n\n".join(sections)
 
 
 def _extract_text_blocks(response: Any) -> str:
@@ -65,7 +69,14 @@ async def handle_chat(
     else:
         memory_text = None
 
-    system_prompt = _build_system_prompt(memory_text)
+    try:
+        await refresh_user_context_summary(db, config.daily_llm_call_limit)
+        user_context_text = await get_user_context_prompt_text(db)
+    except Exception:
+        LOGGER.warning("user context injection failed, proceeding without it", exc_info=True)
+        user_context_text = None
+
+    system_prompt = _build_system_prompt(memory_text, user_context_text)
 
     messages: list[dict[str, Any]] = user_state.conversation_history[:] + [
         {"role": "user", "content": message_text}

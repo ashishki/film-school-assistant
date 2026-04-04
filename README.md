@@ -48,10 +48,11 @@ It is intentionally single-user, private, and operationally simple.
 - Voice transcription: local Whisper
 - Intent extraction: Claude Haiku — multi-entity, context-aware, with targeted error recovery
 - Project memory: Claude Haiku (bounded summary, one paragraph per project)
+- User context memory: Claude Haiku (bounded user profile summary from saved personal context)
 - Idea review: Claude Sonnet
 - Project reflection: Claude Sonnet (`/reflect` command)
 - Feature-feedback capture: bounded multi-step LLM flow with separate quota and structured storage
-- Automation: deterministic deadline reminders, recurring daily-practice prompts, and weekly summary scripts
+- Automation: deterministic deadline reminders, timezone-aware recurring daily-practice prompts, and weekly summary scripts
 
 See [Product Overview](docs/PRODUCT_OVERVIEW.md), [Architecture](docs/ARCHITECTURE.md), and [Phase Plan](docs/PHASE_PLAN.md).
 
@@ -71,12 +72,16 @@ The system is complete through five development phases and one audit cycle:
 - the weekly digest is framed in Russian with project-level next-step pointers
 - `/memory` generates a bounded project-state summary and stores one paragraph per project
 - stored project memory is injected into chat context so the assistant retains project state without re-explanation
+- personal context about the user can be saved separately from project notes and condensed into a short working profile
+- the saved user profile is injected into relevant assistant flows so review, reflection, and chat help stay grounded in the person, not only the project
 
 **Feedback and practices**
 - when the assistant cannot do something yet, it can offer to turn that gap into a developer-facing feature request
 - feature requests can be captured as short structured briefs and stored separately from raw user feedback
 - the bot supports recurring daily practices such as morning pages and end-of-day reflection prompts
 - these practices can be configured by command or natural language, including text and voice requests
+- recurring practices now support explicit timezone capture and correction flows such as switching reminders to Tbilisi time
+- correction-style replies like “нет, только утренние страницы в 10:00” are handled as updates to the existing practice setup instead of generic chat
 
 **Reflection and review**
 - idea review uses project memory when available so critique is specific to the active project

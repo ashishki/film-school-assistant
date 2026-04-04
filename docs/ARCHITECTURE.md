@@ -1,7 +1,7 @@
 # Film School Assistant — Architecture
 
-Version: 3.1
-Last updated: 2026-04-03
+Version: 3.2
+Last updated: 2026-04-04
 Status: Active
 
 ## 1. System Definition
@@ -102,6 +102,7 @@ T2/T3 are unjustified because there is no privileged autonomous execution and no
 | `src/handlers/chat_handler.py` | Bounded tool-using assistant loop for conversational queries and actions |
 | `src/handlers/feature_feedback.py` | Bounded feature-request capture flow when the assistant cannot satisfy a request |
 | `src/practice_intents.py` and `src/handlers/practice_cmd.py` | Deterministic parsing and configuration of recurring daily practices |
+| `src/user_context.py` | Personal-context capture, bounded user-profile summary generation, and prompt injection for relevant assistant flows |
 | `src/tools.py` | Approved tool catalog for the bounded chat loop |
 | `src/reviewer.py` | Structured idea review generation |
 | `src/transcriber.py` and `src/voice.py` | Local voice transcription pipeline |
@@ -117,11 +118,13 @@ T2/T3 are unjustified because there is no privileged autonomous execution and no
 | Authorization and single-user gate | Deterministic | Security boundary must be explicit |
 | Schema, IDs, timestamps, persistence | Deterministic | State must be reliable and testable |
 | Reminder logic and due buckets | Deterministic | Time-based logic is formalizable |
+| Recurring practice timezone handling | Deterministic | Reminder delivery must follow explicit user timezone settings |
 | Weekly summary triggering and dedup | Deterministic | Delivery state must not depend on model judgment |
 | Recurring practice scheduling and dedup | Deterministic | Time-based delivery is explicit and testable |
 | Search, list, edit, archive | Deterministic | CRUD behavior is formalizable |
 | Voice transcription execution | Local ML / deterministic pipeline | Audio stays local and predictable |
 | Free-text entity extraction | LLM, bounded | Natural-language inputs are variable |
+| User-context profile summarization | LLM, bounded | Compresses saved personal context into a stable working profile |
 | Conversational tool selection | LLM, bounded | Flexible requests benefit from tool-choice reasoning |
 | Feature-request clarification and brief assembly | LLM, bounded | Used only when the product hits a real capability gap |
 | Idea review / reflection output | LLM, bounded | This is interpretive, not transactional |
@@ -142,6 +145,8 @@ What exists now:
 - ideas
 - deadlines
 - homework
+- saved personal context entries about the user
+- one bounded user-profile summary distilled from saved personal context
 - raw developer feedback
 - structured feature-request briefs
 - parsed voice and text capture history
@@ -151,6 +156,7 @@ What exists now:
 What this means:
 - the system can store and retrieve structured creative work
 - it can summarize recent activity and support continuity at the record level
+- it can retain bounded person-level context that improves review, reflection, and assistant guidance without introducing open-ended semantic memory
 - it cannot yet maintain higher-order creative continuity across themes, tensions, evolving project intent, or long-range concept development
 
 ### Planned Memory Evolution

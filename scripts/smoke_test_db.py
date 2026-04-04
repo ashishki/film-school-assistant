@@ -42,6 +42,7 @@ from src.db import (
     search_ideas,
     search_notes,
     update_recurring_reminder_status,
+    update_recurring_reminder_timezone,
     upsert_recurring_reminder,
     upsert_project_memory,
     update_deadline_due_date,
@@ -83,6 +84,8 @@ EXPECTED_TABLES = {
     "project_memory",
     "llm_call_log",
     "user_feedback",
+    "user_context_entries",
+    "user_context_summary",
     "feature_feedback",
 }
 
@@ -346,6 +349,12 @@ async def run_smoke_test() -> None:
             paused_items = await list_recurring_reminders(db, status="paused")
             assert updated_recurring["id"] in {item["id"] for item in paused_items}, \
                 "paused recurring reminder must appear in paused listing"
+            timezone_updated = await update_recurring_reminder_timezone(db, "morning_pages", "Asia/Tbilisi")
+            assert timezone_updated, "update_recurring_reminder_timezone must return True for existing kind"
+            recurring_after_tz = await list_recurring_reminders(db)
+            updated_tz_row = next(item for item in recurring_after_tz if item["kind"] == "morning_pages")
+            assert updated_tz_row["timezone"] == "Asia/Tbilisi", \
+                "update_recurring_reminder_timezone must persist timezone change"
 
             nl_practice_intent = parse_practice_intent(
                 "Присылай мне напоминания каждое утро про утренние страницы и каждый вечер про итоги дня"
@@ -357,6 +366,26 @@ async def run_smoke_test() -> None:
                 "free-text daily practice request must include morning practice"
             assert EVENING_KIND in nl_practice_intent["kinds"], \
                 "free-text daily practice request must include evening practice"
+            tz_update_intent = parse_practice_intent("Переведи напоминания на Тбилисское время")
+            assert tz_update_intent is not None, "parse_practice_intent must detect timezone update request"
+            assert tz_update_intent["action"] == "update_timezone", \
+                "timezone update request must parse as update_timezone action"
+            assert tz_update_intent["timezone"] == "Asia/Tbilisi", \
+                "timezone update request must resolve Tbilisi timezone"
+            correction_intent = parse_practice_intent("Нет, только утренние страницы в 10:00 по Тбилисскому времени")
+            assert correction_intent is not None, "parse_practice_intent must detect correction request for practices"
+            assert correction_intent["action"] == "setup", \
+                "correction with updated practice time must still parse as setup"
+            assert correction_intent["is_correction"] is True, \
+                "correction request must set is_correction flag"
+            assert correction_intent["only_selected"] is True, \
+                "correction request with 'только' must set only_selected flag"
+            assert correction_intent["kinds"] == [MORNING_KIND], \
+                "correction request for only morning practice must target morning kind only"
+            assert correction_intent["morning_time"] == "10:00", \
+                "correction request must extract updated morning time"
+            assert correction_intent["timezone"] == "Asia/Tbilisi", \
+                "correction request must preserve timezone"
 
             # T-P3: get_project_item_count counts notes and ideas for a project
             count_project = await create_project(db, "Count Project", "count-project")

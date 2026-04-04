@@ -28,15 +28,20 @@ REVIEW_SYSTEM_PROMPT = (
 )
 
 
-async def review_idea(idea: dict, config, project_memory_text: str | None = None) -> str:
+async def review_idea(
+    idea: dict,
+    config,
+    project_memory_text: str | None = None,
+    user_context_text: str | None = None,
+) -> str:
     idea_id = idea["id"]
+    prompt_parts: list[str] = []
+    if user_context_text:
+        prompt_parts.append(user_context_text)
     if project_memory_text:
-        prompt = (
-            f"Контекст проекта: {project_memory_text}\n\n"
-            f"Разбери эту киноидею в контексте проекта выше:\n\n{idea['content']}"
-        )
-    else:
-        prompt = f"Разбери эту киноидею:\n\n{idea['content']}"
+        prompt_parts.append(f"Контекст проекта: {project_memory_text}")
+    prompt_parts.append(f"Разбери эту киноидею:\n\n{idea['content']}")
+    prompt = "\n\n".join(prompt_parts)
 
     try:
         response = await asyncio.to_thread(
