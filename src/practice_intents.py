@@ -56,6 +56,8 @@ TIMEZONE_MARKERS = (
     ("utc", "UTC"),
 )
 
+WORD_RE = re.compile(r"[a-zа-яё0-9]+", re.IGNORECASE)
+
 
 def parse_practice_times(text: str) -> tuple[str | None, str | None]:
     lowered = " ".join(text.strip().lower().split())
@@ -65,11 +67,44 @@ def parse_practice_times(text: str) -> tuple[str | None, str | None]:
     if len(found_times) == 1:
         if lowered == found_times[0]:
             return found_times[0], found_times[0]
-        if any(marker in lowered for marker in MORNING_MARKERS) and not any(marker in lowered for marker in EVENING_MARKERS):
+        if _contains_any_phrase(lowered, MORNING_MARKERS) and not _contains_any_phrase(lowered, EVENING_MARKERS):
             return found_times[0], None
-        if any(marker in lowered for marker in EVENING_MARKERS) and not any(marker in lowered for marker in MORNING_MARKERS):
+        if _contains_any_phrase(lowered, EVENING_MARKERS) and not _contains_any_phrase(lowered, MORNING_MARKERS):
             return None, found_times[0]
     return None, None
+
+
+def _tokenize(text: str) -> list[str]:
+    return WORD_RE.findall(text.lower())
+
+
+def _contains_any_phrase(text: str, phrases: tuple[str, ...]) -> bool:
+    return any(phrase in text for phrase in phrases)
+
+
+def _has_daily_marker(text: str) -> bool:
+    return _contains_any_phrase(text, ENABLE_MARKERS)
+
+
+def _has_morning_reference(text: str) -> bool:
+    return _contains_any_phrase(text, MORNING_MARKERS)
+
+
+def _has_evening_reference(text: str) -> bool:
+    return _contains_any_phrase(text, EVENING_MARKERS)
+
+
+def _has_only_marker(text: str) -> bool:
+    tokens = _tokenize(text)
+    return any(marker in tokens for marker in ONLY_MARKERS)
+
+
+def _references_daily_practice_context(text: str, mentioned_kinds: list[str]) -> bool:
+    if "напомин" in text or "практик" in text or "ежеднев" in text:
+        return True
+    if not mentioned_kinds:
+        return False
+    return any(phrase in text for phrase in ("каждое утро", "каждый вечер", "каждый день"))
 
 
 def parse_practice_intent(text: str) -> dict[str, object] | None:
@@ -79,7 +114,7 @@ def parse_practice_intent(text: str) -> dict[str, object] | None:
     is_correction = lowered.startswith(("нет ", "нет,", "исправь", "точнее", "вернее")) or any(
         marker in lowered for marker in CORRECTION_MARKERS
     )
-    only_selected = any(marker in lowered for marker in ONLY_MARKERS)
+    only_selected = _has_only_marker(lowered)
 
     timezone_name = None
     for marker, zone in TIMEZONE_MARKERS:
@@ -87,21 +122,21 @@ def parse_practice_intent(text: str) -> dict[str, object] | None:
             timezone_name = zone
             break
 
-    if any(marker in lowered for marker in LIST_MARKERS):
+    if _contains_any_phrase(lowered, LIST_MARKERS):
         return {"action": "list"}
 
     mentioned_kinds: list[str] = []
-    if any(marker in lowered for marker in MORNING_MARKERS):
+    if _has_morning_reference(lowered):
         mentioned_kinds.append(MORNING_KIND)
-    if any(marker in lowered for marker in EVENING_MARKERS):
+    if _has_evening_reference(lowered):
         mentioned_kinds.append(EVENING_KIND)
 
-    if any(marker in lowered for marker in PAUSE_MARKERS):
+    if _contains_any_phrase(lowered, PAUSE_MARKERS):
         if not mentioned_kinds:
             mentioned_kinds = [MORNING_KIND, EVENING_KIND]
         return {"action": "pause", "kinds": mentioned_kinds}
 
-    if any(marker in lowered for marker in RESUME_MARKERS):
+    if _contains_any_phrase(lowered, RESUME_MARKERS):
         if not mentioned_kinds:
             mentioned_kinds = [MORNING_KIND, EVENING_KIND]
         return {"action": "resume", "kinds": mentioned_kinds}
@@ -109,10 +144,8 @@ def parse_practice_intent(text: str) -> dict[str, object] | None:
     found_times = TIME_SEARCH_RE.findall(lowered)
 
     if timezone_name is not None and not found_times and (
-        "напомин" in lowered
-        or "практик" in lowered
-        or bool(mentioned_kinds)
-    ) and any(marker in lowered for marker in TIMEZONE_UPDATE_MARKERS):
+        _references_daily_practice_context(lowered, mentioned_kinds)
+    ) and _contains_any_phrase(lowered, TIMEZONE_UPDATE_MARKERS):
         if not mentioned_kinds:
             mentioned_kinds = [MORNING_KIND, EVENING_KIND]
         return {
@@ -123,8 +156,8 @@ def parse_practice_intent(text: str) -> dict[str, object] | None:
             "only_selected": only_selected,
         }
 
-    has_enable_marker = any(marker in lowered for marker in ENABLE_MARKERS)
-    references_daily_practice = bool(mentioned_kinds) and ("напомин" in lowered or "ежеднев" in lowered or "кажд" in lowered)
+    has_enable_marker = _has_daily_marker(lowered)
+    references_daily_practice = _references_daily_practice_context(lowered, mentioned_kinds)
     if has_enable_marker or references_daily_practice or (mentioned_kinds and found_times):
         morning_time = found_times[0] if len(found_times) >= 1 else DEFAULT_MORNING_TIME
         evening_time = found_times[1] if len(found_times) >= 2 else DEFAULT_EVENING_TIME

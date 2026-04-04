@@ -388,21 +388,6 @@ async def chat_handler_wrapper(update: Update, context: ContextTypes.DEFAULT_TYP
         await message.reply_text(result)
         return
 
-    practice_intent = parse_practice_intent(text)
-    if practice_intent is not None:
-        if bool(practice_intent.get("requires_time_confirmation")):
-            state.pending_practice_setup = practice_intent
-            await message.reply_text(build_practice_time_question(practice_intent))
-            return
-        try:
-            result = await execute_practice_intent(context.bot_data["db_path"], practice_intent)
-        except aiosqlite.Error:
-            LOGGER.exception("Failed to execute practice intent for chat_id=%s", chat.id)
-            await message.reply_text("Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
-            return
-        await message.reply_text(result)
-        return
-
     if is_user_context_capture_request(text, last_assistant_message):
         pending_entity = build_user_context_pending_entity(text)
         try:
@@ -428,6 +413,21 @@ async def chat_handler_wrapper(update: Update, context: ContextTypes.DEFAULT_TYP
         state.pending_entity = pending_entity
         state.pending_entity_type = "user_context"
         await message.reply_text(_build_pending_preview(state), reply_markup=_pending_keyboard())
+        return
+
+    practice_intent = parse_practice_intent(text)
+    if practice_intent is not None:
+        if bool(practice_intent.get("requires_time_confirmation")):
+            state.pending_practice_setup = practice_intent
+            await message.reply_text(build_practice_time_question(practice_intent))
+            return
+        try:
+            result = await execute_practice_intent(context.bot_data["db_path"], practice_intent)
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to execute practice intent for chat_id=%s", chat.id)
+            await message.reply_text("Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
+            return
+        await message.reply_text(result)
         return
 
     if await maybe_handle_nl_capture(update, context):
