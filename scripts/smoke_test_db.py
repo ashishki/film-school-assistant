@@ -386,6 +386,14 @@ async def run_smoke_test() -> None:
                 "correction request must extract updated morning time"
             assert correction_intent["timezone"] == "Asia/Tbilisi", \
                 "correction request must preserve timezone"
+            false_positive_text = (
+                "Сохрани это сообщение обо мне, чтобы ты использовал его в релевантных ответах. "
+                "У меня есть групповой психолог каждый месяц, я хочу вглубь себя посмотреть, "
+                "прожить сложные внутренние эмоции и кажется это можно сделать только будучи в походе."
+            )
+            false_positive_intent = parse_practice_intent(false_positive_text)
+            assert false_positive_intent is None, \
+                "personal context text must not be misparsed as a daily practice intent"
 
             # T-P3: get_project_item_count counts notes and ideas for a project
             count_project = await create_project(db, "Count Project", "count-project")
