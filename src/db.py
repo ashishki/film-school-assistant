@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import aiosqlite
 
@@ -76,6 +77,7 @@ _ALLOWED_TABLES = frozenset({
     "reminder_log", "review_history", "weekly_reports",
     "recurring_reminders", "recurring_reminder_log",
     "project_memory", "user_feedback", "feature_feedback",
+    "user_context_entries", "user_context_summary",
 })
 
 
@@ -104,6 +106,14 @@ async def init_db(db_path: str) -> None:
     async with aiosqlite.connect(path) as db:
         db.row_factory = aiosqlite.Row
         await db.executescript(schema)
+        cursor = await db.execute("PRAGMA table_info(recurring_reminders)")
+        columns = await cursor.fetchall()
+        await cursor.close()
+        column_names = {str(row["name"]) for row in columns}
+        if "timezone" not in column_names:
+            await db.execute(
+                "ALTER TABLE recurring_reminders ADD COLUMN timezone TEXT NOT NULL DEFAULT 'Europe/Berlin'"
+            )
         await db.commit()
     LOGGER.info("Database initialized at %s", path)
 
@@ -629,6 +639,71 @@ async def create_user_feedback(
     )
 
 
+async def create_user_context_entry(
+    db: aiosqlite.Connection,
+    content: str,
+    raw_transcript: str | None = None,
+    source: str = "text",
+) -> dict[str, Any]:
+    return await _insert_and_fetch(
+        db,
+        """
+        INSERT INTO user_context_entries (content, raw_transcript, source, created_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        (content, raw_transcript, source, _utcnow_iso()),
+        "user_context_entries",
+    )
+
+
+async def list_user_context_entries(db: aiosqlite.Connection, limit: int = 20) -> list[dict[str, Any]]:
+    return await _fetch_all_dicts(
+        db,
+        "SELECT * FROM user_context_entries ORDER BY created_at DESC LIMIT ?",
+        (limit,),
+    )
+
+
+async def get_user_context_entry_count(db: aiosqlite.Connection) -> int:
+    cursor = await db.execute("SELECT COUNT(*) FROM user_context_entries")
+    row = await cursor.fetchone()
+    await cursor.close()
+    return int(row[0]) if row else 0
+
+
+async def get_user_context_summary(db: aiosqlite.Connection) -> dict[str, Any] | None:
+    return await _fetch_one_dict(
+        db,
+        "SELECT * FROM user_context_summary WHERE id = 1",
+    )
+
+
+async def upsert_user_context_summary(
+    db: aiosqlite.Connection,
+    summary_text: str,
+    entry_count_snapshot: int,
+    model_used: str,
+) -> dict[str, Any]:
+    generated_at = _utcnow_iso()
+    await db.execute(
+        """
+        INSERT INTO user_context_summary (id, summary_text, generated_at, entry_count_snapshot, model_used)
+        VALUES (1, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            summary_text = excluded.summary_text,
+            generated_at = excluded.generated_at,
+            entry_count_snapshot = excluded.entry_count_snapshot,
+            model_used = excluded.model_used
+        """,
+        (summary_text, generated_at, entry_count_snapshot, model_used),
+    )
+    await db.commit()
+    result = await _fetch_one_dict(db, "SELECT * FROM user_context_summary WHERE id = 1")
+    if result is None:
+        raise RuntimeError("Failed to fetch user_context_summary after upsert")
+    return result
+
+
 async def list_user_feedback(db: aiosqlite.Connection, limit: int = 200) -> list[dict[str, Any]]:
     return await _fetch_all_dicts(
         db,
@@ -707,21 +782,23 @@ async def upsert_recurring_reminder(
     title: str,
     prompt_text: str,
     schedule_time: str,
+    timezone_name: str = "Europe/Berlin",
     status: str = "active",
 ) -> dict[str, Any]:
     now = _utcnow_iso()
     await db.execute(
         """
-        INSERT INTO recurring_reminders (kind, title, prompt_text, schedule_time, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO recurring_reminders (kind, title, prompt_text, schedule_time, timezone, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(kind) DO UPDATE SET
             title = excluded.title,
             prompt_text = excluded.prompt_text,
             schedule_time = excluded.schedule_time,
+            timezone = excluded.timezone,
             status = excluded.status,
             updated_at = excluded.updated_at
         """,
-        (kind, title, prompt_text, schedule_time, status, now, now),
+        (kind, title, prompt_text, schedule_time, timezone_name, status, now, now),
     )
     await db.commit()
     result = await _fetch_one_dict(db, "SELECT * FROM recurring_reminders WHERE kind = ?", (kind,))
@@ -755,25 +832,68 @@ async def update_recurring_reminder_status(db: aiosqlite.Connection, kind: str, 
     return (cursor.rowcount or 0) > 0
 
 
+async def update_recurring_reminder_timezone(db: aiosqlite.Connection, kind: str, timezone_name: str) -> bool:
+    cursor = await db.execute(
+        "UPDATE recurring_reminders SET timezone = ?, updated_at = ? WHERE kind = ?",
+        (timezone_name, _utcnow_iso(), kind),
+    )
+    await db.commit()
+    return (cursor.rowcount or 0) > 0
+
+
+async def get_recurring_reminder(db: aiosqlite.Connection, kind: str) -> dict[str, Any] | None:
+    return await _fetch_one_dict(
+        db,
+        "SELECT * FROM recurring_reminders WHERE kind = ?",
+        (kind,),
+    )
+
+
 async def list_due_recurring_reminders(
     db: aiosqlite.Connection,
-    sent_on: str,
-    current_time: str,
+    sent_on: str | None = None,
+    current_time: str | None = None,
+    utc_now: datetime | None = None,
+    default_timezone: str = "Europe/Berlin",
 ) -> list[dict[str, Any]]:
-    return await _fetch_all_dicts(
+    reminders = await _fetch_all_dicts(
         db,
-        """
-        SELECT rr.*
-        FROM recurring_reminders rr
-        LEFT JOIN recurring_reminder_log rrl
-            ON rrl.recurring_reminder_id = rr.id AND rrl.sent_on = ?
-        WHERE rr.status = 'active'
-          AND rr.schedule_time <= ?
-          AND rrl.id IS NULL
-        ORDER BY rr.schedule_time ASC, rr.id ASC
-        """,
-        (sent_on, current_time),
+        "SELECT * FROM recurring_reminders WHERE status = 'active' ORDER BY schedule_time ASC, id ASC",
     )
+    due_items: list[dict[str, Any]] = []
+    current_utc = utc_now or datetime.now(timezone.utc)
+
+    for reminder in reminders:
+        timezone_name = str(reminder.get("timezone") or default_timezone or "Europe/Berlin")
+        try:
+            reminder_tz = ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError:
+            reminder_tz = ZoneInfo(default_timezone)
+            timezone_name = default_timezone
+
+        local_now = current_utc.astimezone(reminder_tz)
+        local_date = sent_on or local_now.date().isoformat()
+        local_time = current_time or local_now.strftime("%H:%M")
+        if str(reminder.get("schedule_time") or "") > local_time:
+            continue
+
+        existing_log = await _fetch_one_dict(
+            db,
+            """
+            SELECT *
+            FROM recurring_reminder_log
+            WHERE recurring_reminder_id = ? AND sent_on = ?
+            """,
+            (int(reminder["id"]), local_date),
+        )
+        if existing_log is not None:
+            continue
+
+        reminder["effective_timezone"] = timezone_name
+        reminder["effective_sent_on"] = local_date
+        due_items.append(reminder)
+
+    return due_items
 
 
 async def log_recurring_reminder(

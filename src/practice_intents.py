@@ -34,6 +34,27 @@ ENABLE_MARKERS = (
 PAUSE_MARKERS = ("пауза", "поставь на паузу", "выключи", "отключи", "останови")
 RESUME_MARKERS = ("возобнови", "включи", "снова включи", "верни", "продолжи")
 LIST_MARKERS = ("какие практики", "какие напоминания", "покажи практики", "покажи напоминания", "статус практик")
+CORRECTION_MARKERS = ("нет", "исправь", "исправим", "точнее", "вернее", "не это")
+ONLY_MARKERS = ("только", "лишь")
+TIMEZONE_UPDATE_MARKERS = (
+    "по ",
+    "время",
+    "часовой пояс",
+    "таймзон",
+    "timezone",
+    "переведи",
+    "смени",
+    "поменяй",
+)
+TIMEZONE_MARKERS = (
+    ("тбилис", "Asia/Tbilisi"),
+    ("tbilisi", "Asia/Tbilisi"),
+    ("моск", "Europe/Moscow"),
+    ("moscow", "Europe/Moscow"),
+    ("берлин", "Europe/Berlin"),
+    ("berlin", "Europe/Berlin"),
+    ("utc", "UTC"),
+)
 
 
 def parse_practice_times(text: str) -> tuple[str | None, str | None]:
@@ -55,6 +76,16 @@ def parse_practice_intent(text: str) -> dict[str, object] | None:
     lowered = " ".join(text.strip().lower().split())
     if not lowered:
         return None
+    is_correction = lowered.startswith(("нет ", "нет,", "исправь", "точнее", "вернее")) or any(
+        marker in lowered for marker in CORRECTION_MARKERS
+    )
+    only_selected = any(marker in lowered for marker in ONLY_MARKERS)
+
+    timezone_name = None
+    for marker, zone in TIMEZONE_MARKERS:
+        if marker in lowered:
+            timezone_name = zone
+            break
 
     if any(marker in lowered for marker in LIST_MARKERS):
         return {"action": "list"}
@@ -75,10 +106,26 @@ def parse_practice_intent(text: str) -> dict[str, object] | None:
             mentioned_kinds = [MORNING_KIND, EVENING_KIND]
         return {"action": "resume", "kinds": mentioned_kinds}
 
+    found_times = TIME_SEARCH_RE.findall(lowered)
+
+    if timezone_name is not None and not found_times and (
+        "напомин" in lowered
+        or "практик" in lowered
+        or bool(mentioned_kinds)
+    ) and any(marker in lowered for marker in TIMEZONE_UPDATE_MARKERS):
+        if not mentioned_kinds:
+            mentioned_kinds = [MORNING_KIND, EVENING_KIND]
+        return {
+            "action": "update_timezone",
+            "kinds": mentioned_kinds,
+            "timezone": timezone_name,
+            "is_correction": is_correction,
+            "only_selected": only_selected,
+        }
+
     has_enable_marker = any(marker in lowered for marker in ENABLE_MARKERS)
     references_daily_practice = bool(mentioned_kinds) and ("напомин" in lowered or "ежеднев" in lowered or "кажд" in lowered)
-    if has_enable_marker or references_daily_practice:
-        found_times = TIME_SEARCH_RE.findall(lowered)
+    if has_enable_marker or references_daily_practice or (mentioned_kinds and found_times):
         morning_time = found_times[0] if len(found_times) >= 1 else DEFAULT_MORNING_TIME
         evening_time = found_times[1] if len(found_times) >= 2 else DEFAULT_EVENING_TIME
         requires_time_confirmation = not found_times and (
@@ -94,7 +141,10 @@ def parse_practice_intent(text: str) -> dict[str, object] | None:
             "kinds": mentioned_kinds,
             "morning_time": morning_time,
             "evening_time": evening_time,
+            "timezone": timezone_name,
             "requires_time_confirmation": requires_time_confirmation,
+            "is_correction": is_correction,
+            "only_selected": only_selected,
         }
 
     return None

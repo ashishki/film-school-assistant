@@ -1,11 +1,19 @@
 import logging
 import re
+import os
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import aiosqlite
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.db import list_recurring_reminders, update_recurring_reminder_status, upsert_recurring_reminder
+from src.db import (
+    get_recurring_reminder,
+    list_recurring_reminders,
+    update_recurring_reminder_status,
+    update_recurring_reminder_timezone,
+    upsert_recurring_reminder,
+)
 from src.handlers.common import get_command_text, reply_text
 from src.practice_intents import (
     DEFAULT_EVENING_TIME,
@@ -43,8 +51,34 @@ def _resolve_practice_kind(raw_value: str) -> str | None:
     return PRACTICE_KIND_ALIASES.get(raw_value.strip().lower())
 
 
+def _default_timezone() -> str:
+    return os.environ.get("DEFAULT_TIMEZONE", "Europe/Berlin").strip() or "Europe/Berlin"
+
+
+def _resolve_timezone_name(raw_value: object) -> str:
+    candidate = str(raw_value or "").strip() or _default_timezone()
+    try:
+        ZoneInfo(candidate)
+    except ZoneInfoNotFoundError:
+        return _default_timezone()
+    return candidate
+
+
+def _format_timezone_suffix(timezone_name: str) -> str:
+    return f" ({timezone_name})"
+
+
+def _practice_title(kind: str) -> str:
+    return MORNING_TITLE if kind == MORNING_KIND else EVENING_TITLE
+
+
+def _build_practice_line(kind: str, schedule_time: str, timezone_name: str) -> str:
+    return f"{_practice_title(kind)} — {schedule_time}{_format_timezone_suffix(timezone_name)}"
+
+
 async def execute_practice_intent(db_path: str, intent: dict[str, object]) -> str:
     action = str(intent.get("action") or "")
+    timezone_name = _resolve_timezone_name(intent.get("timezone"))
     async with aiosqlite.connect(db_path) as db:
         db.row_factory = aiosqlite.Row
         if action == "list":
@@ -55,13 +89,18 @@ async def execute_practice_intent(db_path: str, intent: dict[str, object]) -> st
             for item in reminders:
                 status = "включено" if item["status"] == "active" else "пауза"
                 alias = "morning" if item["kind"] == MORNING_KIND else "evening"
-                lines.append(f"- {item['title']} — {item['schedule_time']} ({status}, ключ: {alias})")
+                timezone_suffix = _format_timezone_suffix(str(item.get("timezone") or _default_timezone()))
+                lines.append(f"- {item['title']} — {item['schedule_time']}{timezone_suffix} ({status}, ключ: {alias})")
             return "Ежедневные практики:\n" + "\n".join(lines)
 
         if action == "setup":
             kinds = set(intent.get("kinds", []))
+            is_correction = bool(intent.get("is_correction"))
+            only_selected = bool(intent.get("only_selected"))
             morning_time = str(intent.get("morning_time") or DEFAULT_MORNING_TIME)
             evening_time = str(intent.get("evening_time") or DEFAULT_EVENING_TIME)
+            existing_items = await list_recurring_reminders(db)
+            existing_by_kind = {str(item["kind"]): item for item in existing_items}
             if MORNING_KIND in kinds:
                 await upsert_recurring_reminder(
                     db,
@@ -69,6 +108,7 @@ async def execute_practice_intent(db_path: str, intent: dict[str, object]) -> st
                     title=MORNING_TITLE,
                     prompt_text=MORNING_PROMPT,
                     schedule_time=morning_time,
+                    timezone_name=timezone_name,
                 )
             if EVENING_KIND in kinds:
                 await upsert_recurring_reminder(
@@ -77,13 +117,49 @@ async def execute_practice_intent(db_path: str, intent: dict[str, object]) -> st
                     title=EVENING_TITLE,
                     prompt_text=EVENING_PROMPT,
                     schedule_time=evening_time,
+                    timezone_name=timezone_name,
                 )
+            paused_kinds: list[str] = []
+            if only_selected:
+                for other_kind in (MORNING_KIND, EVENING_KIND):
+                    if other_kind in kinds:
+                        continue
+                    if other_kind in existing_by_kind:
+                        if await update_recurring_reminder_status(db, other_kind, "paused"):
+                            paused_kinds.append(other_kind)
             enabled_lines = []
             if MORNING_KIND in kinds:
-                enabled_lines.append(f"Утренние страницы — {morning_time}")
+                enabled_lines.append(_build_practice_line(MORNING_KIND, morning_time, timezone_name))
             if EVENING_KIND in kinds:
-                enabled_lines.append(f"Неснятый фильм дня — {evening_time}")
-            return "Ежедневные практики включены.\n" + "\n".join(enabled_lines)
+                enabled_lines.append(_build_practice_line(EVENING_KIND, evening_time, timezone_name))
+            had_existing_selected = any(kind in existing_by_kind for kind in kinds)
+            if is_correction or had_existing_selected or only_selected:
+                header = "Обновила ежедневные практики."
+            else:
+                header = "Ежедневные практики включены."
+            if paused_kinds:
+                paused_titles = ", ".join(_practice_title(kind) for kind in paused_kinds)
+                return f"{header}\n" + "\n".join(enabled_lines) + f"\nНа паузе: {paused_titles}"
+            return f"{header}\n" + "\n".join(enabled_lines)
+
+        if action == "update_timezone":
+            kinds = list(dict.fromkeys(intent.get("kinds", []))) or [MORNING_KIND, EVENING_KIND]
+            changed = 0
+            for kind in kinds:
+                if await update_recurring_reminder_timezone(db, str(kind), timezone_name):
+                    changed += 1
+            if changed == 0:
+                return "Сначала настрой ежедневные практики, а потом уже меняй timezone."
+            target_scope = "для выбранных практик" if len(kinds) < 2 else "для ежедневных практик"
+            updated_lines = []
+            for kind in kinds:
+                row = await get_recurring_reminder(db, kind)
+                if row is None:
+                    continue
+                updated_lines.append(_build_practice_line(kind, str(row["schedule_time"]), timezone_name))
+            if updated_lines:
+                return f"Timezone обновлён {target_scope}.\n" + "\n".join(updated_lines)
+            return f"Timezone обновлён {target_scope}: {_format_timezone_suffix(timezone_name).strip()}."
 
         if action in {"pause", "resume"}:
             target_status = "paused" if action == "pause" else "active"

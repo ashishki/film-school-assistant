@@ -1,6 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from dotenv import load_dotenv
 
@@ -19,6 +20,7 @@ class Config:
     feature_capture_daily_llm_limit: int = 12
     feature_capture_max_questions: int = 3
     reminder_buckets: tuple[int, ...] = (7, 3, 1, 0)
+    default_timezone: str = "Europe/Berlin"
     log_level: str = "INFO"
 
 
@@ -51,6 +53,12 @@ def load_config() -> Config:
                 "REMINDER_BUCKETS must be comma-separated integers, e.g. '7,3,1,0'"
             ) from exc
 
+    default_timezone = os.environ.get("DEFAULT_TIMEZONE", "Europe/Berlin").strip() or "Europe/Berlin"
+    try:
+        ZoneInfo(default_timezone)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError(f"DEFAULT_TIMEZONE is invalid: {default_timezone}") from exc
+
     config = Config(
         telegram_bot_token=telegram_bot_token,
         telegram_allowed_chat_id=telegram_allowed_chat_id,
@@ -61,6 +69,7 @@ def load_config() -> Config:
         feature_capture_daily_llm_limit=int(os.environ.get("FEATURE_CAPTURE_DAILY_LLM_LIMIT", "12")),
         feature_capture_max_questions=int(os.environ.get("FEATURE_CAPTURE_MAX_QUESTIONS", "3")),
         reminder_buckets=reminder_buckets,
+        default_timezone=default_timezone,
         log_level=os.environ.get("LOG_LEVEL", "INFO"),
     )
     LOGGER.debug("Configuration loaded with db_path=%s audio_path=%s", config.db_path, config.audio_path)
