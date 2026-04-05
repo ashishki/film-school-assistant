@@ -502,6 +502,28 @@ async def inline_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text("Черновик пожелания отменён.")
         return
 
+    if query.data and query.data.startswith("pause_practice:"):
+        alias = query.data.split(":", 1)[1]
+        from src.handlers.practice_cmd import PRACTICE_KIND_ALIASES
+        kind = PRACTICE_KIND_ALIASES.get(alias)
+        if kind is None:
+            await query.edit_message_text("Не нашла такую практику.")
+            return
+        try:
+            from src.db import update_recurring_reminder_status
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                db.row_factory = aiosqlite.Row
+                await update_recurring_reminder_status(db, kind, "paused")
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to pause practice kind=%s", kind)
+            await query.edit_message_text("Не удалось поставить на паузу. Попробуй /pause_daily_practice.")
+            return
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text(
+            "Практика поставлена на паузу. Чтобы возобновить, напиши «включи практику» или /resume_daily_practice."
+        )
+        return
+
     if query.data == "confirm":
         if state.pending_entity is None:
             await query.edit_message_text("Нечего сохранять.")

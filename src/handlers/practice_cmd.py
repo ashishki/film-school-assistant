@@ -1,6 +1,7 @@
 import logging
 import re
 import os
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import aiosqlite
@@ -76,21 +77,53 @@ def _build_practice_line(kind: str, schedule_time: str, timezone_name: str) -> s
     return f"{_practice_title(kind)} — {schedule_time}{_format_timezone_suffix(timezone_name)}"
 
 
+def _next_fire_label(schedule_time: str, timezone_name: str) -> str:
+    """Return 'сегодня' or 'завтра' based on whether the reminder has already fired today."""
+    try:
+        tz = ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        return ""
+    local_now = datetime.now(timezone.utc).astimezone(tz)
+    local_time_str = local_now.strftime("%H:%M")
+    if schedule_time > local_time_str:
+        return " · следующее: сегодня"
+    return " · следующее: завтра"
+
+
 async def execute_practice_intent(db_path: str, intent: dict[str, object]) -> str:
     action = str(intent.get("action") or "")
-    timezone_name = _resolve_timezone_name(intent.get("timezone"))
     async with aiosqlite.connect(db_path) as db:
         db.row_factory = aiosqlite.Row
+
+        # Resolve timezone: use explicit intent value, else inherit from existing practices, else default
+        raw_tz = intent.get("timezone")
+        if raw_tz:
+            timezone_name = _resolve_timezone_name(raw_tz)
+        else:
+            existing_for_tz = await list_recurring_reminders(db)
+            if existing_for_tz:
+                timezone_name = _resolve_timezone_name(existing_for_tz[0].get("timezone"))
+            else:
+                timezone_name = _default_timezone()
+
         if action == "list":
             reminders = await list_recurring_reminders(db)
             if not reminders:
-                return "Ежедневные практики пока не настроены. Напиши, например: «Напоминай мне утром и вечером каждый день»."
+                return (
+                    "Ежедневные практики пока не настроены.\n"
+                    "Напиши, например: «Напоминай утренние страницы в 10:00 по Тбилиси»."
+                )
             lines = []
             for item in reminders:
                 status = "включено" if item["status"] == "active" else "пауза"
                 alias = "morning" if item["kind"] == MORNING_KIND else "evening"
-                timezone_suffix = _format_timezone_suffix(str(item.get("timezone") or _default_timezone()))
-                lines.append(f"- {item['title']} — {item['schedule_time']}{timezone_suffix} ({status}, ключ: {alias})")
+                tz_name = str(item.get("timezone") or _default_timezone())
+                timezone_suffix = _format_timezone_suffix(tz_name)
+                next_label = _next_fire_label(str(item["schedule_time"]), tz_name) if item["status"] == "active" else ""
+                lines.append(
+                    f"- {item['title']} — {item['schedule_time']}{timezone_suffix}{next_label}"
+                    f" ({status}, ключ: {alias})"
+                )
             return "Ежедневные практики:\n" + "\n".join(lines)
 
         if action == "setup":
