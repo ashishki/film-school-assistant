@@ -519,7 +519,7 @@ async def inline_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
         except ValueError:
             await query.edit_message_text("Некорректный ID практики.")
             return
-        from datetime import date, timezone as tz_module
+        from datetime import date
         from src.db import get_practice_streak, log_practice_completion
         today_str = date.today().isoformat()
         try:

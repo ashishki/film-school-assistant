@@ -295,8 +295,6 @@ async def execute_tool(
     config: Config,
     user_state: UserState,
 ) -> str:
-    del config
-
     if tool_name == "save_note":
         project_id, error = await _resolve_project(db, user_state, tool_input.get("project_slug"))
         if error is not None:
