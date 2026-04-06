@@ -111,6 +111,7 @@ The system is complete through five development phases and one audit cycle:
 - [Deployment Guide](docs/DEPLOY.md): step-by-step VPS deployment instructions
 - [Audit Review Report](docs/audit/REVIEW_REPORT.md): audit cycle findings and follow-up priorities
 - [Task Graph](docs/tasks.md): playbook-compatible execution backlog
+- [Engineering Patterns](docs/PATTERNS.md): three non-obvious implementation decisions — timezone-aware dedup, false-positive filtering, and streak calculation
 
 ## Setup
 
