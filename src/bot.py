@@ -359,20 +359,20 @@ async def chat_handler_wrapper(update: Update, context: ContextTypes.DEFAULT_TYP
                 morning_time = morning_time or parts[0]
                 evening_time = evening_time or parts[1]
             if morning_time is None or evening_time is None:
-                await message.reply_text("Нужно два времени в формате HH:MM HH:MM, например: 09:00 21:00.")
+                await message.reply_text("Нужно два времени в формате HH:MM HH:MM, например: 10:00 20:00.")
                 return
         elif "morning_pages" in kinds:
             candidate = morning_time or text.strip()
             parsed_morning, _ = parse_practice_times(f"{candidate} утро")
             if parsed_morning is None:
-                await message.reply_text("Напиши время для утра в формате HH:MM, например 09:00.")
+                await message.reply_text("Напиши время для утра в формате HH:MM, например 10:00.")
                 return
             morning_time = parsed_morning
         else:
             candidate = evening_time or text.strip()
             _, parsed_evening = parse_practice_times(f"вечер {candidate}")
             if parsed_evening is None:
-                await message.reply_text("Напиши время для вечера в формате HH:MM, например 21:00.")
+                await message.reply_text("Напиши время для вечера в формате HH:MM, например 20:00.")
                 return
             evening_time = parsed_evening
 

@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS recurring_reminders (
     title TEXT NOT NULL,
     prompt_text TEXT NOT NULL,
     schedule_time TEXT NOT NULL,
-    timezone TEXT NOT NULL DEFAULT 'Europe/Berlin',
+    timezone TEXT NOT NULL DEFAULT 'Asia/Tbilisi',
     status TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL

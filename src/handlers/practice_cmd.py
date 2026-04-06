@@ -13,6 +13,7 @@ from src.db import (
     get_practice_streak,
     get_recurring_reminder,
     list_recurring_reminders,
+    update_recurring_reminder_prompt,
     update_recurring_reminder_status,
     update_recurring_reminder_timezone,
     upsert_recurring_reminder,
@@ -43,6 +44,18 @@ EVENING_TITLE = "Неснятый фильм дня"
 EVENING_PROMPT = "Вечерняя заметка. Что случилось за день и какие моменты были неснятым фильмом? Если хочешь, просто ответь сюда."
 
 
+def _build_practice_prompt(kind: str, extra_question: str | None = None) -> str:
+    if kind == MORNING_KIND:
+        base = "Утренние страницы. О чем был утренний кофе сегодня?"
+    else:
+        base = "Вечерняя заметка. Что случилось за день и какие моменты были неснятым фильмом?"
+    if extra_question:
+        question = extra_question.strip()
+        if question:
+            base = f"{base} {question}"
+    return f"{base} Если хочешь, просто ответь сюда."
+
+
 def _parse_hhmm(value: str) -> str | None:
     candidate = value.strip()
     if not TIME_RE.fullmatch(candidate):
@@ -55,7 +68,7 @@ def _resolve_practice_kind(raw_value: str) -> str | None:
 
 
 def _default_timezone() -> str:
-    return os.environ.get("DEFAULT_TIMEZONE", "Europe/Berlin").strip() or "Europe/Berlin"
+    return os.environ.get("DEFAULT_TIMEZONE", "Asia/Tbilisi").strip() or "Asia/Tbilisi"
 
 
 def _resolve_timezone_name(raw_value: object) -> str:
@@ -137,16 +150,20 @@ async def execute_practice_intent(db_path: str, intent: dict[str, object]) -> st
             kinds = set(intent.get("kinds", []))
             is_correction = bool(intent.get("is_correction"))
             only_selected = bool(intent.get("only_selected"))
-            morning_time = str(intent.get("morning_time") or DEFAULT_MORNING_TIME)
-            evening_time = str(intent.get("evening_time") or DEFAULT_EVENING_TIME)
+            morning_time = str(intent.get("morning_time") or "").strip()
+            evening_time = str(intent.get("evening_time") or "").strip()
             existing_items = await list_recurring_reminders(db)
             existing_by_kind = {str(item["kind"]): item for item in existing_items}
+            if MORNING_KIND in kinds and not morning_time:
+                return "Сначала укажи время для утреннего напоминания в формате HH:MM."
+            if EVENING_KIND in kinds and not evening_time:
+                return "Сначала укажи время для вечернего напоминания в формате HH:MM."
             if MORNING_KIND in kinds:
                 await upsert_recurring_reminder(
                     db,
                     kind=MORNING_KIND,
                     title=MORNING_TITLE,
-                    prompt_text=MORNING_PROMPT,
+                    prompt_text=_build_practice_prompt(MORNING_KIND),
                     schedule_time=morning_time,
                     timezone_name=timezone_name,
                 )
@@ -155,7 +172,7 @@ async def execute_practice_intent(db_path: str, intent: dict[str, object]) -> st
                     db,
                     kind=EVENING_KIND,
                     title=EVENING_TITLE,
-                    prompt_text=EVENING_PROMPT,
+                    prompt_text=_build_practice_prompt(EVENING_KIND),
                     schedule_time=evening_time,
                     timezone_name=timezone_name,
                 )
@@ -181,6 +198,23 @@ async def execute_practice_intent(db_path: str, intent: dict[str, object]) -> st
                 paused_titles = ", ".join(_practice_title(kind) for kind in paused_kinds)
                 return f"{header}\n" + "\n".join(enabled_lines) + f"\nНа паузе: {paused_titles}"
             return f"{header}\n" + "\n".join(enabled_lines)
+
+        if action == "update_prompt":
+            kinds = list(dict.fromkeys(intent.get("kinds", [])))
+            question_text = str(intent.get("question_text") or "").strip()
+            if not kinds or not question_text:
+                return "Не смогла понять, какой именно вопрос добавить в практику."
+            updated_lines = []
+            for kind in kinds:
+                row = await get_recurring_reminder(db, kind)
+                if row is None:
+                    continue
+                prompt_text = _build_practice_prompt(kind, question_text)
+                if await update_recurring_reminder_prompt(db, kind, prompt_text):
+                    updated_lines.append(f"- {_practice_title(kind)}: {question_text}")
+            if not updated_lines:
+                return "Сначала настрой ежедневные практики, а потом уже меняй текст напоминания."
+            return "Обновила текст ежедневной практики.\n" + "\n".join(updated_lines)
 
         if action == "update_timezone":
             kinds = list(dict.fromkeys(intent.get("kinds", []))) or [MORNING_KIND, EVENING_KIND]
@@ -219,25 +253,30 @@ async def setup_daily_practice_command(update: Update, context: ContextTypes.DEF
     try:
         command_text = get_command_text(update)
         args = command_text.split() if command_text else []
-        if len(args) not in {0, 2}:
+        if len(args) == 0:
+            await reply_text(
+                update,
+                context,
+                "Во сколько присылать ежедневные практики?\n"
+                "Напиши двумя временами в формате HH:MM HH:MM, например: 10:00 20:00",
+            )
+            return
+        if len(args) != 2:
             await reply_text(
                 update,
                 context,
                 "Использование: /setup_daily_practice [утро_HH:MM вечер_HH:MM]\n"
-                "Пример: /setup_daily_practice 09:00 21:00",
+                "Пример: /setup_daily_practice 10:00 20:00",
             )
             return
 
-        morning_time = DEFAULT_MORNING_TIME
-        evening_time = DEFAULT_EVENING_TIME
-        if len(args) == 2:
-            parsed_morning = _parse_hhmm(args[0])
-            parsed_evening = _parse_hhmm(args[1])
-            if parsed_morning is None or parsed_evening is None:
-                await reply_text(update, context, "Время должно быть в формате HH:MM, например 09:00 21:00.")
-                return
-            morning_time = parsed_morning
-            evening_time = parsed_evening
+        parsed_morning = _parse_hhmm(args[0])
+        parsed_evening = _parse_hhmm(args[1])
+        if parsed_morning is None or parsed_evening is None:
+            await reply_text(update, context, "Время должно быть в формате HH:MM, например 10:00 20:00.")
+            return
+        morning_time = parsed_morning
+        evening_time = parsed_evening
 
         result = await execute_practice_intent(
             context.bot_data["db_path"],

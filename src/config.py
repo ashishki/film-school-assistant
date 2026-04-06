@@ -20,7 +20,7 @@ class Config:
     feature_capture_daily_llm_limit: int = 12
     feature_capture_max_questions: int = 3
     reminder_buckets: tuple[int, ...] = (7, 3, 1, 0)
-    default_timezone: str = "Europe/Berlin"
+    default_timezone: str = "Asia/Tbilisi"
     log_level: str = "INFO"
 
 
@@ -53,7 +53,7 @@ def load_config() -> Config:
                 "REMINDER_BUCKETS must be comma-separated integers, e.g. '7,3,1,0'"
             ) from exc
 
-    default_timezone = os.environ.get("DEFAULT_TIMEZONE", "Europe/Berlin").strip() or "Europe/Berlin"
+    default_timezone = os.environ.get("DEFAULT_TIMEZONE", "Asia/Tbilisi").strip() or "Asia/Tbilisi"
     try:
         ZoneInfo(default_timezone)
     except ZoneInfoNotFoundError as exc:

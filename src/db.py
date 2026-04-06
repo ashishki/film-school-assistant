@@ -112,7 +112,7 @@ async def init_db(db_path: str) -> None:
         column_names = {str(row["name"]) for row in columns}
         if "timezone" not in column_names:
             await db.execute(
-                "ALTER TABLE recurring_reminders ADD COLUMN timezone TEXT NOT NULL DEFAULT 'Europe/Berlin'"
+                "ALTER TABLE recurring_reminders ADD COLUMN timezone TEXT NOT NULL DEFAULT 'Asia/Tbilisi'"
             )
         await db.commit()
     LOGGER.info("Database initialized at %s", path)
@@ -786,7 +786,7 @@ async def upsert_recurring_reminder(
     title: str,
     prompt_text: str,
     schedule_time: str,
-    timezone_name: str = "Europe/Berlin",
+    timezone_name: str = "Asia/Tbilisi",
     status: str = "active",
 ) -> dict[str, Any]:
     now = _utcnow_iso()
@@ -840,6 +840,15 @@ async def update_recurring_reminder_timezone(db: aiosqlite.Connection, kind: str
     cursor = await db.execute(
         "UPDATE recurring_reminders SET timezone = ?, updated_at = ? WHERE kind = ?",
         (timezone_name, _utcnow_iso(), kind),
+    )
+    await db.commit()
+    return (cursor.rowcount or 0) > 0
+
+
+async def update_recurring_reminder_prompt(db: aiosqlite.Connection, kind: str, prompt_text: str) -> bool:
+    cursor = await db.execute(
+        "UPDATE recurring_reminders SET prompt_text = ?, updated_at = ? WHERE kind = ?",
+        (prompt_text, _utcnow_iso(), kind),
     )
     await db.commit()
     return (cursor.rowcount or 0) > 0
@@ -916,7 +925,7 @@ async def list_due_recurring_reminders(
     sent_on: str | None = None,
     current_time: str | None = None,
     utc_now: datetime | None = None,
-    default_timezone: str = "Europe/Berlin",
+    default_timezone: str = "Asia/Tbilisi",
 ) -> list[dict[str, Any]]:
     reminders = await _fetch_all_dicts(
         db,
@@ -926,7 +935,7 @@ async def list_due_recurring_reminders(
     current_utc = utc_now or datetime.now(timezone.utc)
 
     for reminder in reminders:
-        timezone_name = str(reminder.get("timezone") or default_timezone or "Europe/Berlin")
+        timezone_name = str(reminder.get("timezone") or default_timezone or "Asia/Tbilisi")
         try:
             reminder_tz = ZoneInfo(timezone_name)
         except ZoneInfoNotFoundError:

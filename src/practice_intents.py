@@ -4,8 +4,8 @@ import re
 TIME_SEARCH_RE = re.compile(r"\b(?:[01]\d|2[0-3]):[0-5]\d\b")
 MORNING_KIND = "morning_pages"
 EVENING_KIND = "evening_review"
-DEFAULT_MORNING_TIME = "09:00"
-DEFAULT_EVENING_TIME = "21:00"
+DEFAULT_MORNING_TIME = "10:00"
+DEFAULT_EVENING_TIME = "20:00"
 
 MORNING_MARKERS = (
     "утро",
@@ -40,6 +40,19 @@ RESUME_MARKERS = ("возобнови", "включи", "снова включи
 LIST_MARKERS = ("какие практики", "какие напоминания", "покажи практики", "покажи напоминания", "статус практик")
 CORRECTION_MARKERS = ("нет", "исправь", "исправим", "точнее", "вернее", "не это")
 ONLY_MARKERS = ("только", "лишь")
+PROMPT_UPDATE_MARKERS = (
+    "добавь",
+    "добавить",
+    "измени",
+    "изменила",
+    "исправь",
+    "переформулируй",
+    "вопрос",
+    "спрашивай",
+    "спрашивал",
+    "спрашивала",
+    "о любви",
+)
 TIMEZONE_UPDATE_MARKERS = (
     "по ",
     "время",
@@ -111,6 +124,23 @@ def _references_daily_practice_context(text: str, mentioned_kinds: list[str]) ->
     return any(phrase in text for phrase in ("каждое утро", "каждый вечер", "каждый день"))
 
 
+def _extract_prompt_question(text: str) -> str | None:
+    compact = " ".join(text.strip().split())
+    if not compact:
+        return None
+    if ":" in compact:
+        tail = compact.split(":", 1)[1].strip()
+        if tail:
+            return tail if tail.endswith("?") else f"{tail}?"
+    match = re.search(r"(что[^?.!]*\?)", compact, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    lowered = compact.lower()
+    if "о любви" in lowered:
+        return "Что сегодня было о любви?"
+    return None
+
+
 def parse_practice_intent(text: str) -> dict[str, object] | None:
     lowered = " ".join(text.strip().lower().split())
     if not lowered:
@@ -160,11 +190,27 @@ def parse_practice_intent(text: str) -> dict[str, object] | None:
             "only_selected": only_selected,
         }
 
+    if (
+        mentioned_kinds
+        and not found_times
+        and timezone_name is None
+        and _contains_any_phrase(lowered, PROMPT_UPDATE_MARKERS)
+    ):
+        question_text = _extract_prompt_question(text)
+        if question_text is not None:
+            return {
+                "action": "update_prompt",
+                "kinds": mentioned_kinds,
+                "question_text": question_text,
+                "is_correction": is_correction,
+                "only_selected": only_selected,
+            }
+
     has_enable_marker = _has_daily_marker(lowered)
     references_daily_practice = _references_daily_practice_context(lowered, mentioned_kinds)
     if has_enable_marker or references_daily_practice or (mentioned_kinds and found_times):
-        morning_time = found_times[0] if len(found_times) >= 1 else DEFAULT_MORNING_TIME
-        evening_time = found_times[1] if len(found_times) >= 2 else DEFAULT_EVENING_TIME
+        morning_time = found_times[0] if len(found_times) >= 1 else None
+        evening_time = found_times[1] if len(found_times) >= 2 else None
         requires_time_confirmation = not found_times and (
             "каждое утро" in lowered
             or "каждый вечер" in lowered
@@ -192,8 +238,8 @@ def build_practice_time_question(intent: dict[str, object]) -> str:
     if kinds == {MORNING_KIND, EVENING_KIND}:
         return (
             "Во сколько присылать эти напоминания?\n"
-            "Напиши двумя временами в формате HH:MM HH:MM, например: 09:00 21:00"
+            "Напиши двумя временами в формате HH:MM HH:MM, например: 10:00 20:00"
         )
     if MORNING_KIND in kinds:
-        return "Во сколько присылать утреннее напоминание? Напиши время в формате HH:MM, например 09:00."
-    return "Во сколько присылать вечернее напоминание? Напиши время в формате HH:MM, например 21:00."
+        return "Во сколько присылать утреннее напоминание? Напиши время в формате HH:MM, например 10:00."
+    return "Во сколько присылать вечернее напоминание? Напиши время в формате HH:MM, например 20:00."
