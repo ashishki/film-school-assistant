@@ -23,8 +23,14 @@ NL_CAPTURE_MARKERS = (
     "зафиксируй",
     "добавь",
     "создай",
+    "хочу записать",
+    "нужно записать",
+    "нужно зафиксировать",
+    "хочу сохранить",
+    "не забыть",
     "идея",
     "заметка",
+    "мысль",
     "дедлайн",
     "домаш",
     "задание",
@@ -137,7 +143,12 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         entities = parsed.get("entities", [])
         if not isinstance(entities, list) or not entities:
             LOGGER.warning("NL extraction returned empty entities list for chat_id=%s", chat.id)
-            await reply_text(update, context, "Не нашёл что сохранить. Уточни: это заметка, идея или дедлайн?")
+            await reply_text(
+                update,
+                context,
+                "Не нашёл что сохранить. Попробуй уточнить:\n"
+                "«Запиши идею — …» или «Напомни сдать … до пятницы»",
+            )
             return
 
         valid_entities: list[dict[str, str | None]] = []
