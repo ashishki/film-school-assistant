@@ -416,6 +416,38 @@ def compute_project_activity(snapshot: dict[str, object]) -> dict[str, dict[str,
     return project_activity
 
 
+async def _fetch_practice_stats(db: aiosqlite.Connection, week_start: date) -> str:
+    """Build a short practice-completions summary for the past 7 days."""
+    try:
+        week_start_iso = week_start.isoformat()
+        cursor = await db.execute(
+            """
+            SELECT rr.title, rr.id,
+                   COUNT(pc.id) AS done_count
+            FROM recurring_reminders rr
+            LEFT JOIN practice_completions pc
+                ON pc.recurring_reminder_id = rr.id
+                AND pc.completed_on >= ?
+            GROUP BY rr.id
+            ORDER BY rr.schedule_time ASC
+            """,
+            (week_start_iso,),
+        )
+        rows = await cursor.fetchall()
+        await cursor.close()
+        if not rows:
+            return ""
+        lines = []
+        for row in rows:
+            title = str(row[0])
+            done = int(row[2])
+            lines.append(f"• {title}: {done}/7 дней")
+        return "\n".join(lines)
+    except Exception:
+        LOGGER.warning("Failed to fetch practice stats for weekly summary", exc_info=True)
+        return ""
+
+
 async def generate_and_send_summary() -> int:
     config = load_config()
     configure_logging(config.log_level)
@@ -432,6 +464,7 @@ async def generate_and_send_summary() -> int:
 
         snapshot = await fetch_snapshot(db, week_start, week_end)
         project_activity = compute_project_activity(snapshot)
+        practice_stats = await _fetch_practice_stats(db, week_start)
         # Note: build_summary_text is pure Python - no LLM call. T-B2 N/A.
         message_text = build_summary_text(
             week_start=week_start,
@@ -443,6 +476,8 @@ async def generate_and_send_summary() -> int:
             upcoming_deadlines=snapshot["upcoming_deadlines"],
             stalled_projects=snapshot["stalled_projects"],
         )
+        if practice_stats:
+            message_text = f"{message_text}\n\nПрактики за неделю:\n{practice_stats}"
 
         report = await create_weekly_report(
             db,

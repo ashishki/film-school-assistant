@@ -193,6 +193,17 @@ CREATE TABLE IF NOT EXISTS recurring_reminder_log (
 
 CREATE INDEX IF NOT EXISTS idx_recurring_reminder_log_sent_on ON recurring_reminder_log(sent_on);
 
+CREATE TABLE IF NOT EXISTS practice_completions (
+    id INTEGER PRIMARY KEY,
+    recurring_reminder_id INTEGER NOT NULL,
+    completed_on TEXT NOT NULL,
+    completed_at TEXT NOT NULL,
+    UNIQUE(recurring_reminder_id, completed_on),
+    FOREIGN KEY (recurring_reminder_id) REFERENCES recurring_reminders(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_practice_completions_on ON practice_completions(recurring_reminder_id, completed_on);
+
 CREATE TABLE IF NOT EXISTS feature_feedback (
     id INTEGER PRIMARY KEY,
     source TEXT NOT NULL,

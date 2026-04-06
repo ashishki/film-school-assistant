@@ -79,6 +79,7 @@ from src.handlers.practice_cmd import (
 from src.practice_intents import build_practice_time_question, parse_practice_intent, parse_practice_times
 from src.handlers.projects import archive_project_command, new_project_command, project_command, projects_command
 from src.handlers.reflect_cmd import reflect_command
+from src.handlers.get_cmd import get_command
 from src.handlers.review import review_handler
 from src.handlers.search_cmd import search_command
 from src.state import clear_feature_feedback_state, clear_pending, get_state
@@ -502,6 +503,40 @@ async def inline_action_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text("Черновик пожелания отменён.")
         return
 
+    if query.data and query.data.startswith("complete_practice:"):
+        parts = query.data.split(":")
+        # format: complete_practice:<alias>:<reminder_id>
+        if len(parts) < 3:
+            await query.edit_message_text("Не понял команду.")
+            return
+        alias = parts[1]
+        try:
+            reminder_id = int(parts[2])
+        except ValueError:
+            await query.edit_message_text("Некорректный ID практики.")
+            return
+        from datetime import date, timezone as tz_module
+        from src.db import get_practice_streak, log_practice_completion
+        today_str = date.today().isoformat()
+        try:
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                db.row_factory = aiosqlite.Row
+                await log_practice_completion(db, reminder_id, today_str)
+                streak = await get_practice_streak(db, reminder_id)
+        except aiosqlite.Error:
+            LOGGER.exception("Failed to log practice completion reminder_id=%s", reminder_id)
+            await query.edit_message_reply_markup(reply_markup=None)
+            await query.message.reply_text("Не удалось отметить. Попробуй ещё раз.")
+            return
+        practice_label = "Утренние страницы" if alias == "morning" else "Вечерняя практика"
+        if streak >= 2:
+            streak_text = f" Серия: {streak} дня подряд!" if streak < 5 else f" Серия: {streak} дней подряд!"
+        else:
+            streak_text = ""
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text(f"{practice_label} отмечены как выполненные.{streak_text}")
+        return
+
     if query.data and query.data.startswith("pause_practice:"):
         alias = query.data.split(":", 1)[1]
         from src.handlers.practice_cmd import PRACTICE_KIND_ALIASES
@@ -684,6 +719,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("list", list_command))
     application.add_handler(CommandHandler("search", search_command))
     application.add_handler(CommandHandler("review", review_handler))
+    application.add_handler(CommandHandler("get", get_command))
     application.add_handler(CommandHandler("memory", memory_command))
     application.add_handler(CommandHandler("reflect", reflect_command))
     application.add_handler(CommandHandler("confirm", confirm_command))

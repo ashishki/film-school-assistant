@@ -160,4 +160,10 @@ async def handle_chat(
 
     user_state.add_message("user", message_text)
     user_state.add_message("assistant", final_text)
+
+    calls_after = await get_llm_calls_today(db)
+    remaining = config.daily_llm_call_limit - calls_after
+    if 0 < remaining <= 3:
+        final_text = f"{final_text}\n\n_(Осталось запросов сегодня: {remaining})_"
+
     return final_text
