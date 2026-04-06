@@ -1138,3 +1138,460 @@ Review-Mode: deep (phase-close artifact; human approval required)
 Out-Of-Scope:
   - automated test pipelines
   - Phase 6 proposals
+
+---
+
+## Phase 6 — Daily Practices, User Context, and NL UX
+
+Goal:
+- add recurring daily practice infrastructure, personal user-context memory, and NL UX improvements that make the assistant feel more intelligent and less command-driven
+
+Entry condition:
+- Phase 5 complete (✅ done)
+
+Exit criteria:
+- recurring daily practices fire timezone-correctly and deduplicate by local calendar date
+- user can save personal context ("запомни обо мне") and it is injected into chat/reflect/review
+- practice streak is tracked and visible
+- one message can contain multiple tasks and the assistant announces the split upfront
+- NL capture triggers on natural phrasings without explicit command keywords
+- phase shipped and verified in production; retrospectively documented
+
+Note: Phase 6 was shipped outside the normal loop (operator-driven). Documented here for artifact continuity.
+
+---
+
+[x] P6-01 — Daily practice reminders
+Owner: codex
+Phase: 6
+Type: schema + implementation
+Depends-On: none
+Objective: |
+  Add recurring_reminders table and delivery logic. Users configure morning/evening
+  practices via natural language or /practices command. send_reminders.py delivers
+  them timezone-correctly with deduplication by local calendar date.
+File-Scope:
+  - src/schema.sql
+  - src/db.py
+  - src/practice_intents.py
+  - src/handlers/practice_cmd.py
+  - scripts/send_reminders.py
+  - src/bot.py
+Deterministic-Owned:
+  - recurring_reminders schema (kind, title, prompt_text, schedule_time, timezone, status)
+  - timezone-aware deduplication: sent_on keyed to local date, not UTC date
+  - pause/resume/list/setup actions parsed deterministically from text
+  - requires_time_confirmation flow when no HH:MM given
+LLM-Owned:
+  - none; all practice logic is deterministic
+Acceptance-Criteria:
+  - id: AC-1
+    description: "recurring_reminders and recurring_reminder_log tables exist in schema.sql."
+    test: "smoke test"
+  - id: AC-2
+    description: "send_reminders delivers each practice once per local calendar day, not UTC day."
+    test: "code review of list_due_recurring_reminders"
+  - id: AC-3
+    description: "Natural language setup ('Напоминай утренние страницы каждый день в 10:00 по Тбилиси') configures both kind and timezone correctly."
+    test: "manual test"
+  - id: AC-4
+    description: "Pause/resume/list work without commands."
+    test: "manual test"
+Review-Mode: light
+
+---
+
+[x] P6-02 — Feature feedback capture
+Owner: codex
+Phase: 6
+Type: implementation
+Depends-On: none
+Objective: |
+  When the assistant cannot satisfy a request, offer to convert the gap into structured
+  developer feedback. Bounded multi-step LLM clarification flow, stored in feature_feedback
+  and user_feedback tables.
+File-Scope:
+  - src/handlers/feature_feedback.py
+  - src/db.py
+  - src/schema.sql
+  - src/bot.py
+Deterministic-Owned:
+  - offer trigger: assistant response matches is_incapable_response() patterns
+  - bounded question limit (max 3 clarifying questions)
+  - draft storage and confirm/discard flow
+LLM-Owned:
+  - clarifying questions (Haiku)
+  - brief assembly: summary_title, problem, desired_behavior, trigger_condition, success_result (Sonnet)
+Acceptance-Criteria:
+  - id: AC-1
+    description: "When assistant says it cannot do something, offer keyboard appears."
+    test: "manual test"
+  - id: AC-2
+    description: "Flow is bounded: max 3 questions before draft is assembled."
+    test: "code review"
+  - id: AC-3
+    description: "Draft saved to feature_feedback and user_feedback tables."
+    test: "code review"
+Review-Mode: light
+
+---
+
+[x] P6-03 — User context memory
+Owner: codex
+Phase: 6
+Type: schema + implementation
+Depends-On: none
+Objective: |
+  Allow user to save personal context ("запомни обо мне — ..."). Entries stored in
+  user_context_entries. LLM generates a bounded 5-7 line profile summary stored in
+  user_context_summary. Summary injected into chat, reflect, and review system prompts.
+File-Scope:
+  - src/schema.sql
+  - src/db.py
+  - src/user_context.py
+  - src/handlers/chat_handler.py
+  - src/handlers/reflect_cmd.py
+  - src/handlers/review.py
+  - src/bot.py
+Deterministic-Owned:
+  - capture trigger: keyword markers ("запомни обо мне", "сохрани это как контекст")
+  - summary cache invalidation: regenerate only if entry_count_snapshot changed
+  - injection into system prompts for chat, reflect, review
+LLM-Owned:
+  - profile summary generation (Haiku): compact 5-7 line labeled profile
+Acceptance-Criteria:
+  - id: AC-1
+    description: "user_context_entries and user_context_summary tables exist."
+    test: "smoke test"
+  - id: AC-2
+    description: "Message matching capture markers creates pending user_context entity."
+    test: "code review"
+  - id: AC-3
+    description: "Summary is injected into chat system prompt when available."
+    test: "code review of chat_handler"
+Review-Mode: light
+
+---
+
+[x] P6-04 — Practice UX: streak, timezone inheritance, pause button, next fire time
+Owner: codex
+Phase: 6
+Type: implementation
+Depends-On: P6-01
+Objective: |
+  Improve recurring practice experience: track daily completions (streak), inherit
+  timezone from existing practice when user doesn't specify one, show next scheduled
+  fire time in /practices list, add inline Поставить на паузу button in reminder messages.
+File-Scope:
+  - src/schema.sql
+  - src/db.py
+  - src/handlers/practice_cmd.py
+  - scripts/send_reminders.py
+  - src/bot.py
+Deterministic-Owned:
+  - practice_completions table: INSERT OR IGNORE by (recurring_reminder_id, completed_on)
+  - streak calculation: walk backwards from today using date-set membership
+  - timezone inheritance: when no timezone given in update, read existing practice's timezone
+  - next fire time: convert schedule_time to local time and show "сегодня/завтра в HH:MM"
+  - inline pause button in reminder messages: callback_data="pause_practice:{kind}"
+LLM-Owned:
+  - none
+Acceptance-Criteria:
+  - id: AC-1
+    description: "practice_completions table created with UNIQUE(recurring_reminder_id, completed_on)."
+    test: "smoke test"
+  - id: AC-2
+    description: "/practices shows streak and weekly count per practice."
+    test: "manual test"
+  - id: AC-3
+    description: "When user updates practice time without specifying timezone, existing timezone is preserved."
+    test: "code review"
+  - id: AC-4
+    description: "Reminder messages include inline Поставить на паузу button."
+    test: "code review"
+Review-Mode: light
+
+---
+
+[x] P6-05 — NL UX improvements
+Owner: codex
+Phase: 6
+Type: implementation
+Depends-On: none
+Objective: |
+  Expand NL capture to work on natural phrasings users actually use ("хочу записать",
+  "не забыть", "мысль"). When multiple entities found, announce count upfront. After
+  handling a practice intent, also run NL if NL markers present. Enrich extraction prompt
+  with entity-type descriptions and examples for better automatic classification.
+File-Scope:
+  - src/handlers/nl_handler.py
+  - src/handlers/confirm.py
+  - src/handlers/help_cmd.py
+  - src/bot.py
+Deterministic-Owned:
+  - NL_CAPTURE_MARKERS expansion: add "хочу записать", "нужно зафиксировать", "не забыть", "мысль", etc.
+  - multi-entity count announcement: "Нашёл N записей — разберём по одной."
+  - queue progress indicator: "Ещё N в очереди:" prefix in subsequent previews
+  - mixed intent: after practice intent handled, run maybe_handle_nl_capture if NL markers present
+LLM-Owned:
+  - enriched extraction prompt: entity-type descriptions and examples guide classification
+Acceptance-Criteria:
+  - id: AC-1
+    description: "should_try_nl_capture returns True for 'хочу записать что-то', 'не забыть', 'мысль про монтаж'."
+    test: "unit check"
+  - id: AC-2
+    description: "Multi-entity message shows count announcement before first preview."
+    test: "code review"
+  - id: AC-3
+    description: "EXTRACTION_SYSTEM_PROMPT contains descriptions for all four entity types."
+    test: "code review"
+  - id: AC-4
+    description: "Ruff passes."
+    test: "CI: ruff check src/"
+Review-Mode: light
+
+---
+
+## Phase 7 — Continuity Layer Improvement
+
+Goal:
+- make project memory genuinely useful across sessions: structured, time-aware, and surfaced at the right moment
+
+Entry condition:
+- Phase 6 complete (✅ done)
+- Phase 7 decomposition approved by human
+
+Exit criteria:
+- project memory has four structured fields instead of a flat paragraph
+- homework is included in project memory context
+- memory regenerates when stale by time, not only by item count
+- user returning after a gap sees a brief "here's where you were" surface
+- accumulated review findings feed into /reflect instead of raw JSON dump
+- phase eval pack confirms continuity is materially improved and no regressions
+
+---
+
+[ ] P7-01 — Structured project memory format
+Owner: codex
+Phase: 7
+Type: implementation
+Depends-On: none
+Objective: |
+  Replace the flat one-paragraph project memory summary with a four-field structured
+  format. The LLM generates labeled sections rather than prose. Injection into chat
+  and reflect uses the same text but the structure makes each field independently useful.
+
+  Target format (stored in summary_text):
+    Фокус: {one sentence on current creative or practical center of gravity}
+    Открытые вопросы: {2-3 active unresolved threads as a compact list}
+    Последнее: {what changed or was added in the most recent activity}
+    Следующий шаг: {one concrete action for next session}
+Why-Now: |
+  The current flat paragraph is better than nothing but loses the signal in prose.
+  A four-field format makes each piece independently injectable, readable, and
+  evaluatable. No schema change needed — summary_text stores labeled text.
+File-Scope:
+  - src/handlers/memory_cmd.py
+Deterministic-Owned:
+  - MEMORY_SYSTEM_PROMPT rewrite: instruct LLM to produce exactly four labeled fields
+  - output displayed to user as-is (Telegram renders the labels naturally)
+  - injection into chat system prompt unchanged (same field, richer content)
+LLM-Owned:
+  - generation of structured four-field output (Haiku); no inventing facts not in input
+Acceptance-Criteria:
+  - id: AC-1
+    description: "MEMORY_SYSTEM_PROMPT instructs LLM to produce exactly Фокус, Открытые вопросы, Последнее, Следующий шаг fields."
+    test: "code review of memory_cmd.py"
+  - id: AC-2
+    description: "/memory output contains all four labeled fields."
+    test: "manual test"
+  - id: AC-3
+    description: "Output contains no facts not traceable to input notes/ideas/deadlines/homework."
+    test: "manual review of output against DB state"
+  - id: AC-4
+    description: "Ruff passes."
+    test: "CI: ruff check src/"
+Dependencies: none
+Review-Mode: light
+Out-Of-Scope:
+  - separate DB columns for each field
+  - per-field injection into different parts of system prompt
+  - parsing the structured output back into structured data
+
+---
+
+[ ] P7-02 — Homework inclusion in project memory
+Owner: codex
+Phase: 7
+Type: implementation
+Depends-On: none
+Objective: |
+  Include active homework records in the data passed to project memory generation.
+  Currently memory_cmd.py fetches notes, ideas, and deadlines but not homework.
+  For a film student, homework is core project context.
+Why-Now: |
+  Low-complexity fix with high context value. Homework is already in the schema;
+  the gap is one missing query and one missing section in _build_input_text.
+File-Scope:
+  - src/handlers/memory_cmd.py
+  - src/db.py
+Deterministic-Owned:
+  - _fetch_records adds homework query: title, due_date, status WHERE project_id AND status = 'pending'
+  - get_project_item_count adds homework to the count sum
+  - _build_input_text adds Домашние задания section when homework list is non-empty
+LLM-Owned:
+  - none; LLM receives richer input and generates same structured format
+Acceptance-Criteria:
+  - id: AC-1
+    description: "_fetch_records returns a fourth tuple element: list of active homework rows."
+    test: "code review"
+  - id: AC-2
+    description: "get_project_item_count SQL includes homework count in the sum."
+    test: "code review"
+  - id: AC-3
+    description: "_build_input_text includes a Домашние задания section when homework is non-empty."
+    test: "code review"
+  - id: AC-4
+    description: "Ruff passes."
+    test: "CI: ruff check src/"
+Dependencies: none
+Review-Mode: light
+Out-Of-Scope:
+  - homework from other projects leaking into active project memory
+  - completed homework included in memory
+
+---
+
+[ ] P7-03 — Time-based memory staleness
+Owner: codex
+Phase: 7
+Type: implementation
+Depends-On: none
+Objective: |
+  Regenerate project memory when it is older than MEMORY_STALENESS_DAYS (default: 3)
+  even if item count has not changed. Currently memory is only regenerated when
+  item_count_snapshot differs — edits, re-reviews, and time passing are invisible to
+  the cache.
+Why-Now: |
+  A user returning after 4 days gets the same memory snapshot as they left. This is
+  the most common continuity failure point. Adding a time-based staleness check fixes
+  it with minimal complexity: one datetime comparison at cache-hit time.
+File-Scope:
+  - src/handlers/memory_cmd.py
+  - src/config.py
+Deterministic-Owned:
+  - MEMORY_STALENESS_DAYS added to Config (default 3, env-override: MEMORY_STALENESS_DAYS)
+  - cache-hit check: existing_memory is fresh only if item_count matches AND generated_at is within staleness window
+  - staleness window uses generated_at column already present in project_memory table
+LLM-Owned:
+  - none; staleness logic is purely deterministic
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Config has memory_staleness_days: int = 3 with env-override support."
+    test: "code review"
+  - id: AC-2
+    description: "memory_command regenerates summary when generated_at is older than staleness window, even if item count unchanged."
+    test: "code review of staleness check"
+  - id: AC-3
+    description: "Cache-hit path still works when item count and generated_at are both fresh."
+    test: "code review"
+  - id: AC-4
+    description: "Ruff passes."
+    test: "CI: ruff check src/"
+Dependencies: none
+Review-Mode: light
+Out-Of-Scope:
+  - per-project staleness configuration
+  - automatic background regeneration (chat-triggered only)
+
+---
+
+[ ] P7-04 — "Returning after a gap" surface
+Owner: codex
+Phase: 7
+Type: implementation
+Depends-On: P7-01
+Objective: |
+  When the user sends their first message after being absent for GAP_DAYS or more
+  (default: 3), and an active project with memory exists, the bot prepends a one-line
+  "you were here" reminder before handling the actual message.
+
+  Format: "Последний раз ты работала над «{project_name}»: {memory.current_focus}"
+
+  This surfaces orientation at the moment of re-entry without requiring a command.
+Why-Now: |
+  The most common continuity failure is the cold-start feeling after a gap. /memory
+  and /reflect exist but require intent. A passive one-line surface at re-entry costs
+  nothing and restores context before the user even asks.
+File-Scope:
+  - src/state.py
+  - src/bot.py
+  - src/db.py
+Deterministic-Owned:
+  - last_active: datetime | None added to UserState; updated on each message receipt
+  - gap detection: if last_active is not None and (now - last_active).days >= GAP_DAYS → surface
+  - GAP_DAYS: int from config (default 3)
+  - surface logic: read active project memory from DB; prepend one-line snippet to next reply
+  - surface fires once per gap event; last_active resets after surfacing
+LLM-Owned:
+  - none; snippet is deterministically assembled from stored memory fields
+Acceptance-Criteria:
+  - id: AC-1
+    description: "UserState has last_active: datetime | None; updated at chat_handler_wrapper entry."
+    test: "code review"
+  - id: AC-2
+    description: "First message after GAP_DAYS absence with active project and memory: one-line snippet prepended to reply."
+    test: "code review of gap detection"
+  - id: AC-3
+    description: "If no active project or no memory: gap surface is skipped silently."
+    test: "code review"
+  - id: AC-4
+    description: "Gap surface fires once; second message in same session does not repeat it."
+    test: "code review"
+  - id: AC-5
+    description: "Ruff passes."
+    test: "CI: ruff check src/"
+Dependencies: P7-01
+Review-Mode: light
+Out-Of-Scope:
+  - gap detection across bot restarts (last_active lives in-process only)
+  - multi-project gap summary
+  - LLM-generated re-entry message
+
+---
+
+[ ] P7-05 — Phase 7 Continuity Eval Pack
+Owner: claude
+Phase: 7
+Type: documentation / eval
+Depends-On: P7-01, P7-02, P7-03, P7-04
+Objective: |
+  Evaluate Phase 7 continuity improvements across four dimensions: structured memory
+  quality, homework inclusion, staleness handling, and returning-user surface.
+  Confirm that each improvement is material and no regressions were introduced.
+  Produce a structured eval pack that gates phase close.
+File-Scope:
+  - docs/review/continuity_eval_p7.md (new file)
+Deterministic-Owned:
+  - eval structure: dimension / before / after / verdict / findings
+  - dimensions: structured memory, homework, staleness, gap surface
+LLM-Owned:
+  - verdict prose from session evidence and code review
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Eval covers all four dimensions."
+    test: "doc structure check"
+  - id: AC-2
+    description: "Each dimension has a verdict (improved / unchanged / regressed) with evidence."
+    test: "manual review"
+  - id: AC-3
+    description: "No fabrication findings present."
+    test: "manual review"
+  - id: AC-4
+    description: "Phase 7 close decision references this eval pack."
+    test: "CODEX_PROMPT.md update at phase close"
+Dependencies: P7-01, P7-02, P7-03, P7-04
+Review-Mode: deep (phase-close artifact; human approval required)
+Out-Of-Scope:
+  - automated eval pipelines
+  - Phase 8 proposals

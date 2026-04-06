@@ -14,7 +14,7 @@ It is not a wishlist. It is the recommended development order.
 
 ## 2. What Has Already Been Built
 
-Implemented foundation (Phases 0–5, Audit Cycle 1):
+Implemented foundation (Phases 0–6, Audit Cycle 1):
 - Telegram-first capture and management by text and voice
 - structured entities: notes, ideas, deadlines, homework
 - project scoping; confirmation and edit replies are project-aware
@@ -30,6 +30,12 @@ Implemented foundation (Phases 0–5, Audit Cycle 1):
 - reminders; weekly digest with project-level next-step framing
 - search, edit, archive
 - private VPS deployment with SQLite and `systemd`; documented in `docs/DEPLOY.md`
+- recurring daily practices — configured by text or voice, timezone-aware dedup, inline pause button
+- practice completion tracking — streak and weekly count in `/practices` and weekly digest
+- user context memory — saved personal entries condensed into a working profile; injected into review, reflection, and chat
+- feature-feedback capture — bounded multi-step LLM flow for turning capability gaps into developer briefs
+- NL markers expanded — natural phrasings («не забыть», «мысль», «хочу записать») trigger capture without command syntax
+- mixed-intent routing — one message can contain both a practice setup and NL capture items
 
 This foundation is substantial enough to support a real product. The next work should clarify and deepen it, not replace it.
 
@@ -394,14 +400,101 @@ Packaging a weakly differentiated product surface earlier would amplify the wron
 
 - multi-user product unless evidence clearly demands it
 
+## 9b. Phase 6 — Daily Practices, User Context, NL UX (Retrospective)
+
+### Objective
+
+Add recurring creative practices, personal user context memory, feature-feedback capture, and improved NL capture markers. Shipped as operator-driven development between Phases 5 and 7.
+
+### What was built
+
+- **Daily practices** (`P6-01`): `recurring_reminders` + `recurring_reminder_log` schema; timezone-aware dedup; NL setup via `practice_intents.py`; pause/resume/list commands.
+- **Feature feedback capture** (`P6-02`): `is_incapable_response` trigger; bounded multi-step LLM clarification (max 3 questions); `feature_feedback` + `user_feedback` tables.
+- **User context memory** (`P6-03`): `user_context_entries` + `user_context_summary` tables; `SAVE_CONTEXT_MARKERS` detection; Haiku profile summary; injection into chat/reflect/review system prompts.
+- **Practice UX** (`P6-04`): `practice_completions` table + streak calculation; timezone inheritance from existing practice; next fire time in `/practices`; inline "Поставить на паузу" button in reminders.
+- **NL UX** (`P6-05`): expanded `NL_CAPTURE_MARKERS`; multi-entity count announcement; mixed-intent routing (practice + NL in one message); enriched `EXTRACTION_SYSTEM_PROMPT` with entity-type descriptions and examples.
+
+### Phase close notes
+
+No formal review pack. Documented retrospectively during Phase 7 decomposition pass.
+
+---
+
+## 9c. Phase 7 — Continuity Layer Improvement
+
+### Objective
+
+Make project memory independently useful per field, time-aware in staleness, and surfaced passively for returning users.
+
+### Why it belongs here
+
+The current project memory is a flat paragraph generated on demand. It cannot answer "where did I leave off?" without a user command. Users returning after a gap have no orientation signal. The continuity promise of the product is incomplete until these are fixed.
+
+### Must exist before starting
+
+- Phase 6 complete
+- Phase 7 decomposition pass (complete as of 2026-04-06)
+- human approval before first task dispatch
+
+### Scope in
+
+- structured four-field project memory format (Фокус / Открытые вопросы / Последнее / Следующий шаг)
+- homework included in project memory context
+- time-based staleness — regenerate memory if older than 3 days regardless of item count
+- passive re-entry surface — a brief orientation snippet for users returning after a gap of 3+ days
+- Phase 7 continuity eval pack
+
+### Scope out
+
+- embeddings or vector retrieval
+- multi-project memory cross-reference
+- autonomous memory refresh without trigger
+- web interface
+- multi-user behavior
+
+### Key artifacts
+
+- `src/handlers/memory_cmd.py` — structured memory generation and staleness logic
+- `src/db.py` — `get_project_item_count` updated to include homework
+- `src/bot.py` or `src/handlers/chat_handler.py` — gap detection and re-entry snippet
+- `docs/review/continuity_eval_p7.md` — eval pack
+
+### Acceptance criteria
+
+- `/memory` returns four labeled fields, each independently useful
+- homework is included in the project memory context fed to the LLM
+- memory older than 3 days triggers regeneration on next `/memory` call
+- a user who was absent 3+ days receives a one-line re-entry snippet before the first assistant response (no command required)
+- no regressions in existing memory injection into chat, reflect, or review flows
+
+### Evidence / evals / review checks
+
+- eval pack `docs/review/continuity_eval_p7.md` covering all four fields and the re-entry surface
+- regression check: memory injection still works in chat, reflect, review
+- deep review mandatory at phase close
+
+### Deterministic vs LLM
+
+- deterministic: staleness check (time-based), gap detection (`last_active` in `UserState`), re-entry trigger, homework fetch
+- LLM (Haiku): structured four-field summary generation
+
+### Major risks
+
+- re-entry snippet is intrusive or fires incorrectly — mitigate with conservative gap threshold and ability to dismiss
+- four-field format adds prompt length — mitigate by keeping each field to one sentence
+
+### Deferred
+
+- review history as accumulated summary rather than raw JSON dump in `/reflect` (deferred to Phase 8)
+- second audit cycle for NL queue and clarify paths
+
+---
+
 ## 10. Current Development Status
 
-Phases 0–5 and Audit Cycle 1 are complete. There is no active phase.
+Phases 0–6 and Audit Cycle 1 are complete. Phase 7 (Continuity Layer Improvement) is decomposed and pending phase entry check.
 
-If development resumes, the recommended next areas (in order of leverage):
-1. Voice capture improvement — voice notes currently enter the same extraction path but lose the multi-entity and context benefits; aligning voice + text capture would close that gap.
-2. Second audit cycle — now that NL extraction is significantly more complex, a targeted code audit of the queue and clarify paths would be valuable before any further expansion.
-3. Web review layer — deferred per DECISIONS.md; condition not yet met but closer now that capture quality has improved.
+Phase 7 tasks are in `docs/tasks.md` and `docs/CODEX_PROMPT.md`. The entry condition is human approval before first task dispatch.
 
 ## 10. Active Development Loop
 

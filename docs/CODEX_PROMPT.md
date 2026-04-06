@@ -1,48 +1,39 @@
 # Film School Assistant — Codex Session State
 
-Last updated: 2026-04-01
+Last updated: 2026-04-06
 
 ---
 
 ## Project
 
 - Name: Film School Assistant
-- Root: `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant`
-- Repository state: existing operational project with retrofit workflow infrastructure and a new product/documentation refactor
+- Root: `/srv/openclaw-her/workspace/film-school-assistant`
+- Repository state: operational product; Phases 0–6 complete; Phase 7 decomposed and ready for entry check
 
 ---
 
 ## Current Phase
 
-- Phase: 5 — NL Interaction Quality — COMPLETE
-- Phase close artifact: `docs/review/nl_quality_review_p5.md`
-- Phase entry: Audit Cycle 1 all 15 findings resolved (2026-04-01)
+- Phase: 7 — Continuity Layer Improvement — PENDING
+- Phase entry condition: Phase 7 decomposition pass complete (this file); human approval required before first task dispatch
 
-─── Fix Queue ─── (empty) ───────────────────────────────────────────
-✅ FIX-1 [P1] — log_llm_call moved after complete_json in nl_handler.py (2026-04-01)
-✅ FIX-2 [P1] — log_llm_call moved after review_idea in review.py (2026-04-01)
-─────────────────────────────────────────────────────────────────────
+--- Fix Queue --- (empty) ---
 
-─── Phase 5 Task Status ─────────────────────────────────────────────
-[x] P5-01 — Multi-entity extraction and queued confirmation
-[x] P5-02 — Clarifying questions on parse failure
-[x] P5-03 — Уточнить button and re-extraction flow
-[x] P5-04 — NL context window for reference resolution
-[x] P5-05 — Phase 5 NL Quality Review Pack
-─────────────────────────────────────────────────────────────────────
+--- Phase 7 Task Status ---
+[ ] P7-01 — Structured project memory format
+[ ] P7-02 — Homework inclusion in project memory
+[ ] P7-03 — Time-based memory staleness
+[ ] P7-04 — "Returning after a gap" surface
+[ ] P7-05 — Phase 7 Continuity Eval Pack
 
 ---
 
 ## Baseline
 
-- Current code baseline: existing operational assistant; no new code behavior was changed in this documentation pass
-- Local verification status in the current shell:
-  - no product runtime checks were re-run during this documentation refactor
-  - no new test claims are made
-- CI status: not re-verified during this pass
-
-Rule:
-- do not claim implementation verification that did not happen
+- CI: passing (ruff, smoke test)
+- Bot: running in production on VPS as `film-school-bot.service`
+- DB: `/srv/openclaw-her/workspace/film-school-assistant/data/assistant.db`
+- Rule: do not claim implementation verification that did not happen
 
 ---
 
@@ -63,140 +54,80 @@ Rule:
 Deterministic-owned areas:
 - auth
 - SQLite persistence
-- scheduling
-- reminders
+- scheduling and reminders (timezone-aware, deduplicated by local calendar date)
+- recurring practice delivery and deduplication
 - weekly digest triggering and dedup
 - search/edit/archive flows
 - local voice pipeline execution
+- practice streak tracking
 
 LLM-owned, bounded areas:
-- free-text entity extraction
+- free-text entity extraction (enriched prompt with entity-type descriptions)
 - conversational tool selection
 - idea critique and reflection
+- user-context profile summarization (Haiku)
+- project memory generation (Haiku; moving to structured four-field format in Phase 7)
 
 ---
 
 ## Product Priorities
 
-- stop presenting the product as a bot feature bundle
-- treat Telegram as interface layer, not product identity
-- strengthen continuity and clarity before expanding surfaces
+- strengthen continuity: project memory should surface where the user left off, not just what exists
+- time-awareness: staleness by time, not only by item count
+- passive re-entry: "you were here" surface for returning users without requiring a command
 - keep future work artifact-first, phase-based, and reviewable
 
 ---
 
 ## Active Loop Model
 
-The repository is past the initial bootstrap stage.
-
 Use this loop:
-- `Claude Orchestrator` selects the next active phase
-- `Claude` performs a Phase Decomposition Pass for that phase
+- `Claude Orchestrator` reads this file and selects the next active phase
+- `Claude` performs a Phase Decomposition Pass (already done for Phase 7)
 - `Claude` performs a Phase Entry Check
-- `Claude Orchestrator` dispatches one task at a time to Codex through the existing execution mechanism
+- `Claude Orchestrator` dispatches one task at a time to Codex via `codex exec -s workspace-write`
 - each task receives light review
 - each phase ends with deep review and human approval
 
-Do not assume that a full-project Strategist rerun or original full-repo Phase 1 Validator run is required.
+Do not assume a full-project Strategist rerun is required.
 
 ---
 
 ## Open Findings
 
-- `P1` The product foundation is real, but the main differentiation is still under-expressed unless the repo is read through the new docs set.
-- `P2` UX continuity is weaker than storage capability; Phase 1 should address experience before architectural expansion.
-- `P3` Creative memory is the next substantial capability, but only after continuity artifacts and UX framing are strengthened.
-- `P4` Web packaging is optional and deferred; it is not a prerequisite for the next value step.
+- `P2` Project memory is a flat paragraph; structured fields (Фокус / Открытые вопросы / Последнее / Следующий шаг) would make it independently useful per field — addressed in P7-01
+- `P2` Homework excluded from project memory context — addressed in P7-02
+- `P2` Memory cache invalidation ignores time; stale memory after 3+ day gap — addressed in P7-03
+- `P2` No passive re-entry surface; user must explicitly call /memory or /reflect after a gap — addressed in P7-04
+- `P3` Review history injected into /reflect as raw JSON dump rather than accumulated summary — deferred to Phase 8
 
 ---
 
-## Completed Tasks
+## Completed Tasks (archived — Phases 0–5)
 
-- documentation system refactor:
-  - rewrote `README.md`
-  - added `docs/PRODUCT_OVERVIEW.md`
-  - rewrote `docs/ARCHITECTURE.md`
-  - added `docs/WORKFLOW_BOUNDARIES.md`
-  - added `docs/PHASE_PLAN.md`
-  - added `docs/USER_EXPERIENCE.md`
-  - added `docs/DECISIONS.md`
-  - refreshed `docs/spec.md`
-  - refreshed `docs/tasks.md`
-- Phase 1 Decomposition Pass:
-  - decomposed Phase 1 into five tasks (P1-01 through P1-05) in `docs/tasks.md`
-  - added Phase 1 UX behavioral requirements (UXR-1 through UXR-5) to `docs/spec.md` section 10
-  - advanced `docs/CODEX_PROMPT.md` to Phase 1 with P1-01 as active task
-- Phase 1 Implementation:
-  - P1-01: `docs/examples/ux_acceptance_examples.md` — UX eval contract (7 moments, anti-pattern table)
-  - P1-02: `scripts/send_summary.py` — digest rewritten with Russian locale, project-framing opening
-  - P1-03: `src/handlers/confirm.py` — project name in confirmation replies, emoji removed, gender fixed
-  - P1-04: `src/handlers/confirm.py`, `nl_handler.py`, `reviewer.py` — edit ack, type-select prompt, unreviewed count pointer
-  - P1-05: `docs/review/ux_review_p1.md` — UX review pack; 3 low-severity gaps deferred to Phase 2
-- Phase 2 Decomposition Pass:
-  - decomposed Phase 2 into four tasks (P2-01 through P2-04) in `docs/tasks.md`
-  - added Phase 2 memory behavioral requirements (MR-1 through MR-4) to `docs/spec.md` section 11
-  - advanced `docs/CODEX_PROMPT.md` to Phase 2 with P2-01 as active task
-- Phase 2 Implementation:
-  - P2-01: `src/schema.sql`, `src/db.py` — project_memory table + upsert/get/item_count
-  - P2-02: `src/handlers/memory_cmd.py` — /memory command, bounded LLM generation, staleness cache
-  - P2-03: `src/handlers/chat_handler.py` — memory injection into system prompt
-  - P2-04: `docs/review/continuity_eval_p2.md` — continuity eval; 3 low-severity findings deferred to Phase 3
-- Phase 3 Decomposition Pass:
-  - decomposed Phase 3 into three tasks (P3-01 through P3-03) in `docs/tasks.md`
-  - added Phase 3 reflection behavioral requirements (RR-1 through RR-3) to `docs/spec.md` section 12
-  - advanced `docs/CODEX_PROMPT.md` to Phase 3 with P3-01 as active task
-- Phase 3 Implementation:
-  - P3-01: `src/reviewer.py`, `src/handlers/review.py` — inject project memory context into idea review prompt
-  - P3-02: `src/handlers/reflect_cmd.py`, `src/bot.py`, `src/handlers/help_cmd.py` — /reflect command for project-level structured reflection
-  - P3-03: `docs/review/reflection_eval_p3.md` — reflection eval pack; all findings low/low-medium severity, phase CLOSED
-- Phase 5 Implementation:
-  - P5-01: `src/state.py`, `src/handlers/nl_handler.py`, `src/handlers/confirm.py`, `src/bot.py` — multi-entity extraction and queued confirmation
-  - P5-02: `src/handlers/nl_handler.py` — targeted clarifying questions on parse failure
-  - P5-03: `src/state.py`, `src/handlers/confirm.py`, `src/bot.py`, `src/handlers/nl_handler.py` — Уточнить button and re-extraction flow
-  - P5-04: `src/state.py`, `src/handlers/nl_handler.py` — NL context window for back-reference resolution
-  - P5-05: `docs/review/nl_quality_review_p5.md` — Phase 5 review pack; 2 low-severity findings deferred, phase CLOSED
-- Phase 5 Decomposition Pass:
-  - decomposed Phase 5 into five tasks (P5-01 through P5-05) in `docs/tasks.md`
-  - added Phase 5 NL behavioral requirements (NR-1 through NR-4) to `docs/spec.md` section 14
-  - advanced `docs/CODEX_PROMPT.md` to Phase 5 with P5-01 as active task
-- Phase 4 Implementation:
-  - P4-01: `systemd/film-school-bot.service`, `.env.example`, `docs/DEPLOY.md` — deployment package
-  - P4-02: `src/bot.py` (start_command) — onboarding flow: emoji removed, first-project hint added
-  - P4-03: `docs/review/productization_review_p4.md` — productization review pack; no regressions, phase CLOSED
+Phase 0 (documentation clarity): D01–D05 — README, PRODUCT_OVERVIEW, ARCHITECTURE, WORKFLOW_BOUNDARIES, PHASE_PLAN, DECISIONS, spec.md, CODEX_PROMPT
+Phase 1 (UX continuity): P1-01–P1-05 — UX examples pack, weekly digest rewrite, confirm flow language, edit ack, UX review pack
+Phase 2 (creative memory): P2-01–P2-04 — project_memory schema + db functions, /memory command, memory injection into chat, continuity eval
+Phase 3 (reflection): P3-01–P3-03 — memory context into review, /reflect command, reflection eval pack
+Phase 4 (productization): P4-01–P4-03 — deployment package, /start onboarding, productization review
+Phase 5 (NL quality): P5-01–P5-05 — multi-entity extraction + queue, clarifying questions, Уточнить button, NL context window, NL quality review
+Audit Cycle 1 (2026-04-01): 15 findings; FIX-1 and FIX-2 (P1) resolved; all P2/P3 findings resolved
 
----
+## Completed Tasks — Phase 6 (Daily Practices, User Context, NL UX)
 
-## Phase History
+Phase entry: Phase 5 complete; operator-driven development 2026-04-03 to 2026-04-06
+Phase close artifact: none (retrospectively documented; no formal review pack)
 
-- Earlier retrofit work: aligned the project with the AI workflow playbook artifact system
-- Current pass: integrated product framing, architecture clarity, UX principles, and phased next-step planning into that artifact system
-
----
-
-## Open Findings (Audit Cycle 1 — 2026-04-01)
-
-| ID | Sev | Description | Files | Status |
-|----|-----|-------------|-------|--------|
-| CODE-1 | P1 | log_llm_call fires before LLM in nl_handler | src/handlers/nl_handler.py | ✅ Fixed 2026-04-01 |
-| CODE-2 | P1 | log_llm_call fires before LLM in review.py | src/handlers/review.py | ✅ Fixed 2026-04-01 |
-| CODE-3 | P2 | due_date not validated before DB write | src/tools.py | ✅ Fixed 2026-04-01 |
-| CODE-4 | P2 | chat_handler bypasses openclaw_client retry | src/handlers/chat_handler.py | ✅ Fixed 2026-04-01 |
-| CODE-5 | P2 | reflect input text no per-item cap | src/handlers/reflect_cmd.py | ✅ Fixed 2026-04-01 |
-| CODE-6 | P2 | REVIEW_SYSTEM_PROMPT in English (mixed with Russian context) | src/reviewer.py | ✅ Fixed 2026-04-01 |
-| CODE-7 | P2 | send_summary emoji + English section headers | scripts/send_summary.py | ✅ Fixed 2026-04-01 |
-| CODE-8 | P2 | Memory cap inconsistent: spec/prompt/API disagree | src/handlers/memory_cmd.py | ✅ Fixed 2026-04-01 |
-| CODE-9 | P2 | smoke_test EXPECTED_TABLES missing project_memory, llm_call_log | scripts/smoke_test_db.py | ✅ Fixed 2026-04-01 |
-| CODE-10 | P2 | smoke_test no Phase 2/3 DB function coverage | scripts/smoke_test_db.py | ✅ Fixed 2026-04-01 |
-| CODE-11 | P3 | confirm.py project name edge case (G3) | src/handlers/confirm.py | ✅ Fixed 2026-04-01 |
-| CODE-12 | P3 | /memory cache-hit no staleness date (F1) | src/handlers/memory_cmd.py | ✅ Fixed 2026-04-01 |
-| CODE-13 | P3 | memory injection no user indicator on fail (F2) | src/handlers/chat_handler.py | ✅ Fixed 2026-04-01 |
-| CODE-14 | P3 | review_history excluded from staleness counter (F3) | src/db.py | ✅ Fixed 2026-04-01 |
-| CODE-15 | P3 | get_status unbounded scan limit=1_000_000 | src/tools.py | ✅ Fixed 2026-04-01 |
+[x] P6-01 — Daily practice reminders: recurring_reminders + recurring_reminder_log schema; timezone-aware dedup in list_due_recurring_reminders; NL setup flow via practice_intents.py; pause/resume/list
+[x] P6-02 — Feature feedback capture: is_incapable_response trigger; bounded multi-step LLM clarification (max 3 questions); feature_feedback + user_feedback tables
+[x] P6-03 — User context memory: user_context_entries + user_context_summary tables; SAVE_CONTEXT_MARKERS detection; Haiku profile summary; injection into chat/reflect/review system prompts
+[x] P6-04 — Practice UX: practice_completions table + streak calculation; timezone inheritance from existing practice; next fire time in /practices; inline Поставить на паузу button in reminders
+[x] P6-05 — NL UX: expanded NL_CAPTURE_MARKERS; multi-entity count announcement; mixed-intent routing (practice + NL in one message); enriched EXTRACTION_SYSTEM_PROMPT with entity-type descriptions and examples
 
 ---
 
 ## Compaction Protocol
 
-When `Completed Tasks` exceeds 20 items or `Phase History` exceeds 5 summaries:
-- move older entries into an archive summary block
-- keep only the active phase, open findings, and recent history here
+When `Completed Tasks` exceeds 20 active items:
+- move older phase summaries into the archive block above
+- keep only current phase task list, open findings, and last 1–2 phase summaries here
