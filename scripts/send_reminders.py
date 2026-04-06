@@ -71,30 +71,35 @@ def build_message(deadline: dict[str, object], days_until: int, due_date: date) 
 
 
 def build_recurring_message(reminder: dict[str, object]) -> str:
+    return str(reminder["prompt_text"])
+
+
+def _build_recurring_reply_markup(reminder: dict[str, object]) -> dict:
     kind = str(reminder.get("kind") or "")
     pause_hint = "morning" if kind == "morning_pages" else "evening"
-    return (
-        f"{reminder['prompt_text']}\n"
-        f"Если хочешь поставить на паузу, напиши /pause_daily_practice {pause_hint}."
-    )
+    return {
+        "inline_keyboard": [
+            [{"text": "Поставить на паузу", "callback_data": f"pause_practice:{pause_hint}"}]
+        ]
+    }
 
 
-def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> None:
+def _send_request(bot_token: str, payload: dict) -> None:
     last_error: Exception | None = None
 
     for attempt in range(1, TELEGRAM_MAX_RETRIES + 1):
         try:
             response = requests.post(
                 f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                json={"chat_id": chat_id, "text": message_text},
+                json=payload,
                 timeout=TELEGRAM_API_TIMEOUT,
             )
             if response.status_code >= 500:
                 response.raise_for_status()
             response.raise_for_status()
-            payload = response.json()
-            if not payload.get("ok"):
-                raise RuntimeError(f"Telegram API returned ok={payload.get('ok')}")
+            api_payload = response.json()
+            if not api_payload.get("ok"):
+                raise RuntimeError(f"Telegram API returned ok={api_payload.get('ok')}")
             return
         except (requests.ConnectionError, requests.Timeout) as exc:
             last_error = exc
@@ -113,6 +118,14 @@ def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> No
         last_error = RuntimeError("Telegram send failed without an exception.")
     LOGGER.error("Telegram send failed after attempt=%s: %s", TELEGRAM_MAX_RETRIES, last_error)
     raise last_error
+
+
+def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> None:
+    _send_request(bot_token, {"chat_id": chat_id, "text": message_text})
+
+
+def send_telegram_message_with_markup(bot_token: str, chat_id: int, message_text: str, reply_markup: dict) -> None:
+    _send_request(bot_token, {"chat_id": chat_id, "text": message_text, "reply_markup": reply_markup})
 
 
 async def process_reminders() -> int:
@@ -181,8 +194,11 @@ async def process_reminders() -> int:
         )
         for reminder in recurring_reminders:
             message_text = build_recurring_message(reminder)
+            reply_markup = _build_recurring_reply_markup(reminder)
             try:
-                send_telegram_message(config.telegram_bot_token, config.telegram_allowed_chat_id, message_text)
+                send_telegram_message_with_markup(
+                    config.telegram_bot_token, config.telegram_allowed_chat_id, message_text, reply_markup
+                )
             except requests.RequestException:
                 LOGGER.warning(
                     "Telegram API request failed for recurring_reminder_id=%s; skipping send",
