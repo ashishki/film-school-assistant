@@ -54,7 +54,7 @@ from src.handlers.ideas import idea_command
 from src.handlers.list_cmd import list_command
 from src.handlers.memory_cmd import memory_command
 from src.handlers.common import validate_and_parse_date
-from src.handlers.nl_handler import maybe_handle_nl_capture
+from src.handlers.nl_handler import maybe_handle_nl_capture, should_try_nl_capture
 from src.handlers.nl_handler import _build_pending_entity as build_nl_pending_entity
 from src.handlers.nl_handler import _resolve_project
 from src.handlers.feedback_cmd import feedback_command, is_feedback_message
@@ -429,6 +429,10 @@ async def chat_handler_wrapper(update: Update, context: ContextTypes.DEFAULT_TYP
             await message.reply_text("Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
             return
         await message.reply_text(result)
+        # If the message also contains NL save intent (e.g. "напоминай практику и запиши идею"),
+        # handle the NL part too instead of dropping it.
+        if should_try_nl_capture(text):
+            await maybe_handle_nl_capture(update, context)
         return
 
     if await maybe_handle_nl_capture(update, context):

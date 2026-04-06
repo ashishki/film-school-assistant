@@ -218,6 +218,9 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         due_date_note = _build_due_date_note(entity_type, due_date, validated_due_date)
         if due_date_note:
             preview_text = f"{preview_text}{due_date_note}"
+        if remaining_entities:
+            total = 1 + len(remaining_entities)
+            preview_text = f"Нашёл {total} {_ru_entries(total)} — разберём по одной.\n\n{preview_text}"
         await reply_text(update, context, preview_text, reply_markup=_pending_keyboard())
         LOGGER.info(
             "Prepared pending NL entity type=%s parsed_event_id=%s queued=%s for chat_id=%s",
@@ -229,6 +232,17 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     except Exception:
         LOGGER.exception("Unhandled NL handler failure")
         await reply_text(update, context, "Что-то пошло не так. Попробуй ещё раз.")
+
+
+def _ru_entries(n: int) -> str:
+    if 11 <= n % 100 <= 19:
+        return "записей"
+    rem = n % 10
+    if rem == 1:
+        return "запись"
+    if 2 <= rem <= 4:
+        return "записи"
+    return "записей"
 
 
 def _normalize_entity_type(raw_value: object) -> str | None:

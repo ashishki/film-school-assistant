@@ -225,6 +225,10 @@ async def _queue_next_pending_entity(chat_id: int, context: ContextTypes.DEFAULT
         due_date_note = _build_due_date_note(entity_type, due_date, validated_due_date)
         if due_date_note:
             preview_text = f"{preview_text}{due_date_note}"
+        remaining_after = len(state.pending_entities or [])
+        if remaining_after > 0:
+            from src.handlers.nl_handler import _ru_entries
+            preview_text = f"Ещё {remaining_after} {_ru_entries(remaining_after)} в очереди:\n\n{preview_text}"
 
         LOGGER.info(
             "Queued next pending entity type=%s parsed_event_id=%s remaining=%s for chat_id=%s",
