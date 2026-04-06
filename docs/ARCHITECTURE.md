@@ -1,7 +1,7 @@
 # Film School Assistant — Architecture
 
-Version: 3.2
-Last updated: 2026-04-04
+Version: 3.3
+Last updated: 2026-04-06
 Status: Active
 
 ## 1. System Definition
@@ -152,6 +152,7 @@ What exists now:
 - parsed voice and text capture history
 - review history
 - weekly report history
+- practice completion records (streak and weekly count per practice kind)
 
 What this means:
 - the system can store and retrieve structured creative work
@@ -212,11 +213,12 @@ These are valid constraints, not shortcomings to hide.
 
 | Path | Current model class | Purpose |
 |------|---------------------|---------|
-| Free-text capture / intent extraction | Haiku-class | Cheap, bounded interpretation |
+| Free-text capture / intent extraction | Haiku-class | Cheap, bounded interpretation; prompt includes entity-type descriptions and examples for accurate classification without user-supplied type labels |
 | Conversational tool use | Haiku-class | Fast routing and tool choice |
 | Feature-gap clarification | Haiku-class | Short bounded follow-up questions |
 | Feature brief assembly | Sonnet-class | Cleaner short spec when enough facts are known |
 | Idea review | Sonnet-class | Better reflective quality where it matters |
+| User-context profile summarization | Haiku-class | Compresses saved personal entries into a stable working profile |
 | Voice transcription | Local Whisper | Keep audio local |
 
 Model escalation is not justified unless a specific workload proves it needs it.

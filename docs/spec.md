@@ -59,6 +59,10 @@ Acceptance:
 - records have stable IDs and timestamps
 - project association is supported where relevant
 - capture works from commands and free text
+- NL capture triggers on a broad set of natural phrasings (not only explicit command words) including «хочу записать», «не забыть», «мысль», «нужно зафиксировать»
+- entity type is inferred from context using an extraction prompt that includes type descriptions and examples — the user is not required to name the type
+- when a single message contains multiple entities, the total is announced upfront and each entity is confirmed individually in sequence with a remaining-count indicator
+- when a message contains both a practice intent and NL save content, both are handled without dropping either
 
 ### FR-3 Local voice handling
 
@@ -106,6 +110,10 @@ Acceptance:
 - if the user requests a recurring practice without explicit times, the assistant asks for times instead of silently assuming them
 - delivery must deduplicate by reminder kind and calendar day
 - users can list, pause, and resume recurring practices
+- when no timezone is given during setup or correction, the timezone is inherited from the existing practice for that kind instead of falling back to a system default
+- `/practices` must show the next scheduled fire time per practice in the user's local timezone
+- practice completions are tracked in `practice_completions`; streak and weekly count are shown in `/practices` and the weekly summary
+- reminder messages must include an inline pause button so the user can pause without typing a command
 
 ### FR-6 Continuity support
 

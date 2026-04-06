@@ -62,9 +62,12 @@ The system is complete through five development phases and one audit cycle:
 
 **Capture and confirmation**
 - Telegram-first capture by text or voice; local Whisper transcription
-- one free-text message can contain multiple entities — each is confirmed individually in sequence
+- NL capture markers cover natural phrasings — users never need command syntax; recognized triggers include «хочу записать», «не забыть», «мысль», «нужно зафиксировать», and standard terms like «идея», «дедлайн», «заметка»
+- entity type (note / idea / homework / deadline) is inferred from context and content — no template required; the extraction prompt includes descriptions and examples for each type in film-school context
+- one free-text message can contain multiple entities — when multiple are found, the assistant announces the count ("Нашёл 3 записи — разберём по одной.") and shows queue progress as each is confirmed
+- if a message contains both a practice intent and NL save content, both are handled — practice is processed first, then NL capture runs on the remainder
 - confirmation keyboard has three options: save, discard, or rewrite (✏️ Уточнить — re-runs extraction on next message)
-- when extraction fails, the assistant asks a specific clarifying question instead of a generic error
+- when extraction fails, the assistant shows a concrete example instead of a generic error
 - NL handler uses the last five messages as context so back-references ("а ещё добавь дедлайн") resolve correctly
 
 **Project continuity**
@@ -80,12 +83,18 @@ The system is complete through five development phases and one audit cycle:
 - feature requests can be captured as short structured briefs and stored separately from raw user feedback
 - the bot supports recurring daily practices such as morning pages and end-of-day reflection prompts
 - these practices can be configured by command or natural language, including text and voice requests
-- recurring practices now support explicit timezone capture and correction flows such as switching reminders to Tbilisi time
+- recurring practices support explicit timezone capture; when no timezone is given, the existing practice timezone is inherited so reminders do not silently reset to a default
 - correction-style replies like “нет, только утренние страницы в 10:00” are handled as updates to the existing practice setup instead of generic chat
+- `/practices` shows the next scheduled fire time (“сегодня в 20:00”) so the user can verify reminders will fire at the expected local time
+- practice completions are tracked (streak and weekly count visible in `/practices` and the weekly summary)
+- reminder messages include an inline “Поставить на паузу” button so the user can pause a practice without typing any command
+- stored items can be edited via natural language in chat (“исправь заметку #12…”) — the assistant has update tools for notes, ideas, and deadlines
 
 **Reflection and review**
 - idea review uses project memory when available so critique is specific to the active project
 - `/reflect` produces a structured project reflection: current state, creative tensions, and next focus
+- `/get <id>` retrieves the full content of any note, idea, deadline, or homework by ID — fixes the 60–80 character truncation in `/list`
+- `/review` without arguments shows a list of recent ideas with IDs, making `/review <id>` discoverable
 
 **Deployment**
 - deployment is documented for VPS setup with `.env.example`, `docs/DEPLOY.md`, and corrected `systemd` service files
