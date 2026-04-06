@@ -351,6 +351,20 @@ def _build_edit_ack(field: str, value: str, entity_type: str) -> str:
     return "Обновлено."
 
 
+_WEEK_DAYS_RU = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
+_MONTHS_RU = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+
+
+def _fmt_due_date_human(iso_date: str) -> str:
+    """Format ISO date like '2026-04-10' as 'пт, 10 апр'."""
+    try:
+        from datetime import date
+        d = date.fromisoformat(iso_date[:10])
+        return f"{_WEEK_DAYS_RU[d.weekday()]}, {d.day} {_MONTHS_RU[d.month - 1]}"
+    except Exception:
+        return iso_date
+
+
 def _build_pending_preview(state: UserState) -> str:
     pending = state.pending_entity or {}
     entity_type = state.pending_entity_type or "item"
@@ -378,7 +392,7 @@ def _build_pending_preview(state: UserState) -> str:
     if entity_type != "user_context":
         preview.append(f"Проект: {project_label}")
     if due_date:
-        preview.insert(1, f"Срок: {due_date}")
+        preview.insert(1, f"Срок: {_fmt_due_date_human(str(due_date))}")
     return "\n".join(preview)
 
 

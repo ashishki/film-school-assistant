@@ -4,7 +4,7 @@ import aiosqlite
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.db import get_idea, get_llm_calls_today, get_project_memory, log_llm_call
+from src.db import get_idea, get_llm_calls_today, get_project_memory, list_ideas, log_llm_call
 from src.handlers.common import reply_text
 from src.reviewer import review_idea
 from src.user_context import get_user_context_prompt_text, refresh_user_context_summary
@@ -13,10 +13,36 @@ from src.user_context import get_user_context_prompt_text, refresh_user_context_
 LOGGER = logging.getLogger(__name__)
 
 
+def _format_created(created_at: str | None) -> str:
+    if not created_at:
+        return ""
+    try:
+        from datetime import datetime
+        dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+        return f"{dt.day} {MONTHS[dt.month - 1]}"
+    except Exception:
+        return ""
+
+
 async def review_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         if not context.args:
-            await reply_text(update, context, "Использование: /review <id_идеи>")
+            async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                db.row_factory = aiosqlite.Row
+                ideas = await list_ideas(db, limit=10)
+            if not ideas:
+                await reply_text(update, context, "Нет сохранённых идей. Запиши идею — и я помогу её разобрать.")
+                return
+            lines = ["Идеи для разбора:\n"]
+            for idea in ideas:
+                date_label = _format_created(str(idea.get("created_at") or ""))
+                date_suffix = f" ({date_label})" if date_label else ""
+                content = str(idea.get("content") or "").strip()
+                short = content[:80] + "…" if len(content) > 80 else content
+                lines.append(f"#{idea['id']} — {short}{date_suffix}")
+            lines.append("\nНапиши /review <id> для любой из них.")
+            await reply_text(update, context, "\n".join(lines))
             return
 
         raw_idea_id = context.args[0].strip()

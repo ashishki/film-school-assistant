@@ -77,9 +77,13 @@ def build_recurring_message(reminder: dict[str, object]) -> str:
 def _build_recurring_reply_markup(reminder: dict[str, object]) -> dict:
     kind = str(reminder.get("kind") or "")
     pause_hint = "morning" if kind == "morning_pages" else "evening"
+    reminder_id = reminder.get("id", "")
     return {
         "inline_keyboard": [
-            [{"text": "Поставить на паузу", "callback_data": f"pause_practice:{pause_hint}"}]
+            [
+                {"text": "Выполнено", "callback_data": f"complete_practice:{pause_hint}:{reminder_id}"},
+                {"text": "Поставить на паузу", "callback_data": f"pause_practice:{pause_hint}"},
+            ]
         ]
     }
 

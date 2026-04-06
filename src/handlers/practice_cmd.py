@@ -9,6 +9,8 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.db import (
+    get_practice_completions_week,
+    get_practice_streak,
     get_recurring_reminder,
     list_recurring_reminders,
     update_recurring_reminder_status,
@@ -120,9 +122,14 @@ async def execute_practice_intent(db_path: str, intent: dict[str, object]) -> st
                 tz_name = str(item.get("timezone") or _default_timezone())
                 timezone_suffix = _format_timezone_suffix(tz_name)
                 next_label = _next_fire_label(str(item["schedule_time"]), tz_name) if item["status"] == "active" else ""
+                reminder_id = int(item["id"])
+                streak = await get_practice_streak(db, reminder_id)
+                week_done = await get_practice_completions_week(db, reminder_id)
+                streak_label = f" | серия {streak} д." if streak >= 2 else ""
+                week_label = f" | {len(week_done)}/7 за неделю" if week_done else ""
                 lines.append(
                     f"- {item['title']} — {item['schedule_time']}{timezone_suffix}{next_label}"
-                    f" ({status}, ключ: {alias})"
+                    f"{streak_label}{week_label} ({status}, ключ: {alias})"
                 )
             return "Ежедневные практики:\n" + "\n".join(lines)
 

@@ -302,6 +302,10 @@ async def create_homework(
     )
 
 
+async def get_homework(db: aiosqlite.Connection, homework_id: int) -> dict[str, Any] | None:
+    return await _fetch_one_dict(db, "SELECT * FROM homework WHERE id = ?", (homework_id,))
+
+
 async def list_homework(
     db: aiosqlite.Connection,
     status: str | None = None,
@@ -847,6 +851,64 @@ async def get_recurring_reminder(db: aiosqlite.Connection, kind: str) -> dict[st
         "SELECT * FROM recurring_reminders WHERE kind = ?",
         (kind,),
     )
+
+
+async def log_practice_completion(db: aiosqlite.Connection, recurring_reminder_id: int, completed_on: str) -> bool:
+    """Record that a practice was completed on completed_on (ISO date). Ignores duplicates."""
+    completed_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    try:
+        await db.execute(
+            "INSERT OR IGNORE INTO practice_completions (recurring_reminder_id, completed_on, completed_at)"
+            " VALUES (?, ?, ?)",
+            (recurring_reminder_id, completed_on, completed_at),
+        )
+        await db.commit()
+        return True
+    except Exception:
+        return False
+
+
+async def get_practice_streak(db: aiosqlite.Connection, recurring_reminder_id: int) -> int:
+    """Return the current consecutive-day streak (counts today and yesterday going backwards)."""
+    today = datetime.now(timezone.utc).date()
+    cursor = await db.execute(
+        "SELECT completed_on FROM practice_completions"
+        " WHERE recurring_reminder_id = ? ORDER BY completed_on DESC",
+        (recurring_reminder_id,),
+    )
+    rows = await cursor.fetchall()
+    await cursor.close()
+    if not rows:
+        return 0
+    from datetime import date, timedelta
+    completed_dates = {date.fromisoformat(str(row[0])) for row in rows}
+    streak = 0
+    check = today
+    while check in completed_dates:
+        streak += 1
+        check -= timedelta(days=1)
+    if streak == 0:
+        # Check if yesterday was done (so streak starts from yesterday)
+        yesterday = today - timedelta(days=1)
+        check = yesterday
+        while check in completed_dates:
+            streak += 1
+            check -= timedelta(days=1)
+    return streak
+
+
+async def get_practice_completions_week(db: aiosqlite.Connection, recurring_reminder_id: int) -> list[str]:
+    """Return ISO dates of completions in the last 7 days."""
+    today = datetime.now(timezone.utc).date()
+    from datetime import timedelta
+    week_ago = (today - timedelta(days=6)).isoformat()
+    rows = await _fetch_all_dicts(
+        db,
+        "SELECT completed_on FROM practice_completions"
+        " WHERE recurring_reminder_id = ? AND completed_on >= ? ORDER BY completed_on DESC",
+        (recurring_reminder_id, week_ago),
+    )
+    return [str(r["completed_on"]) for r in rows]
 
 
 async def list_due_recurring_reminders(

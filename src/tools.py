@@ -161,6 +161,46 @@ TOOLS = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "update_note",
+        "description": "Обновить текст заметки по её ID.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "note_id": {"type": "integer", "description": "ID заметки"},
+                "new_content": {"type": "string", "description": "Новый текст заметки"},
+            },
+            "required": ["note_id", "new_content"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "update_idea",
+        "description": "Обновить текст идеи по её ID.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "idea_id": {"type": "integer", "description": "ID идеи"},
+                "new_content": {"type": "string", "description": "Новый текст идеи"},
+            },
+            "required": ["idea_id", "new_content"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "update_deadline",
+        "description": "Обновить название или срок дедлайна по его ID. Можно передать только то поле, которое нужно изменить.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "deadline_id": {"type": "integer", "description": "ID дедлайна"},
+                "new_title": {"type": "string", "description": "Новое название (необязательно)"},
+                "new_due_date": {"type": "string", "description": "Новый срок в формате YYYY-MM-DD (необязательно)"},
+            },
+            "required": ["deadline_id"],
+            "additionalProperties": False,
+        },
+    },
 ]
 
 
@@ -372,8 +412,46 @@ async def execute_tool(
         pending_homework = await _count_rows(db, "SELECT COUNT(*) FROM homework WHERE status = ?", ("pending",))
         notes = await _count_rows(db, "SELECT COUNT(*) FROM notes")
         ideas = await _count_rows(db, "SELECT COUNT(*) FROM ideas")
+        llm_calls_used = await db_module.get_llm_calls_today(db)
+        llm_calls_limit = config.daily_llm_call_limit
         return (
-            "Статус системы: активных дедлайнов — {}, домашних заданий к сдаче — {}, заметок — {}, идей — {}."
-        ).format(active_deadlines, pending_homework, notes, ideas)
+            "Статус системы: активных дедлайнов — {}, домашних заданий к сдаче — {}, заметок — {}, идей — {}. "
+            "Запросов к ИИ сегодня: {}/{}."
+        ).format(active_deadlines, pending_homework, notes, ideas, llm_calls_used, llm_calls_limit)
+
+    if tool_name == "update_note":
+        note_id = int(tool_input["note_id"])
+        new_content = str(tool_input["new_content"]).strip()
+        updated = await db_module.update_note_content(db, note_id, new_content)
+        if updated:
+            return f"Заметка #{note_id} обновлена."
+        return f"Заметка #{note_id} не найдена."
+
+    if tool_name == "update_idea":
+        idea_id = int(tool_input["idea_id"])
+        new_content = str(tool_input["new_content"]).strip()
+        updated = await db_module.update_idea_content(db, idea_id, new_content)
+        if updated:
+            return f"Идея #{idea_id} обновлена."
+        return f"Идея #{idea_id} не найдена."
+
+    if tool_name == "update_deadline":
+        deadline_id = int(tool_input["deadline_id"])
+        new_title = tool_input.get("new_title")
+        new_due_date = tool_input.get("new_due_date")
+        if not new_title and not new_due_date:
+            return "Укажи хотя бы одно поле для обновления: new_title или new_due_date."
+        parts = []
+        if new_title:
+            updated = await db_module.update_deadline_title(db, deadline_id, str(new_title).strip())
+            if not updated:
+                return f"Дедлайн #{deadline_id} не найден."
+            parts.append("название")
+        if new_due_date:
+            updated = await db_module.update_deadline_due_date(db, deadline_id, str(new_due_date).strip())
+            if not updated:
+                return f"Дедлайн #{deadline_id} не найден."
+            parts.append("срок")
+        return f"Дедлайн #{deadline_id} обновлён ({', '.join(parts)})."
 
     return "Неизвестный инструмент: {}".format(tool_name)
