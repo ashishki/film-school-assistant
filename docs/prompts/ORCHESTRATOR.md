@@ -10,10 +10,7 @@ This is the only active orchestration entry point for this repository.
 
 Use this file when launching the Orchestrator.
 
-Do not use:
-- `docs/prompts/workflow_orchestrator.md` as the primary entry point
-
-That file is retained only as legacy reference and should not govern the active loop.
+This file is the single orchestration entry point for the repository.
 
 ---
 

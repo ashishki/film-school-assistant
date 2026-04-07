@@ -28,7 +28,9 @@ Project root: /home/ashishki/Documents/dev/ai-stack/projects/film-school-assista
 Your assignment: Phase [N] — [Phase Name]
 
 Read these files before writing any code:
+- docs/CODEX_PROMPT.md
 - docs/ARCHITECTURE.md
+- docs/MEMORY_ARCHITECTURE.md (required for memory, retrieval, continuity, or search-related tasks)
 - docs/spec.md
 - docs/tasks.md (Phase [N] section only)
 - docs/WORKFLOW_BOUNDARIES.md
@@ -42,11 +44,15 @@ Hard constraints — violating any of these will fail review:
 - NEVER transmit audio files to external services
 - preserve the declared solution shape, governance level, and runtime tier
 - do not expand into web-primary, multi-user, or speculative memory scope unless the task explicitly says so
+- keep structured state as source of truth; do not replace it with summary-only or generic memory abstractions
+- keep retrieval project-first by default unless the task explicitly authorizes broader scope
+- preserve provenance when implementing recall or memory retrieval behavior
 - Use logging module, not print() for status/debug output
 
 When all tasks are done:
 1. Verify each file exists and is syntactically valid
-2. Return a completion report listing every file created or modified with its path
+2. Update `docs/tasks.md` and `docs/CODEX_PROMPT.md` only if the task or orchestrator explicitly requires it
+3. Return a completion report listing every file created or modified with its path
 ```
 
 ---

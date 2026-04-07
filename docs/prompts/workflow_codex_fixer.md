@@ -19,7 +19,7 @@ Update living docs to reflect cycle completion.
 
 Do not add features.
 Do not refactor code beyond what is required by the review findings.
-Do not modify `docs/ARCHITECTURE.md` or `docs/spec.md` unless the review explicitly requires it.
+Do not modify `docs/ARCHITECTURE.md`, `docs/MEMORY_ARCHITECTURE.md`, or `docs/spec.md` unless the review explicitly requires it.
 
 ---
 
@@ -29,6 +29,7 @@ Do not modify `docs/ARCHITECTURE.md` or `docs/spec.md` unless the review explici
 2. The existing codebase (read files before editing)
 3. Reference docs:
    - `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/ARCHITECTURE.md`
+   - `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/MEMORY_ARCHITECTURE.md` (required when findings touch memory, retrieval, continuity, or search scope)
    - `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/spec.md`
    - `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/tasks.md`
    - `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant/docs/CODEX_PROMPT.md`
@@ -56,6 +57,10 @@ For each MINOR issue:
 After applying fixes:
 - Re-read the affected lines to confirm the fix is correct
 - Check that the fix does not introduce new violations of the checklist
+- If the finding touches memory behavior, confirm the fix still respects:
+  - structured state as source of truth
+  - project-first retrieval by default
+  - provenance-preserving recall where applicable
 
 ### 3. Update state docs only if instructed
 
@@ -70,6 +75,7 @@ After applying fixes:
 - Do not implement Phase N+1 code while fixing Phase N
 - Do not add features not in the review report
 - Do not modify `docs/ARCHITECTURE.md` unless explicitly required
+- Do not modify `docs/MEMORY_ARCHITECTURE.md` unless explicitly required
 - Do not create new documentation files
 - Do not refactor working code that was not flagged
 - Do not change the data model without explicit task approval

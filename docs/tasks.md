@@ -7,7 +7,7 @@ Status legend:
 - `[!]` blocked
 
 Current phase goal:
-- complete the documentation clarity foundation so the next implementation phase is product-led, architecture-aware, and playbook-governed
+- enter Phase 8 with an execution-ready memory upgrade plan built around project-first evidence recall, provenance, and low operational complexity
 
 ---
 
@@ -1352,246 +1352,280 @@ Review-Mode: light
 
 ---
 
-## Phase 7 — Continuity Layer Improvement
+## Phase 7 — Memory Architecture Alignment
 
 Goal:
-- make project memory genuinely useful across sessions: structured, time-aware, and surfaced at the right moment
+- align architecture, spec, and task planning around a layered memory model that matches the actual repo state
 
 Entry condition:
 - Phase 6 complete (✅ done)
-- Phase 7 decomposition approved by human
 
 Exit criteria:
-- project memory has four structured fields instead of a flat paragraph
-- homework is included in project memory context
-- memory regenerates when stale by time, not only by item count
-- user returning after a gap sees a brief "here's where you were" surface
-- accumulated review findings feed into /reflect instead of raw JSON dump
-- phase eval pack confirms continuity is materially improved and no regressions
+- current-state memory assessment documented
+- MemPalace extraction documented
+- target memory architecture documented
+- implementation sequence updated across source-of-truth docs
 
 ---
 
-[ ] P7-01 — Structured project memory format
+[x] P7-01 — Memory architecture assessment and contract update
 Owner: codex
 Phase: 7
-Type: implementation
+Type: documentation
 Depends-On: none
 Objective: |
-  Replace the flat one-paragraph project memory summary with a four-field structured
-  format. The LLM generates labeled sections rather than prose. Injection into chat
-  and reflect uses the same text but the structure makes each field independently useful.
-
-  Target format (stored in summary_text):
-    Фокус: {one sentence on current creative or practical center of gravity}
-    Открытые вопросы: {2-3 active unresolved threads as a compact list}
-    Последнее: {what changed or was added in the most recent activity}
-    Следующий шаг: {one concrete action for next session}
-Why-Now: |
-  The current flat paragraph is better than nothing but loses the signal in prose.
-  A four-field format makes each piece independently injectable, readable, and
-  evaluatable. No schema change needed — summary_text stores labeled text.
+  Inspect the actual repository, inspect MemPalace critically, and update the source-of-truth
+  documents so the next implementation phase is driven by the correct architecture.
 File-Scope:
-  - src/handlers/memory_cmd.py
-Deterministic-Owned:
-  - MEMORY_SYSTEM_PROMPT rewrite: instruct LLM to produce exactly four labeled fields
-  - output displayed to user as-is (Telegram renders the labels naturally)
-  - injection into chat system prompt unchanged (same field, richer content)
-LLM-Owned:
-  - generation of structured four-field output (Haiku); no inventing facts not in input
-Acceptance-Criteria:
-  - id: AC-1
-    description: "MEMORY_SYSTEM_PROMPT instructs LLM to produce exactly Фокус, Открытые вопросы, Последнее, Следующий шаг fields."
-    test: "code review of memory_cmd.py"
-  - id: AC-2
-    description: "/memory output contains all four labeled fields."
-    test: "manual test"
-  - id: AC-3
-    description: "Output contains no facts not traceable to input notes/ideas/deadlines/homework."
-    test: "manual review of output against DB state"
-  - id: AC-4
-    description: "Ruff passes."
-    test: "CI: ruff check src/"
-Dependencies: none
-Review-Mode: light
-Out-Of-Scope:
-  - separate DB columns for each field
-  - per-field injection into different parts of system prompt
-  - parsing the structured output back into structured data
+  - docs/MEMORY_ARCHITECTURE.md
+  - docs/ARCHITECTURE.md
+  - docs/PHASE_PLAN.md
+  - docs/tasks.md
+  - docs/spec.md
+  - docs/IMPLEMENTATION_CONTRACT.md
+  - docs/CODEX_PROMPT.md
+Review-Mode: deep
 
 ---
 
-[ ] P7-02 — Homework inclusion in project memory
+## Phase 8 — MVP Evidence Memory Foundation
+
+Goal:
+- add a small, provenance-preserving evidence memory layer for project-first recall
+
+Entry condition:
+- Phase 7 complete (✅ done)
+- human approval before first implementation task dispatch
+
+Exit criteria:
+- evidence memory exists as a distinct retrieval layer
+- retrieval is project-first by default
+- summary refresh rules are better than count-only cache reuse
+- migration and observability are documented and tested
+
+---
+
+[ ] P8-01 — Evidence memory schema and migration
 Owner: codex
-Phase: 7
+Phase: 8
 Type: implementation
 Depends-On: none
 Objective: |
-  Include active homework records in the data passed to project memory generation.
-  Currently memory_cmd.py fetches notes, ideas, and deadlines but not homework.
-  For a film student, homework is core project context.
+  Add a dedicated `memory_items` schema for recallable evidence rows and the minimum
+  indexes needed for project-first retrieval. Keep canonical project tables unchanged.
 Why-Now: |
-  Low-complexity fix with high context value. Homework is already in the schema;
-  the gap is one missing query and one missing section in _build_input_text.
+  The current system stores project records and summaries, but it has no unified recall
+  layer with source provenance. This is the minimum structural addition that unlocks
+  evidence-based continuity without rewriting the app into a memory platform.
 File-Scope:
-  - src/handlers/memory_cmd.py
+  - src/schema.sql
   - src/db.py
+  - docs/db-migration-guide.md
 Deterministic-Owned:
-  - _fetch_records adds homework query: title, due_date, status WHERE project_id AND status = 'pending'
-  - get_project_item_count adds homework to the count sum
-  - _build_input_text adds Домашние задания section when homework list is non-empty
-LLM-Owned:
-  - none; LLM receives richer input and generates same structured format
+  - schema shape
+  - source/provenance fields
+  - project-scope vs user-scope rules
 Acceptance-Criteria:
   - id: AC-1
-    description: "_fetch_records returns a fourth tuple element: list of active homework rows."
-    test: "code review"
+    description: "`memory_items` table exists with scope, source_kind, source_id, project_id/user scope, content text, timestamps, and provenance fields."
+    test: "schema review"
   - id: AC-2
-    description: "get_project_item_count SQL includes homework count in the sum."
-    test: "code review"
+    description: "Indexes support project-first lookup and source tracing."
+    test: "schema review"
   - id: AC-3
-    description: "_build_input_text includes a Домашние задания section when homework is non-empty."
-    test: "code review"
-  - id: AC-4
-    description: "Ruff passes."
-    test: "CI: ruff check src/"
-Dependencies: none
+    description: "Migration guidance documents how to add the table without rewriting existing records."
+    test: "doc review"
 Review-Mode: light
-Out-Of-Scope:
-  - homework from other projects leaking into active project memory
-  - completed homework included in memory
 
 ---
 
-[ ] P7-03 — Time-based memory staleness
+[ ] P8-02 — Deterministic memory-item ingestion from existing sources
 Owner: codex
-Phase: 7
+Phase: 8
 Type: implementation
-Depends-On: none
+Depends-On: P8-01
 Objective: |
-  Regenerate project memory when it is older than MEMORY_STALENESS_DAYS (default: 3)
-  even if item count has not changed. Currently memory is only regenerated when
-  item_count_snapshot differs — edits, re-reviews, and time passing are invisible to
-  the cache.
+  Populate `memory_items` from existing canonical records that are worth recall:
+  notes, ideas, homework, user context entries, and selected transcript-backed text.
 Why-Now: |
-  A user returning after 4 days gets the same memory snapshot as they left. This is
-  the most common continuity failure point. Adding a time-based staleness check fixes
-  it with minimal complexity: one datetime comparison at cache-hit time.
+  A recall layer is useless unless ingestion is deterministic and inspectable. This
+  phase should prefer obvious source mappings over clever extraction.
+File-Scope:
+  - src/db.py
+  - src/handlers/confirm.py
+  - src/user_context.py
+Deterministic-Owned:
+  - which source types produce memory items
+  - source-to-memory mapping
+  - duplicate prevention rules
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Saving a note or idea can create or update a corresponding project-scoped memory item."
+    test: "code review"
+  - id: AC-2
+    description: "Saving user context creates a user-scoped memory item separate from project memory."
+    test: "code review"
+  - id: AC-3
+    description: "Ingestion does not create cross-project memory items implicitly."
+    test: "code review"
+Review-Mode: light
+
+---
+
+[ ] P8-03 — Summary refresh rules v2
+Owner: codex
+Phase: 8
+Type: implementation
+Depends-On: P8-01, P8-02
+Objective: |
+  Replace the current count-heavy staleness logic with a more realistic refresh rule
+  that accounts for age and material source changes. Keep `/memory` as an explicit
+  refresh trigger.
+Why-Now: |
+  The current cache logic in `src/handlers/memory_cmd.py` reuses summaries too easily
+  because it mostly checks `item_count_snapshot`. That is not enough for edits,
+  project drift, or important new evidence.
 File-Scope:
   - src/handlers/memory_cmd.py
   - src/config.py
-Deterministic-Owned:
-  - MEMORY_STALENESS_DAYS added to Config (default 3, env-override: MEMORY_STALENESS_DAYS)
-  - cache-hit check: existing_memory is fresh only if item_count matches AND generated_at is within staleness window
-  - staleness window uses generated_at column already present in project_memory table
-LLM-Owned:
-  - none; staleness logic is purely deterministic
-Acceptance-Criteria:
-  - id: AC-1
-    description: "Config has memory_staleness_days: int = 3 with env-override support."
-    test: "code review"
-  - id: AC-2
-    description: "memory_command regenerates summary when generated_at is older than staleness window, even if item count unchanged."
-    test: "code review of staleness check"
-  - id: AC-3
-    description: "Cache-hit path still works when item count and generated_at are both fresh."
-    test: "code review"
-  - id: AC-4
-    description: "Ruff passes."
-    test: "CI: ruff check src/"
-Dependencies: none
-Review-Mode: light
-Out-Of-Scope:
-  - per-project staleness configuration
-  - automatic background regeneration (chat-triggered only)
-
----
-
-[ ] P7-04 — "Returning after a gap" surface
-Owner: codex
-Phase: 7
-Type: implementation
-Depends-On: P7-01
-Objective: |
-  When the user sends their first message after being absent for GAP_DAYS or more
-  (default: 3), and an active project with memory exists, the bot prepends a one-line
-  "you were here" reminder before handling the actual message.
-
-  Format: "Последний раз ты работала над «{project_name}»: {memory.current_focus}"
-
-  This surfaces orientation at the moment of re-entry without requiring a command.
-Why-Now: |
-  The most common continuity failure is the cold-start feeling after a gap. /memory
-  and /reflect exist but require intent. A passive one-line surface at re-entry costs
-  nothing and restores context before the user even asks.
-File-Scope:
-  - src/state.py
-  - src/bot.py
   - src/db.py
 Deterministic-Owned:
-  - last_active: datetime | None added to UserState; updated on each message receipt
-  - gap detection: if last_active is not None and (now - last_active).days >= GAP_DAYS → surface
-  - GAP_DAYS: int from config (default 3)
-  - surface logic: read active project memory from DB; prepend one-line snippet to next reply
-  - surface fires once per gap event; last_active resets after surfacing
+  - refresh trigger rules
+  - stale reason calculation
+  - config values
 LLM-Owned:
-  - none; snippet is deterministically assembled from stored memory fields
+  - bounded summary generation only
 Acceptance-Criteria:
   - id: AC-1
-    description: "UserState has last_active: datetime | None; updated at chat_handler_wrapper entry."
+    description: "Summary refresh reasons are inspectable and not reduced to row count only."
     test: "code review"
   - id: AC-2
-    description: "First message after GAP_DAYS absence with active project and memory: one-line snippet prepended to reply."
-    test: "code review of gap detection"
+    description: "A stale summary can be explained by age or source changes."
+    test: "manual test or code review"
   - id: AC-3
-    description: "If no active project or no memory: gap surface is skipped silently."
+    description: "`/memory` remains explicit; chat does not silently regenerate summaries."
     test: "code review"
-  - id: AC-4
-    description: "Gap surface fires once; second message in same session does not repeat it."
-    test: "code review"
-  - id: AC-5
-    description: "Ruff passes."
-    test: "CI: ruff check src/"
-Dependencies: P7-01
 Review-Mode: light
-Out-Of-Scope:
-  - gap detection across bot restarts (last_active lives in-process only)
-  - multi-project gap summary
-  - LLM-generated re-entry message
 
 ---
 
-[ ] P7-05 — Phase 7 Continuity Eval Pack
-Owner: claude
-Phase: 7
-Type: documentation / eval
-Depends-On: P7-01, P7-02, P7-03, P7-04
+[ ] P8-04 — Project-first evidence retrieval helper
+Owner: codex
+Phase: 8
+Type: implementation
+Depends-On: P8-01, P8-02
 Objective: |
-  Evaluate Phase 7 continuity improvements across four dimensions: structured memory
-  quality, homework inclusion, staleness handling, and returning-user surface.
-  Confirm that each improvement is material and no regressions were introduced.
-  Produce a structured eval pack that gates phase close.
+  Add a retrieval helper that fetches verbatim evidence rows for the active project
+  and returns compact, provenance-labeled results for downstream flows.
+Why-Now: |
+  The repo needs a practical seam between summary context and evidence recall. This
+  helper is that seam.
 File-Scope:
-  - docs/review/continuity_eval_p7.md (new file)
+  - src/db.py
+  - src/tools.py
+  - src/handlers/search_cmd.py
 Deterministic-Owned:
-  - eval structure: dimension / before / after / verdict / findings
-  - dimensions: structured memory, homework, staleness, gap surface
-LLM-Owned:
-  - verdict prose from session evidence and code review
+  - project-first scope resolution
+  - ranking policy (scope first, then textual match, then recency)
+  - provenance formatting
 Acceptance-Criteria:
   - id: AC-1
-    description: "Eval covers all four dimensions."
-    test: "doc structure check"
+    description: "Active-project retrieval does not search other projects unless explicitly requested."
+    test: "code review"
   - id: AC-2
-    description: "Each dimension has a verdict (improved / unchanged / regressed) with evidence."
-    test: "manual review"
+    description: "Returned results include source kind, source id, and timestamp when available."
+    test: "code review"
   - id: AC-3
-    description: "No fabrication findings present."
-    test: "manual review"
-  - id: AC-4
-    description: "Phase 7 close decision references this eval pack."
-    test: "CODEX_PROMPT.md update at phase close"
-Dependencies: P7-01, P7-02, P7-03, P7-04
-Review-Mode: deep (phase-close artifact; human approval required)
-Out-Of-Scope:
-  - automated eval pipelines
-  - Phase 8 proposals
+    description: "A broader all-project mode is not the default path."
+    test: "code review"
+Review-Mode: light
+
+---
+
+[ ] P8-05 — Memory observability and migration validation
+Owner: codex
+Phase: 8
+Type: implementation + verification
+Depends-On: P8-01, P8-02, P8-03, P8-04
+Objective: |
+  Make the memory upgrade debuggable: log refresh reasons, retrieval scope, and source
+  counts; add tests or smoke checks for migration and basic retrieval behavior.
+File-Scope:
+  - src/handlers/memory_cmd.py
+  - src/db.py
+  - scripts/smoke_test_db.py
+  - docs/review/continuity_eval_p8.md
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Logs distinguish summary-only paths from evidence retrieval paths."
+    test: "code review"
+  - id: AC-2
+    description: "Migration and retrieval smoke checks exist or exact blockers are documented."
+    test: "manual verification"
+  - id: AC-3
+    description: "Eval pack references the real implemented retrieval and provenance behavior."
+    test: "doc review"
+Review-Mode: deep
+
+---
+
+## Phase 9 — Continuity Surfaces And Evidence Use
+
+Goal:
+- use the new evidence layer in re-entry and reflection flows without widening scope by default
+
+Entry condition:
+- Phase 8 complete
+
+Exit criteria:
+- returning-user continuity surface exists
+- `/reflect` can use evidence snippets, not only summary text
+- evidence use remains scoped, bounded, and provenance-preserving
+
+---
+
+[ ] P9-01 — Returning-after-gap continuity surface
+Owner: codex
+Phase: 9
+Type: implementation
+Depends-On: P8-03, P8-04
+Objective: |
+  Add a conservative re-entry surface that shows where the user left off in the active
+  project using bounded summary plus evidence, not summary text alone.
+Review-Mode: light
+
+---
+
+[ ] P9-02 — Evidence-grounded reflection path
+Owner: codex
+Phase: 9
+Type: implementation
+Depends-On: P8-04
+Objective: |
+  Update `/reflect` so it can use compact evidence snippets with provenance in addition
+  to the project summary, reducing over-reliance on the summary row.
+Review-Mode: light
+
+---
+
+[ ] P9-03 — Explicit recall command or equivalent bounded tool surface
+Owner: codex
+Phase: 9
+Type: implementation
+Depends-On: P8-04
+Objective: |
+  Add one explicit user-facing path for project-first evidence recall instead of forcing
+  all recall through summary-based chat responses.
+Review-Mode: light
+
+---
+
+[ ] P9-04 — Continuity eval pack
+Owner: claude
+Phase: 9
+Type: documentation / eval
+Depends-On: P9-01, P9-02, P9-03
+Objective: |
+  Evaluate whether the new memory stack materially improves continuity without increasing
+  false recall, scope leakage, or debugging difficulty.
+Review-Mode: deep

@@ -416,85 +416,161 @@ Add recurring creative practices, personal user context memory, feature-feedback
 
 ### Phase close notes
 
-No formal review pack. Documented retrospectively during Phase 7 decomposition pass.
+No formal review pack. Documented retrospectively during the later memory-planning pass.
 
 ---
 
-## 9c. Phase 7 — Continuity Layer Improvement
+## 9c. Phase 7 — Memory Architecture Alignment
 
 ### Objective
 
-Make project memory independently useful per field, time-aware in staleness, and surfaced passively for returning users.
+Align the repository's architecture, decomposition, and implementation contract around a practical layered memory model before further memory implementation.
 
 ### Why it belongs here
 
-The current project memory is a flat paragraph generated on demand. It cannot answer "where did I leave off?" without a user command. Users returning after a gap have no orientation signal. The continuity promise of the product is incomplete until these are fixed.
+The repository already has partial memory primitives, but the docs and task graph still frame memory as a narrow summary-format problem. The next implementation phase should be driven by a correct architecture, not by incremental patching of the current paragraph summary.
 
-### Must exist before starting
+### What this phase produced
 
-- Phase 6 complete
-- Phase 7 decomposition pass (complete as of 2026-04-06)
-- human approval before first task dispatch
+- repository-level current-state assessment
+- critical extraction from `mempalace`
+- target memory architecture for `film-school-assistant`
+- revised phase sequencing
+- updated source-of-truth documents for implementation agents
 
 ### Scope in
 
-- structured four-field project memory format (Фокус / Открытые вопросы / Последнее / Следующий шаг)
-- homework included in project memory context
-- time-based staleness — regenerate memory if older than 3 days regardless of item count
-- passive re-entry surface — a brief orientation snippet for users returning after a gap of 3+ days
-- Phase 7 continuity eval pack
+- document the real current memory model
+- define structured state vs bounded summary vs evidence memory
+- define project-first retrieval boundaries
+- define provenance rules
+- define migration and rollout order
 
 ### Scope out
 
-- embeddings or vector retrieval
-- multi-project memory cross-reference
-- autonomous memory refresh without trigger
-- web interface
-- multi-user behavior
+- schema implementation
+- retrieval implementation
+- continuity UX implementation
+- cross-project memory features
 
 ### Key artifacts
 
-- `src/handlers/memory_cmd.py` — structured memory generation and staleness logic
-- `src/db.py` — `get_project_item_count` updated to include homework
-- `src/bot.py` or `src/handlers/chat_handler.py` — gap detection and re-entry snippet
-- `docs/review/continuity_eval_p7.md` — eval pack
+- `docs/MEMORY_ARCHITECTURE.md`
+- `docs/ARCHITECTURE.md`
+- `docs/PHASE_PLAN.md`
+- `docs/tasks.md`
+- `docs/spec.md`
+- `docs/IMPLEMENTATION_CONTRACT.md`
+- `docs/CODEX_PROMPT.md`
 
 ### Acceptance criteria
 
-- `/memory` returns four labeled fields, each independently useful
-- homework is included in the project memory context fed to the LLM
-- memory older than 3 days triggers regeneration on next `/memory` call
-- a user who was absent 3+ days receives a one-line re-entry snippet before the first assistant response (no command required)
-- no regressions in existing memory injection into chat, reflect, or review flows
+- the repo has one explicit memory architecture document
+- planning artifacts describe the same next implementation phase
+- structured state, summaries, and evidence memory are clearly separated
+- project-first retrieval is defined as the default rule
 
 ### Evidence / evals / review checks
 
-- eval pack `docs/review/continuity_eval_p7.md` covering all four fields and the re-entry surface
-- regression check: memory injection still works in chat, reflect, review
-- deep review mandatory at phase close
+- manual consistency review across the updated docs
+- no code behavior claimed as already implemented when it is only planned
 
 ### Deterministic vs LLM
 
-- deterministic: staleness check (time-based), gap detection (`last_active` in `UserState`), re-entry trigger, homework fetch
-- LLM (Haiku): structured four-field summary generation
+- deterministic: artifact structure, phase sequencing, architecture boundaries
+- LLM: drafting only
 
 ### Major risks
 
-- re-entry snippet is intrusive or fires incorrectly — mitigate with conservative gap threshold and ability to dismiss
-- four-field format adds prompt length — mitigate by keeping each field to one sentence
+- accidental over-design imported from the reference repo
+- confusing a benchmark memory system with a good solo-product architecture
 
 ### Deferred
 
-- review history as accumulated summary rather than raw JSON dump in `/reflect` (deferred to Phase 8)
-- second audit cycle for NL queue and clarify paths
+- all implementation work
+
+---
+
+## 9d. Phase 8 — MVP Evidence Memory Foundation
+
+### Objective
+
+Add the minimum new memory layer needed for project-first verbatim recall with provenance.
+
+### Why it belongs here
+
+The current product already has canonical project records and bounded summaries. The missing capability is evidence recall when the summary is too lossy.
+
+### Scope in
+
+- `memory_items` schema and migration
+- project-scope and user-scope memory boundaries
+- deterministic ingestion from existing records
+- provenance-preserving retrieval helper
+- summary refresh rules upgraded beyond count-only cache logic
+- observability and migration tests
+
+### Scope out
+
+- broad cross-project retrieval
+- generic MCP memory platform
+- vector infrastructure by default
+- contradiction detection
+
+### Acceptance criteria
+
+- evidence memory exists as a separate recall layer, not as a replacement for canonical tables
+- retrieval defaults to active project scope
+- recalled items include source metadata
+- summary refresh reasons are inspectable
+
+---
+
+## 9e. Phase 9 — Continuity Surfaces And Evidence Use
+
+### Objective
+
+Use the new evidence layer in user-visible continuity flows.
+
+### Scope in
+
+- re-entry surface after a gap
+- `/reflect` or equivalent evidence-grounded continuity path
+- optional bounded recall command
+- prompt injection rules that distinguish summary context from evidence context
+
+### Scope out
+
+- automatic global recall
+- web workspace
+- multi-user behavior
+
+---
+
+## 9f. Phase 10 — Explicit Cross-Project Recall
+
+### Objective
+
+Add explicit, limited cross-project recall only after project-first memory is stable.
+
+### Scope in
+
+- named-project comparison
+- explicit all-project search mode
+- stricter provenance labeling and evaluation for false links
+
+### Scope out
+
+- automatic cross-project blending
+- generic memory graph platform
 
 ---
 
 ## 10. Current Development Status
 
-Phases 0–6 and Audit Cycle 1 are complete. Phase 7 (Continuity Layer Improvement) is decomposed and pending phase entry check.
+Phases 0–6 and Audit Cycle 1 are complete. Phase 7 (Memory Architecture Alignment) is complete in documentation. Phase 8 (MVP Evidence Memory Foundation) is the next implementation phase.
 
-Phase 7 tasks are in `docs/tasks.md` and `docs/CODEX_PROMPT.md`. The entry condition is human approval before first task dispatch.
+The active implementation package now starts from `docs/MEMORY_ARCHITECTURE.md`, `docs/tasks.md`, and `docs/CODEX_PROMPT.md`.
 
 ## 10. Active Development Loop
 
@@ -520,12 +596,13 @@ This project does **not** need:
 
 ## 11. Documentation That Must Be Updated Before Coding Starts
 
-Before Phase 1 coding starts, update:
+Before any new implementation phase that changes architecture or memory behavior starts, update:
 - `docs/tasks.md`
 - `docs/CODEX_PROMPT.md`
 - `docs/spec.md`
-- `docs/USER_EXPERIENCE.md`
 - `docs/ARCHITECTURE.md` if the phase introduces any new bounded AI path
+- `docs/MEMORY_ARCHITECTURE.md` if the phase changes memory storage or retrieval assumptions
+- `docs/USER_EXPERIENCE.md` when the phase changes user-visible continuity behavior
 
 ## 12. What Should Go Into `docs/tasks.md`
 

@@ -1,7 +1,7 @@
 # Film School Assistant — Architecture
 
-Version: 3.3
-Last updated: 2026-04-06
+Version: 3.4
+Last updated: 2026-04-07
 Status: Active
 
 ## 1. System Definition
@@ -137,7 +137,10 @@ Rule:
 
 ### Current Memory Model
 
-The current memory model is structured operational memory, not semantic memory.
+The current memory model has three real layers already:
+- structured operational state in SQLite
+- bounded summaries (`project_memory`, `user_context_summary`)
+- prompt injection of those summaries into chat, review, and reflection flows
 
 What exists now:
 - projects
@@ -147,6 +150,7 @@ What exists now:
 - homework
 - saved personal context entries about the user
 - one bounded user-profile summary distilled from saved personal context
+- one bounded project summary per project
 - raw developer feedback
 - structured feature-request briefs
 - parsed voice and text capture history
@@ -155,25 +159,30 @@ What exists now:
 - practice completion records (streak and weekly count per practice kind)
 
 What this means:
-- the system can store and retrieve structured creative work
-- it can summarize recent activity and support continuity at the record level
-- it can retain bounded person-level context that improves review, reflection, and assistant guidance without introducing open-ended semantic memory
-- it cannot yet maintain higher-order creative continuity across themes, tensions, evolving project intent, or long-range concept development
+- the system already has bounded continuity support
+- the current continuity layer is project-first, local, and inspectable
+- the main weakness is not missing storage but missing **verbatim evidence recall**
+- one summary row per project is too lossy to carry creative nuance by itself
 
-### Planned Memory Evolution
+### Target Memory Evolution
 
-The next justified memory step is a **creative memory layer**, not generic embeddings-first infrastructure.
+The next justified memory step is a **project-first evidence memory layer**, not a generic memory platform.
 
-That phase should focus on:
-- stable project summaries
-- evolving creative threads
-- continuity notes
-- durable "where this project stands now" artifacts
+The target design is:
+- **structured state** remains canonical
+- **bounded summaries** remain fast working context, not source of truth
+- **verbatim evidence memory** is added for recallable notes, transcript fragments, reflections, and other durable project evidence
+- retrieval remains **project-first by default**
+- cross-project recall remains explicit and limited
+- every recalled memory preserves provenance
 
-It should not start with:
-- open-ended vector architecture
-- external retrieval stack
+This evolution should not start with:
+- open-ended vector architecture by default
+- external retrieval infrastructure
+- palace / hall / wing metaphor
 - autonomous long-horizon planning
+
+See `docs/MEMORY_ARCHITECTURE.md` for the full target design and rollout plan.
 
 ## 9. Telegram as Interface Layer
 
@@ -232,8 +241,8 @@ Stabilize the product definition and experience around the existing foundation.
 ### Next justified evolution
 
 1. Improve UX continuity and assistant behavior inside the current Telegram surface.
-2. Add a bounded creative memory layer that improves continuity without changing runtime class.
-3. Add higher-leverage reflection and guidance features that use the new memory artifacts.
+2. Add a bounded evidence-memory layer that improves continuity without changing runtime class.
+3. Add higher-leverage reflection and guidance features that use both summaries and evidence recall.
 4. Only then consider packaging expansion, including an optional web review layer.
 
 ### Explicitly Deferred

@@ -49,6 +49,7 @@ It is intentionally single-user, private, and operationally simple.
 - Intent extraction: Claude Haiku — multi-entity, context-aware, with targeted error recovery
 - Project memory: Claude Haiku (bounded summary, one paragraph per project)
 - User context memory: Claude Haiku (bounded user profile summary from saved personal context)
+- Next memory upgrade: project-first evidence recall with provenance, built on local SQLite
 - Idea review: Claude Sonnet
 - Project reflection: Claude Sonnet (`/reflect` command)
 - Feature-feedback capture: bounded multi-step LLM flow with separate quota and structured storage
@@ -103,6 +104,7 @@ The system is complete through five development phases and one audit cycle:
 
 - [Product Overview](docs/PRODUCT_OVERVIEW.md): product category, user, boundaries, differentiation
 - [Architecture](docs/ARCHITECTURE.md): system shape, governance, runtime, ownership boundaries
+- [Memory Architecture](docs/MEMORY_ARCHITECTURE.md): current memory model, MemPalace extraction, target memory tiers, and rollout plan
 - [Workflow Boundaries](docs/WORKFLOW_BOUNDARIES.md): deterministic vs LLM rules and approval gates
 - [User Experience](docs/USER_EXPERIENCE.md): UX principles for a creative assistant
 - [Phase Plan](docs/PHASE_PLAN.md): build phases, shipped scope, and deferred work

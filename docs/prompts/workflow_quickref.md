@@ -6,11 +6,6 @@ Start the repository loop with:
 
 `docs/prompts/ORCHESTRATOR.md`
 
-Do not start from:
-- `docs/prompts/workflow_orchestrator.md`
-
-That file is legacy only.
-
 ## Active Loop
 
 The repository loop is:
@@ -45,16 +40,15 @@ That means:
 
 ## Current Phase Intent
 
-Phase 0 is complete.
+Phases 0–7 are complete for planning purposes.
 
 Next active work:
-- Phase 1 — Product Experience and UX Continuity
+- Phase 8 — MVP Evidence Memory Foundation
 
-Before coding Phase 1:
-- decompose the phase into executable tasks
-- sync `docs/tasks.md`
-- sync `docs/CODEX_PROMPT.md`
-- sharpen `docs/spec.md` if needed
+Before coding Phase 8:
+- confirm the phase entry package in `docs/tasks.md`
+- confirm the active state in `docs/CODEX_PROMPT.md`
+- use `docs/MEMORY_ARCHITECTURE.md` as the memory source-of-truth
 - run a Phase Entry Check
 
 ## Resume Rule

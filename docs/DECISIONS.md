@@ -91,23 +91,25 @@ A web layer is a later-phase option, not a current necessity.
 - a weakly differentiated web shell would add packaging, not product value
 - the product still needs stronger continuity and memory before another surface is justified
 
-## 6. Creative memory next, not general RAG
+## 6. Evidence memory next, not general RAG
 
 ### Decision
 
-The next substantial capability should be a bounded creative memory layer.
+The next substantial capability should be a bounded project-first evidence memory layer.
 
 ### Why this is valid
 
 - continuity is the real product gap
-- the product already has structured state to build on
+- the product already has structured state and bounded summaries to build on
+- the missing piece is recallable evidence with provenance, not a bigger platform
 - generic retrieval infrastructure would be an implementation-first move instead of a product-first move
 
 ### What this rules out for now
 
 - vector DB by default
-- semantic search platform work before memory artifacts exist
+- semantic search platform work before memory boundaries exist
 - open-ended long-context claims
+- metaphor-driven memory abstractions
 
 ## 7. Governance level is Standard
 
@@ -139,6 +141,7 @@ The following documents are source-of-truth for implementation planning:
 - `docs/PRODUCT_OVERVIEW.md`
 - `docs/USER_EXPERIENCE.md`
 - `docs/ARCHITECTURE.md`
+- `docs/MEMORY_ARCHITECTURE.md`
 - `docs/WORKFLOW_BOUNDARIES.md`
 - `docs/spec.md`
 - `docs/PHASE_PLAN.md`

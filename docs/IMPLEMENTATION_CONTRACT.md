@@ -1,7 +1,7 @@
 # Film School Assistant — Implementation Contract
 
-Version: 2.0
-Last updated: 2026-03-30
+Version: 2.1
+Last updated: 2026-04-07
 Status: Active
 
 This contract is the floor. Implementation may refine the system, but it may not violate
@@ -19,6 +19,9 @@ these rules without an explicit architecture update.
 6. LLM behavior stays bounded to declared inference paths and approved tools.
 7. No model-driven flow may execute shell commands, install packages, or mutate host runtime.
 8. Reminder and report automation must remain observable and recoverable by normal operator action.
+9. Structured state remains the source of truth; summaries and recall layers may support it but must not replace it.
+10. Memory retrieval is project-first by default; cross-project recall must be explicit.
+11. Any recalled memory shown to the user or injected into prompts must preserve source provenance when available.
 
 ---
 
@@ -90,6 +93,9 @@ but still binding.
 - reminder due checks and weekly summary send guards must not depend on LLM output
 - retry/backoff behavior for Telegram delivery must stay explicit in code
 - calculations, thresholds, and state transitions must remain deterministic
+- memory scope resolution must remain deterministic
+- summary refresh rules and staleness checks must remain deterministic
+- memory provenance must remain inspectable in storage
 
 ---
 
@@ -144,3 +150,6 @@ These rules apply while `Agentic = ON`.
 - storing secrets in repo files
 - sending raw voice audio to external LLM APIs
 - treating a doc-only retrofit as proof that runtime behavior is already verified
+- making summaries the sole source of project truth
+- retrieving across all projects by default when a narrower project scope exists
+- returning recalled memory without source labeling or inspectable provenance

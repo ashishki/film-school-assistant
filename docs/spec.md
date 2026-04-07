@@ -1,7 +1,7 @@
 # Film School Assistant — Product Spec
 
-Version: 3.1
-Last updated: 2026-04-03
+Version: 3.2
+Last updated: 2026-04-07
 Status: Active
 
 ## 1. Product Goal
@@ -183,18 +183,19 @@ It should be positioned as:
 
 ## 9. Immediate Product Requirement for the Next Phase
 
-The next build phase after documentation must improve user-visible continuity and assistant feel inside the current Telegram surface before introducing larger architectural expansion.
+The next implementation phase must add a small evidence-memory layer for project-first recall before expanding continuity UX further.
 
 That means:
-- better status framing
-- clearer progress feeling
-- stronger weekly and project continuity signals
-- less mechanical interaction
+- preserve structured state as source of truth
+- keep bounded summaries for fast working context
+- add recallable evidence with provenance
+- keep retrieval project-first by default
 
 It does not mean:
 - jump straight to a web app
 - add speculative team features
-- add embeddings only because "memory" sounds modern
+- turn the repo into a generic memory platform
+- add embeddings or external retrieval infrastructure without a documented need
 
 ## 10. Phase 1 UX Behavioral Requirements
 
@@ -251,46 +252,89 @@ Across all Phase 1 changes:
 - confirmations, digests, and review completions must not accumulate decorative language
 - longer is not better; grounded and brief is better
 
-## 11. Phase 2 Memory Behavioral Requirements
+## 11. Memory Behavioral Requirements
 
-These requirements are implementation-explicit for Phase 2. They define expected system behavior for the creative memory layer.
+These requirements define the intended layered memory model.
 
-### MR-1 — project_memory Storage Contract
+### MR-1 — Memory Tier Contract
 
-One memory row per project. A memory row contains:
-- `summary_text`: bounded LLM output, one paragraph, max 200 tokens
-- `generated_at`: UTC ISO timestamp of last generation
-- `item_count_snapshot`: count of notes+ideas+deadlines at generation time (used for staleness check)
-- `model_used`: model identifier used for generation
+The product has three memory tiers:
+- **structured state**: canonical operational records such as projects, notes, ideas, deadlines, homework, user context entries, and review history metadata
+- **bounded summaries**: short project and user summaries used for orientation and prompt efficiency
+- **evidence memory**: recallable verbatim or excerpted items with source provenance
 
-The memory row must not:
-- contain invented facts not traceable to stored records
-- exceed one paragraph in summary_text
-- be generated without an LLM call being logged in llm_call_log
+Structured state is the source of truth.
+Summaries and evidence memory must never replace canonical records.
 
-### MR-2 — Memory Generation Rules
+### MR-2 — Project Summary Contract
 
-Memory generation is triggered by `/memory` command only. It is not automatic.
+Project summary storage must remain one row per project and must contain:
+- `summary_text`
+- `generated_at`
+- a deterministic freshness signal
+- `model_used`
 
-Staleness check: if `item_count_snapshot` equals current count of notes+ideas+deadlines for the project, return cached memory without an LLM call.
+Project summaries must:
+- be grounded only in stored project data
+- remain bounded and inspectable
+- be refreshable from canonical state plus selected evidence
 
-If the project has no notes, ideas, or deadlines yet, the command must return a clear message that there is not enough stored material to generate memory, rather than generating a placeholder.
+Project summaries must not:
+- act as the only record of project facts
+- silently absorb data from other projects
 
-### MR-3 — Memory Injection Rules
+### MR-3 — Evidence Memory Contract
 
-When the chat handler is invoked:
-- if `user_state.active_project_id` is set and a memory row exists for that project, prepend it to the system prompt as a labeled block: `Контекст проекта: {summary_text}`
-- if no active project or no memory row, system prompt is unchanged
-- injection must not prevent the chat from working if the DB read fails — fall back to base prompt silently
+Evidence memory rows must preserve:
+- scope (`project` or `user`)
+- source kind
+- source record ID
+- text content or excerpt
+- timestamp when available
+- provenance sufficient to inspect the original source
 
-The injected context is read-only. The LLM may not update or delete the memory row through tool calls.
+Evidence memory must:
+- default to project scope when an active project exists
+- support explicit user-scope recall separately
+- preserve verbatim wording when nuance matters
 
-### MR-4 — Memory Anti-Goals
+Evidence memory must not:
+- become a dumping ground for all chat
+- store speculative inferred facts as if they were records
+
+### MR-4 — Retrieval Rules
+
+Default retrieval behavior:
+- active project first
+- user profile memory separate
+- cross-project retrieval only on explicit request
+
+When the chat handler or another assistant path needs orientation:
+- inject bounded summary first
+- retrieve evidence only when the task requires deeper recall
+- fall back safely if the memory read fails
+
+Any recalled evidence returned to the user or passed into prompts must retain source labeling.
+
+### MR-5 — Summary Refresh Rules
+
+Summary refresh remains deterministic.
+
+The system may refresh a project summary when:
+- the user explicitly runs `/memory`
+- the summary is stale by age
+- relevant source material changed materially
+
+The system must not:
+- regenerate summaries implicitly on every chat turn
+- rely only on item count as the long-term freshness signal
+
+### MR-6 — Memory Anti-Goals
 
 The memory layer must not:
-- use embeddings or vector similarity at any point
-- retrieve records from multiple projects simultaneously
-- autonomously update memory without an explicit trigger
+- retrieve across multiple projects by default
+- introduce decorative memory metaphors into the app architecture
+- become a giant universal memory engine
 - fabricate project state not derivable from stored records
 
 ## 12. Phase 3 Reflection Behavioral Requirements

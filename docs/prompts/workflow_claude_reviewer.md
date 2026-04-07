@@ -8,6 +8,13 @@ Use this file only for manual debugging or ad-hoc re-runs outside the active Orc
 Active orchestration entry point:
 - `docs/prompts/ORCHESTRATOR.md`
 
+This file is for light review and ad-hoc review only.
+Phase-boundary deep review uses the audit chain in:
+- `docs/audit/PROMPT_0_META.md`
+- `docs/audit/PROMPT_1_ARCH.md`
+- `docs/audit/PROMPT_2_CODE.md`
+- `docs/audit/PROMPT_3_CONSOLIDATED.md`
+
 ---
 
 ## YOUR MISSION
