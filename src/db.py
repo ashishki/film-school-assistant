@@ -617,9 +617,10 @@ async def get_project_item_count(db: aiosqlite.Connection, project_id: int) -> i
             (SELECT COUNT(*) FROM notes WHERE project_id = ?) +
             (SELECT COUNT(*) FROM ideas WHERE project_id = ?) +
             (SELECT COUNT(*) FROM deadlines WHERE project_id = ? AND status = 'active') +
+            (SELECT COUNT(*) FROM homework WHERE project_id = ? AND status = 'pending') +
             (SELECT COUNT(*) FROM review_history rh JOIN ideas i ON i.id = rh.idea_id WHERE i.project_id = ?)
         """,
-        (project_id, project_id, project_id, project_id),
+        (project_id, project_id, project_id, project_id, project_id),
     )
     row = await cursor.fetchone()
     await cursor.close()

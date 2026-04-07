@@ -21,6 +21,8 @@ class Config:
     feature_capture_max_questions: int = 3
     reminder_buckets: tuple[int, ...] = (7, 3, 1, 0)
     default_timezone: str = "Asia/Tbilisi"
+    memory_staleness_days: int = 3
+    gap_days: int = 3
     log_level: str = "INFO"
 
 
@@ -70,6 +72,8 @@ def load_config() -> Config:
         feature_capture_max_questions=int(os.environ.get("FEATURE_CAPTURE_MAX_QUESTIONS", "3")),
         reminder_buckets=reminder_buckets,
         default_timezone=default_timezone,
+        memory_staleness_days=int(os.environ.get("MEMORY_STALENESS_DAYS", "3")),
+        gap_days=int(os.environ.get("GAP_DAYS", "3")),
         log_level=os.environ.get("LOG_LEVEL", "INFO"),
     )
     LOGGER.debug("Configuration loaded with db_path=%s audio_path=%s", config.db_path, config.audio_path)

@@ -5,6 +5,7 @@ import json
 import logging
 import sys
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
 import aiosqlite
@@ -32,6 +33,7 @@ from src.db import (
     create_parsed_event,
     create_transcript,
     create_voice_input,
+    get_project_memory,
     get_recent_unconfirmed_events,
     init_db,
     update_voice_input_processed,
@@ -89,6 +91,15 @@ from src.user_context import build_user_context_pending_entity, is_user_context_
 LOGGER = logging.getLogger(__name__)
 CONFIRM_WORDS = {"да", "ок", "окей", "давай", "сохрани", "сохранить", "подтверждаю", "yes", "yep"}
 DISCARD_WORDS = {"нет", "стоп", "удали", "удалить", "отмена", "отменить", "выброси", "no", "nope", "cancel"}
+
+
+def _extract_focus(summary_text: str) -> str | None:
+    for line in summary_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("Фокус:"):
+            focus = stripped[len("Фокус:"):].strip()
+            return focus if focus and focus != "нет данных" else None
+    return None
 
 
 def _matches_any_phrase(text: str, phrases: set[str]) -> bool:
@@ -314,6 +325,24 @@ async def chat_handler_wrapper(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     config = context.bot_data["config"]
     state = get_state(chat.id)
+    now = datetime.now(timezone.utc)
+    if state.last_active is not None:
+        elapsed_days = (now - state.last_active).days
+        if elapsed_days >= config.gap_days and state.active_project_id is not None:
+            try:
+                async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                    db.row_factory = aiosqlite.Row
+                    memory = await get_project_memory(db, state.active_project_id)
+                if memory is not None:
+                    focus = _extract_focus(memory["summary_text"] or "")
+                    if focus:
+                        project_name = state.active_project_name or f"#{state.active_project_id}"
+                        await message.reply_text(
+                            f"Последний раз ты работала над «{project_name}»: {focus}"
+                        )
+            except aiosqlite.Error:
+                LOGGER.exception("Failed to surface gap context for chat_id=%s", chat.id)
+    state.last_active = now
     text = message.text.strip()
     normalized_text = text.lower()
     last_assistant_message = None

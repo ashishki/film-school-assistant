@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from datetime import datetime, timezone
 
 import aiosqlite
 from telegram import Update
@@ -15,17 +16,21 @@ from src.state import get_state
 LOGGER = logging.getLogger(__name__)
 
 MEMORY_SYSTEM_PROMPT = (
-    "Ты — помощник режиссёра. Напиши одним абзацем текущее состояние проекта, основываясь ТОЛЬКО на данных ниже.\n"
-    "Не выдумывай ничего, чего нет в данных. Не давай советов. Только факты о проекте.\n"
-    "Максимум 200 слов. Один абзац.\n"
-    "Формат: сплошной абзац без заголовков и списков."
+    "Ты — помощник режиссёра. Опиши текущее состояние проекта, основываясь ТОЛЬКО на данных ниже.\n"
+    "Не выдумывай ничего, чего нет в данных. Не давай советов.\n"
+    "Используй ровно этот формат — четыре поля, каждое с новой строки:\n"
+    "Фокус: {одно предложение о текущем творческом или практическом центре проекта}\n"
+    "Открытые вопросы: {2–3 активных нерешённых вопроса через точку с запятой}\n"
+    "Последнее: {что появилось или изменилось в последней активности}\n"
+    "Следующий шаг: {одно конкретное действие для следующей сессии}\n"
+    "Если данных недостаточно для поля — напиши «нет данных»."
 )
 
 
 async def _fetch_records(
     db: aiosqlite.Connection,
     project_id: int,
-) -> tuple[list[dict], list[dict], list[dict]]:
+) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
     notes_cursor = await db.execute(
         """
         SELECT content, created_at
@@ -65,7 +70,25 @@ async def _fetch_records(
     deadline_rows = await deadlines_cursor.fetchall()
     await deadlines_cursor.close()
 
-    return [dict(row) for row in note_rows], [dict(row) for row in idea_rows], [dict(row) for row in deadline_rows]
+    homework_cursor = await db.execute(
+        """
+        SELECT title, due_date
+        FROM homework
+        WHERE project_id = ? AND status = 'pending'
+        ORDER BY due_date ASC
+        LIMIT 10
+        """,
+        (project_id,),
+    )
+    homework_rows = await homework_cursor.fetchall()
+    await homework_cursor.close()
+
+    return (
+        [dict(row) for row in note_rows],
+        [dict(row) for row in idea_rows],
+        [dict(row) for row in deadline_rows],
+        [dict(row) for row in homework_rows],
+    )
 
 
 def _truncate_text(value: str, limit: int = 100) -> str:
@@ -77,6 +100,7 @@ def _build_input_text(
     notes: list[dict],
     ideas: list[dict],
     deadlines: list[dict],
+    homework: list[dict],
 ) -> str:
     return (
         f"Проект: {project_name}\n\n"
@@ -100,7 +124,17 @@ def _build_input_text(
                 f"- {deadline['title']} (срок: {deadline['due_date'] or 'не указан'})"
                 for deadline in deadlines
             )
+            + "\n\n"
             if deadlines
+            else ""
+        )
+        + (
+            f"Домашние задания ({len(homework)}):\n"
+            + "\n".join(
+                f"- {hw['title']} (срок: {hw['due_date'] or 'не указан'})"
+                for hw in homework
+            )
+            if homework
             else ""
         )
     )
@@ -130,12 +164,21 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 existing_memory = await get_project_memory(db, project_id)
 
                 if existing_memory is not None and existing_memory["item_count_snapshot"] == current_count:
-                    await reply_text(
-                        update,
-                        context,
-                        f"Память проекта «{project_name}»:\n\n{existing_memory['summary_text']}\n\n_(актуально, обновлено: {existing_memory['generated_at'][:10]})_",
-                    )
-                    return
+                    staleness_days = context.bot_data["config"].memory_staleness_days
+                    try:
+                        generated_at = datetime.fromisoformat(existing_memory["generated_at"].replace("Z", "+00:00"))
+                        if generated_at.tzinfo is None:
+                            generated_at = generated_at.replace(tzinfo=timezone.utc)
+                        age_days = (datetime.now(timezone.utc) - generated_at).days
+                    except (ValueError, TypeError):
+                        age_days = staleness_days + 1
+                    if age_days < staleness_days:
+                        await reply_text(
+                            update,
+                            context,
+                            f"Память проекта «{project_name}»:\n\n{existing_memory['summary_text']}\n\n_(актуально, обновлено: {existing_memory['generated_at'][:10]})_",
+                        )
+                        return
 
                 if current_count == 0:
                     await reply_text(
@@ -145,7 +188,7 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     )
                     return
 
-                notes, ideas, deadlines = await _fetch_records(db, project_id)
+                notes, ideas, deadlines, homework = await _fetch_records(db, project_id)
 
                 daily_llm_call_limit = context.bot_data["config"].daily_llm_call_limit
                 today_calls = await get_llm_calls_today(db)
@@ -153,7 +196,7 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     await reply_text(update, context, "Дневной лимит запросов исчерпан. Попробуй завтра.")
                     return
 
-                input_text = _build_input_text(project_name, notes, ideas, deadlines)
+                input_text = _build_input_text(project_name, notes, ideas, deadlines, homework)
 
                 try:
                     summary_text = await asyncio.to_thread(

@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 
 
 LOGGER = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ class UserState:
     pending_practice_setup: dict | None = None
     nl_context: list[str] = field(default_factory=list)
     conversation_history: list[dict] = field(default_factory=list)
+    last_active: datetime | None = None
 
     def add_message(self, role: str, content: str) -> None:
         self.conversation_history.append({"role": role, "content": content})

@@ -189,6 +189,12 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             state.pending_nl_content = content
             state.pending_nl_due_date = due_date or None
             state.pending_nl_project_hint = project_hint or None
+            try:
+                async with aiosqlite.connect(context.bot_data["db_path"]) as db:
+                    db.row_factory = aiosqlite.Row
+                    await log_llm_call(db, "intent", "extraction")
+            except aiosqlite.Error:
+                LOGGER.exception("Failed to log LLM call for type_selection path chat_id=%s", chat.id)
             await reply_text(
                 update,
                 context,
@@ -208,6 +214,7 @@ async def nl_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                     due_date,
                     user_text,
                 )
+                await log_llm_call(db, "intent", "extraction")
         except aiosqlite.Error:
             LOGGER.exception("Failed to persist NL parsed event for chat_id=%s", chat.id)
             await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
@@ -326,7 +333,6 @@ async def _prepare_pending_entity_from_nl(
             }
         ),
     )
-    await log_llm_call(db, "intent", "extraction")
     pending_entity["parsed_event_id"] = parsed_event["id"]
     return pending_entity, validated_due_date
 
