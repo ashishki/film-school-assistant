@@ -20,8 +20,6 @@ from src.db import (
 )
 from src.handlers.common import get_command_text, reply_text
 from src.practice_intents import (
-    DEFAULT_EVENING_TIME,
-    DEFAULT_MORNING_TIME,
     EVENING_KIND,
     MORNING_KIND,
 )
