@@ -8,7 +8,7 @@ Last updated: 2026-04-07
 
 - Name: Film School Assistant
 - Root: `/srv/openclaw-her/workspace/film-school-assistant`
-- Repository state: operational product; Phases 0–6 complete; Phase 7 memory-architecture alignment complete in docs; Phase 8 ready for implementation planning
+- Repository state: operational product; Phases 0–7 complete; Phase 8 ready for implementation planning
 
 ---
 
@@ -99,6 +99,9 @@ Do not assume a full-project Strategist rerun is required.
 - chat, review, and reflect inject summary text but have no explicit evidence-memory retrieval path
 - `/search` and the chat search tool are not project-first by default
 - transcript storage exists, but transcript recall is not yet part of the memory architecture
+- `P3` Review history injected into /reflect as raw JSON dump rather than accumulated summary — deferred to Phase 8
+- `P3` Gap surface fires only in chat_handler_wrapper (text messages); voice messages and commands don't update last_active — deferred
+- `P3` _extract_focus finds "Фокус:" only in new structured format; users with old flat-paragraph memory see no gap surface until they regenerate with /memory — expected behavior, not a bug
 
 ---
 
@@ -130,6 +133,18 @@ Artifacts updated:
 Outcome:
 - the next implementation phase is no longer "make the summary paragraph better"
 - it is now "add a small evidence-memory layer with project-first retrieval and provenance"
+
+## Completed Tasks — Phase 7 (Continuity Layer Improvement)
+
+Phase entry: Phase 6 complete; 2026-04-07
+Phase close artifact: `docs/review/continuity_eval_p7.md`
+Also includes: AC2-FIX-1/2 (log_llm_call overcounting in entity queue; unlogged LLM calls in type_selection path)
+
+[x] P7-01 — Structured project memory format: MEMORY_SYSTEM_PROMPT rewritten to 4-field format (Фокус / Открытые вопросы / Последнее / Следующий шаг)
+[x] P7-02 — Homework inclusion: _fetch_records + _build_input_text + get_project_item_count updated; homework WHERE status='pending' included
+[x] P7-03 — Time-based memory staleness: memory_staleness_days in Config (default 3, env MEMORY_STALENESS_DAYS); cache-hit checks age not only count
+[x] P7-04 — Gap surface: last_active in UserState; gap_days in Config; chat_handler_wrapper prepends "Последний раз ты работала над..." on re-entry after gap
+[x] P7-05 — Phase 7 Continuity Eval Pack: docs/review/continuity_eval_p7.md — all findings low, phase CLOSED
 
 ---
 
