@@ -1,6 +1,6 @@
 # Film School Assistant — Codex Session State
 
-Last updated: 2026-04-07
+Last updated: 2026-04-08
 
 ---
 
@@ -8,22 +8,22 @@ Last updated: 2026-04-07
 
 - Name: Film School Assistant
 - Root: `/srv/openclaw-her/workspace/film-school-assistant`
-- Repository state: operational product; Phases 0–8 complete; Phase 9 ready for implementation
+- Repository state: operational product; Phases 0–10 complete; Audit Cycle 3 complete; 2 P2 fixes pending before Phase 11
 
 ---
 
 ## Current Phase
 
-- Phase: 10 — Explicit Cross-Project Recall — PENDING
+- Phase: 10 — Explicit Cross-Project Recall — CLOSED
 - Phase entry condition: Phase 9 complete; human approval received 2026-04-08
+- Phase close artifact: `docs/review/cross_project_eval_p10.md`
 
---- Fix Queue --- (empty) ---
+--- Fix Queue --- (empty — AC3 fixes resolved) ---
 
---- Phase 10 Task Status ---
-[x] P10-01 — All-project memory search helper and /search all: mode
-[x] P10-02 — Named-project recall in /recall
-[x] P10-03 — Provenance labeling with project name in cross-project results
-[x] P10-04 — Phase 10 cross-project eval pack
+[x] FIX-AC3-1 — reflect_cmd: log_llm_call wrapped in own try/except; no longer swallows reflection on DB error
+[x] FIX-AC3-2 — smoke_test T-M6 added for search_memory_items_all_projects; smoke_test PASS
+
+--- No active phase. Awaiting Phase 11 definition or human direction. ---
 
 ---
 
@@ -92,15 +92,39 @@ Do not assume a full-project Strategist rerun is required.
 
 ## Open Findings
 
-- Current project continuity relies too heavily on `project_memory.summary_text`
-- `src/handlers/memory_cmd.py` still generates a flat paragraph from notes, ideas, and active deadlines only
-- `src/db.py:get_project_item_count` is a weak long-term freshness signal for summary reuse
-- chat, review, and reflect inject summary text but have no explicit evidence-memory retrieval path
-- `/search` and the chat search tool are not project-first by default
-- transcript storage exists, but transcript recall is not yet part of the memory architecture
-- `P3` Review history injected into /reflect as raw JSON dump rather than accumulated summary — deferred to Phase 8
-- `P3` Gap surface fires only in chat_handler_wrapper (text messages); voice messages and commands don't update last_active — deferred
-- `P3` _extract_focus finds "Фокус:" only in new structured format; users with old flat-paragraph memory see no gap surface until they regenerate with /memory — expected behavior, not a bug
+Audit Cycle 3 (2026-04-08) — Phases 8–10:
+
+P2 (in fix queue above):
+- CODE-16: reflect_cmd log_llm_call inside outer aiosqlite.Error handler — swallows valid reflection on DB failure
+- CODE-17: search_memory_items_all_projects has no smoke test
+
+P3 (carry-forward, non-blocking):
+- CODE-3: due_date not validated before DB write (src/tools.py)
+- CODE-4: chat_handler bypasses openclaw_client retry (src/handlers/chat_handler.py)
+- CODE-5: reflect_cmd no total cap on assembled input text (downgraded from P2; next_steps[:200] now present)
+- CODE-6: REVIEW_SYSTEM_PROMPT in English (src/reviewer.py)
+- CODE-7: send_summary.py English section headers (scripts/send_summary.py)
+- CODE-8: memory cap inconsistent across spec/prompt/API (src/handlers/memory_cmd.py)
+- CODE-11..15: minor UX/naming issues from Cycle 1
+- CODE-18: no UNIQUE constraint on memory_items(source_kind, source_id) — dedup is application-level only
+- CODE-19: no end-to-end smoke test for recall_cmd or gap-surface evidence paths
+- `P3` Gap surface fires only in chat_handler_wrapper (text messages); voice/commands don't update last_active — deferred
+- `P3` Review history thin-parsed in /reflect; full review text not in evidence — deferred
+- `P3` _extract_focus finds "Фокус:" only in new structured format — expected behavior
+
+---
+
+## Phase 10 Close Note
+
+Phase 10 added explicit opt-in cross-project recall. All defaults (search, recall, reflect, gap surface) remain project-scoped. Cross-project paths require explicit user action only.
+
+Phase entry: Phase 9 complete; 2026-04-08
+Phase close artifact: `docs/review/cross_project_eval_p10.md`
+
+[x] P10-01 — All-project memory search helper and /search all: mode
+[x] P10-02 — Named-project recall in /recall
+[x] P10-03 — Provenance labeling with project name in cross-project results
+[x] P10-04 — Phase 10 cross-project eval pack
 
 ---
 

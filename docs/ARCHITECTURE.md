@@ -99,6 +99,8 @@ T2/T3 are unjustified because there is no privileged autonomous execution and no
 |-----------|--------------|
 | `src/bot.py` | Telegram entry point, authorization guard, routing, voice and command flow coordination |
 | `src/handlers/nl_handler.py` | Structured entity extraction from free text with confirmation-first save flow |
+| `src/handlers/recall_cmd.py` | Explicit evidence recall by project scope (`/recall`, `/recall user`, `/recall <slug>`) |
+| `src/handlers/search_cmd.py` | Keyword search across notes, ideas, and memory_items; all-project mode via `all:` prefix |
 | `src/handlers/chat_handler.py` | Bounded tool-using assistant loop for conversational queries and actions |
 | `src/handlers/feature_feedback.py` | Bounded feature-request capture flow when the assistant cannot satisfy a request |
 | `src/practice_intents.py` and `src/handlers/practice_cmd.py` | Deterministic parsing and configuration of recurring daily practices |
