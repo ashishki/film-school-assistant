@@ -242,7 +242,6 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
                 model_name = os.environ.get("LLM_MODEL_INTENT", "claude-haiku-4-5")
                 await upsert_project_memory(db, project_id, summary_text, current_count, model_name)
-                LOGGER.info("summary refreshed project_id=%s reason=%s", project_id, stale_reason)
                 LOGGER.info("memory_path=summary_refreshed project_id=%s reason=%s", project_id, stale_reason)
 
         except aiosqlite.Error:

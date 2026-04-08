@@ -265,7 +265,7 @@ async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pendi
                     source_created_at=saved.get("created_at"),
                 )
             except Exception:
-                logging.getLogger(__name__).warning(
+                LOGGER.warning(
                     "upsert_memory_item failed for note %s",
                     saved["id"],
                     exc_info=True,
@@ -292,7 +292,7 @@ async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pendi
                     source_created_at=saved.get("created_at"),
                 )
             except Exception:
-                logging.getLogger(__name__).warning(
+                LOGGER.warning(
                     "upsert_memory_item failed for idea %s",
                     saved["id"],
                     exc_info=True,
@@ -334,7 +334,7 @@ async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pendi
                     source_created_at=saved.get("created_at"),
                 )
             except Exception:
-                logging.getLogger(__name__).warning(
+                LOGGER.warning(
                     "upsert_memory_item failed for homework %s",
                     saved["id"],
                     exc_info=True,
@@ -368,7 +368,7 @@ async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pendi
                 source_created_at=saved.get("created_at"),
             )
         except Exception:
-            logging.getLogger(__name__).warning(
+            LOGGER.warning(
                 "upsert_memory_item failed for user_context %s",
                 saved["id"],
                 exc_info=True,
