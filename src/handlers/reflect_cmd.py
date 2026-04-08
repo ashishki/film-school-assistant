@@ -202,7 +202,14 @@ async def reflect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     await reply_text(update, context, "Не удалось сформировать рефлексию. Попробуй ещё раз.")
                     return
 
-                await log_llm_call(db, "review", "reflect")
+                try:
+                    await log_llm_call(db, "review", "reflect")
+                except aiosqlite.Error:
+                    LOGGER.warning(
+                        "Failed to log LLM call for /reflect project_id=%s",
+                        project_id,
+                        exc_info=True,
+                    )
 
         except aiosqlite.Error:
             LOGGER.exception("Database failure during /reflect for project_id=%s", project_id)
