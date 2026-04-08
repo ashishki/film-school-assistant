@@ -1,4 +1,64 @@
 ---
+# META_ANALYSIS — Cycle 3
+_Date: 2026-04-08 · Type: full_
+
+## Project State
+
+Phases 8–10 complete. Evidence memory schema (P8), continuity surfaces (P9), and explicit cross-project recall (P10) all implemented and closed by self-generated eval packs. No independent deep review had been conducted since Audit Cycle 1 (Phases 1–4). This cycle covers the gap.
+
+Next: no active phase. Fixes from this cycle required before Phase 11.
+
+Baseline (Cycle 1): P0:0, P1:2, P2:8, P3:5. P1-1 and P1-2 confirmed fixed. CODE-9 confirmed fixed.
+
+## Open Findings (carry-forward from Cycle 1)
+
+| ID | Sev | Description | Files | Status |
+|----|-----|-------------|-------|--------|
+| P1-1 | P1 | log_llm_call fires before LLM in nl_handler.py | src/handlers/nl_handler.py | CLOSED — verified lines 195, 217 after complete_json |
+| P1-2 | P1 | log_llm_call fires before LLM in review.py | src/handlers/review.py | CLOSED — verified line 93 after review_idea() |
+| CODE-3 | P2 | due_date not validated before DB write | src/tools.py | Open — out of scope Phases 8–10 |
+| CODE-4 | P2 | chat_handler bypasses openclaw_client retry | src/handlers/chat_handler.py | Open — out of scope |
+| CODE-5 | P2→P3 | reflect_cmd no hard cap on assembled text | src/handlers/reflect_cmd.py | Partially improved — next_steps[:200] added; no total cap; downgrade P3 |
+| CODE-6 | P2 | REVIEW_SYSTEM_PROMPT in English | src/reviewer.py | Open |
+| CODE-7 | P2 | send_summary.py English headers | scripts/send_summary.py | Open |
+| CODE-8 | P2 | Memory cap inconsistent across spec/prompt/API | src/handlers/memory_cmd.py | Open |
+| CODE-9 | P2 | smoke_test EXPECTED_TABLES missing memory_items | scripts/smoke_test_db.py | CLOSED — memory_items present at line 89 |
+| CODE-10 | P2 | smoke_test missing Phase 2/3 DB coverage | scripts/smoke_test_db.py | Partial — T-M1..T-M5 added; search_memory_items_all_projects untested |
+| CODE-11..15 | P3 | Minor issues | multiple | Open — carry-forward |
+
+## PROMPT_1 Scope (architecture)
+
+- `memory_items` evidence layer: schema, scope enforcement, FK, indexes
+- Deterministic ingestion: `upsert_memory_item` called from confirm.py on note/idea/homework/user_context save
+- `_check_summary_staleness`: v2 rules (count-changed + age-exceeded)
+- Project-first retrieval: `get_memory_items_for_project`, `search_memory_items_for_project`
+- Cross-project opt-in: `search_memory_items_all_projects`, `get_project_by_slug`
+- Gap surface with evidence: `chat_handler_wrapper` in bot.py
+- Evidence-grounded reflection: `reflect_cmd.py` evidence_snippets path
+- New commands: `recall_cmd.py` (Phase 9), `search_cmd.py` all-project mode (Phase 10)
+
+## PROMPT_2 Scope (code, priority order)
+
+1. `src/handlers/reflect_cmd.py` — log_llm_call placement vs DB error handling
+2. `src/db.py` — search_memory_items_all_projects, upsert_memory_item, get_project_by_slug
+3. `src/handlers/recall_cmd.py` — new file
+4. `src/handlers/search_cmd.py` — all-project mode
+5. `src/handlers/confirm.py` — upsert_memory_item calls on entity save
+6. `src/bot.py:chat_handler_wrapper` — gap surface with evidence
+7. `scripts/smoke_test_db.py` — T-M1..T-M5 coverage
+8. `src/schema.sql:memory_items` — table definition
+
+## Cycle Type
+
+Full — three phases (8, 9, 10) without prior independent review.
+
+## Notes for PROMPT_3
+
+- Verify log_llm_call vs DB error ordering in reflect_cmd.py
+- Check search_memory_items_all_projects smoke test gap
+- Confirm P1-1 and P1-2 closure before removing from carry-forward
+
+---
 # META_ANALYSIS — Cycle 1
 _Date: 2026-04-01 · Type: full_
 

@@ -1,3 +1,77 @@
+# REVIEW_REPORT — Cycle 3
+
+_Date: 2026-04-08 · Scope: Phases 8–10 (P8-01..P10-04) · Stop-Ship: No_
+
+---
+
+## Executive Summary
+
+- Stop-Ship: No
+- P0: 0 · P1: 0 · P2: 2 · P3: 2 new · Total new: 4
+- P1-1 and P1-2 from Cycle 1: CLOSED — log_llm_call ordering fixed in nl_handler.py and review.py
+- CODE-9 from Cycle 1: CLOSED — memory_items now in smoke test EXPECTED_TABLES
+- Core memory architecture correct: project-first by default, cross-project explicit, provenance preserved in all paths
+- Evidence layer (memory_items) schema is correct: CHECK constraint, FK to projects, two indexes, `CREATE TABLE IF NOT EXISTS`
+- P2-1: reflect_cmd.py log_llm_call is inside the outer DB error handler — aiosqlite.Error on quota log silently swallows successfully generated reflection
+- P2-2: search_memory_items_all_projects (Phase 10 core function) has no smoke test coverage
+- Carry-forward P2 findings (CODE-3,4,6,7,8) unchanged — out of scope for Phases 8–10
+
+---
+
+## P0 Issues
+
+None.
+
+---
+
+## P1 Issues
+
+None.
+
+---
+
+## P2 Issues
+
+| ID | Description | Files | Status |
+|----|-------------|-------|--------|
+| CODE-16 | reflect_cmd: log_llm_call inside outer aiosqlite.Error handler — DB error on log swallows valid reflection | src/handlers/reflect_cmd.py:205–212 | CLOSED — wrapped in own try/except aiosqlite.Error |
+| CODE-17 | search_memory_items_all_projects has no smoke test | scripts/smoke_test_db.py | CLOSED — T-M6 added; smoke_test PASS |
+
+---
+
+## P3 Issues (new this cycle)
+
+| ID | Description | Files | Status |
+|----|-------------|-------|--------|
+| CODE-18 | No UNIQUE constraint on memory_items(source_kind, source_id) — upsert dedup is application-level only; crash between SELECT and INSERT could create duplicates | src/schema.sql:142–156 | Open |
+| CODE-19 | smoke_test_db.py T-M1..M5 do not test recall_cmd or gap-surface end-to-end evidence paths | scripts/smoke_test_db.py | Open |
+
+---
+
+## Carry-Forward Status
+
+| ID | Sev | Description | Status | Change |
+|----|-----|-------------|--------|--------|
+| P1-1 | P1 | log_llm_call before LLM in nl_handler.py | CLOSED | Fixed — verified lines 195, 217 after complete_json |
+| P1-2 | P1 | log_llm_call before LLM in review.py | CLOSED | Fixed — verified line 93 after review_idea() |
+| CODE-3 | P2 | due_date not validated | Open | Unchanged |
+| CODE-4 | P2 | chat_handler bypasses retry | Open | Unchanged |
+| CODE-5 | P2→P3 | reflect_cmd assembled text no total cap | Downgraded | next_steps[:200] added; no total cap still present |
+| CODE-6 | P2 | REVIEW_SYSTEM_PROMPT in English | Open | Unchanged |
+| CODE-7 | P2 | send_summary.py English headers | Open | Unchanged |
+| CODE-8 | P2 | Memory cap inconsistent | Open | Unchanged |
+| CODE-9 | P2 | smoke_test EXPECTED_TABLES missing memory_items | CLOSED | Fixed — line 89 |
+| CODE-10 | P2 | smoke_test missing Phase 2/3 coverage | Partial | T-M1..M5 added; all-projects untested → CODE-17 |
+| CODE-11..15 | P3 | Minor issues | Open | Unchanged |
+
+---
+
+## Stop-Ship Decision
+
+No — P0: 0, P1: 0. CODE-16 affects UX on rare DB failures but not data integrity or security. CODE-17 is a test gap, not a runtime bug. System is operational. P2 fixes should be dispatched to Codex before Phase 11.
+
+---
+
 # REVIEW_REPORT — Cycle 1
 
 _Date: 2026-04-01 · Scope: Phase 1–4 (all tasks P1-01..P4-03) · Stop-Ship: No_

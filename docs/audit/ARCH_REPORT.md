@@ -1,4 +1,105 @@
 ---
+# ARCH_REPORT — Cycle 3
+_Date: 2026-04-08_
+
+## Component Verdicts
+
+| Component | Verdict | Note |
+|-----------|---------|------|
+| memory_items schema | PASS | CHECK scope, FK, two indexes; `CREATE TABLE IF NOT EXISTS` |
+| upsert_memory_item (ingestion) | PASS | Deterministic, parameterized; fire-and-forget with per-caller except |
+| _check_summary_staleness | PASS | Both count-changed and age-exceeded conditions present |
+| get_memory_items_for_project | PASS | Project-first, no cross-project leakage |
+| search_memory_items_all_projects | PASS | Opt-in only; docstring warns against default use; LEFT JOIN for provenance |
+| get_project_by_slug | PASS | Parameterized, returns None on miss |
+| recall_cmd.py | PASS | Explicit slug required; defaults unchanged |
+| search_cmd.py (all-project mode) | PASS | `all:` prefix gating enforced before any DB call |
+| reflect_cmd.py (evidence path) | DRIFT | log_llm_call inside outer DB try/except — DB error on log swallows generated reflection |
+| chat_handler_wrapper (gap surface) | PASS | Evidence fetched inside aiosqlite.Error guard |
+| smoke_test_db.py | DRIFT | search_memory_items_all_projects untested; T-M1..M5 cover project-first path only |
+
+## Contract Compliance
+
+| Rule | Verdict | Note |
+|------|---------|------|
+| §9: Structured state is source of truth; recall layers support but don't replace | PASS | memory_items is additive; canonical tables unchanged |
+| §10: Memory retrieval project-first by default | PASS | All default paths scope to active project |
+| §11: Cross-project recall must be explicit | PASS | `all:` prefix and explicit slug only |
+| §12: Any recalled memory preserves provenance | PASS | source_kind, source_id, project_name in cross-project output |
+| §1: Single-user gate | PASS | Authorization guard intact |
+| §3: SQLite remains system of record | PASS | No second persistence system added |
+| §5: Deterministic owns persistence, scope resolution | PASS | All memory scope logic is deterministic |
+| §6: LLM stays bounded to declared paths | PASS | No new LLM paths in phases 8–10 |
+| §8: Testing rule — every behavior change needs test or explicit reason | DRIFT | search_memory_items_all_projects introduced in Phase 10 with no smoke test |
+
+## ADR Compliance
+
+No ADRs exist in this repository. N/A.
+
+## Architecture Findings
+
+### ARCH-1 [P2] — reflect_cmd: log_llm_call failure silently swallows generated reflection
+
+Symptom: `log_llm_call` at `src/handlers/reflect_cmd.py:205` is inside the outer `async with` block protected by `except aiosqlite.Error` at line 207. If `log_llm_call` raises `aiosqlite.Error`, the except handler fires and replies with "Не удалось сохранить. (ERR:DB)", then returns — the successfully generated reflection at `_format_reflection(response)` is never sent.
+
+Evidence: `src/handlers/reflect_cmd.py:189–212` — LLM call at ~189, log at 205, reply at 212; reply is outside `async with` but log is inside the same except-protected block.
+
+Root cause: log_llm_call not wrapped in its own try/except; the outer aiosqlite.Error handler is too broad.
+
+Impact: On any DB failure during log_llm_call (rare but possible), user sees ERR:DB instead of the valid reflection they requested. LLM cost already incurred; output is discarded.
+
+Fix: Wrap `await log_llm_call(db, "review", "reflect")` in its own `try/except aiosqlite.Error` with a `LOGGER.warning` only. Move it so its failure cannot prevent the reply.
+
+### ARCH-2 [P2] — search_memory_items_all_projects has no smoke test
+
+Symptom: Phase 10 introduced `search_memory_items_all_projects` as the core of `/search all:` mode. `smoke_test_db.py` imports it (line 45) but contains no test case exercising it. T-M1..T-M5 cover project-first paths only.
+
+Evidence: `scripts/smoke_test_db.py:45` — import present; no test invocation of `search_memory_items_all_projects` anywhere in the file.
+
+Root cause: P10-04 (eval pack task) was marked complete without verifying smoke test coverage for the new function.
+
+Impact: Regressions in cross-project search (JOIN, LIKE, scope filter) would not be caught by CI.
+
+Fix: Add T-M6: insert memory items in two projects; call `search_memory_items_all_projects`; assert both project_names appear in results and `project_id` is present in each row.
+
+## Right-Sizing / Runtime Checks
+
+| Check | Verdict | Note |
+|-------|---------|------|
+| Solution shape still appropriate | PASS | Hybrid; no new autonomy introduced |
+| Deterministic-owned areas remain deterministic | PASS | Scope resolution, ingestion, staleness check all deterministic |
+| Runtime tier unchanged | PASS | T1; no shell execution, no privileged operations |
+| Human approval boundaries still valid | PASS | Cross-project recall is explicit; no automatic widening |
+| Minimum viable control surface still proportionate | PASS | Two new commands; bounded |
+
+## Tool-Use Architecture Checks (Tool-Use = ON)
+
+| Check | Verdict | Note |
+|-------|---------|------|
+| Tool Catalog complete | PASS | No new tools added in Phases 8–10 |
+| Unsafe-Action Policy covers destructive tools | PASS | No new destructive tools |
+| Confirmation steps distinct code paths | PASS | Unchanged |
+| Tool schemas validated at generation | PASS | Unchanged |
+| Permission checked at each tool boundary | PASS | Unchanged |
+
+## Agentic Architecture Checks (Agentic = ON)
+
+| Check | Verdict | Note |
+|-------|---------|------|
+| All agent roles within declared authority | PASS | Bounded chat loop unchanged |
+| Loop termination contract | PASS | Hard iteration limit unchanged |
+| Authority boundaries enforced in code | PASS | Unchanged |
+| Cross-iteration state uses declared schema | PASS | Unchanged |
+| Handoff protocol | PASS | N/A — single bounded loop |
+
+## Doc Patches Needed
+
+| File | Section | Change |
+|------|---------|--------|
+| docs/ARCHITECTURE.md §6 | System Components | Add `src/handlers/recall_cmd.py` to component table |
+| docs/ARCHITECTURE.md §6 | System Components | Add `src/handlers/search_cmd.py` cross-project mode note |
+
+---
 # ARCH_REPORT — Cycle 1
 _Date: 2026-04-01_
 
