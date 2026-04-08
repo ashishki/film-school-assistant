@@ -47,9 +47,9 @@ It is intentionally single-user, private, and operationally simple.
 - Storage: local SQLite
 - Voice transcription: local Whisper
 - Intent extraction: Claude Haiku — multi-entity, context-aware, with targeted error recovery
-- Project memory: Claude Haiku (bounded summary, one paragraph per project)
+- Project memory: Claude Haiku (bounded summary, structured 4-field format per project)
 - User context memory: Claude Haiku (bounded user profile summary from saved personal context)
-- Next memory upgrade: project-first evidence recall with provenance, built on local SQLite
+- Evidence memory: `memory_items` layer for project-first verbatim recall with provenance — notes, ideas, homework, user context entries all ingested automatically on save
 - Idea review: Claude Sonnet
 - Project reflection: Claude Sonnet (`/reflect` command)
 - Feature-feedback capture: bounded multi-step LLM flow with separate quota and structured storage
@@ -59,7 +59,7 @@ See [Product Overview](docs/PRODUCT_OVERVIEW.md), [Architecture](docs/ARCHITECTU
 
 ## Current Status
 
-The system is complete through five development phases and one audit cycle:
+The system is complete through Phase 10 (ten development phases) and three audit cycles:
 
 **Capture and confirmation**
 - Telegram-first capture by text or voice; local Whisper transcription
@@ -71,11 +71,16 @@ The system is complete through five development phases and one audit cycle:
 - when extraction fails, the assistant shows a concrete example instead of a generic error
 - NL handler uses the last five messages as context so back-references ("а ещё добавь дедлайн") resolve correctly
 
-**Project continuity**
+**Project continuity and evidence memory**
 - confirmation and edit replies are project-aware and include the project name
 - the weekly digest is framed in Russian with project-level next-step pointers
-- `/memory` generates a bounded project-state summary and stores one paragraph per project
+- `/memory` generates a bounded project-state summary in structured format (Фокус / Открытые вопросы / Последнее / Следующий шаг); re-generates when item count changes or summary exceeds the staleness window
 - stored project memory is injected into chat context so the assistant retains project state without re-explanation
+- every confirmed note, idea, homework, and user context entry is automatically ingested into `memory_items` — a verbatim evidence layer with source provenance
+- `/recall` browses recent project-scoped evidence; `/recall user` for user-scoped; `/recall <slug>` for any named project
+- `/search all:<keyword>` searches evidence across all projects explicitly — default search remains project-first
+- on re-entry after a gap, the assistant surfaces the last known project focus and the most recent evidence items
+- `/reflect` is evidence-grounded: recent `memory_items` are injected as verbatim context alongside the summary
 - personal context about the user can be saved separately from project notes and condensed into a short working profile
 - the saved user profile is injected into relevant assistant flows so review, reflection, and chat help stay grounded in the person, not only the project
 

@@ -1,8 +1,8 @@
 # Film School Assistant — Memory Architecture
 
-Version: 1.0
-Last updated: 2026-04-07
-Status: Active
+Version: 1.1
+Last updated: 2026-04-08
+Status: Active — target architecture shipped in Phases 8–10
 
 ## 1. Purpose
 
@@ -16,7 +16,14 @@ This is the source-of-truth memory document for future implementation tasks.
 
 ---
 
-## 2. Current State Assessment
+## 2. State Assessment (as of Phase 7, prior to implementation)
+
+> **Implementation note:** The limitations described in §2 were the baseline before Phases 8–10.
+> Phases 8–10 shipped the Tier C evidence memory layer (`memory_items`), project-first retrieval,
+> evidence-grounded reflection, explicit recall commands, and cross-project opt-in search.
+> See §5 for the target design that is now implemented.
+
+## 2. State Assessment
 
 ### What Exists Today
 
@@ -208,7 +215,7 @@ Do not store:
 
 ---
 
-## 5. Target Memory Architecture
+## 5. Target Memory Architecture (Shipped — Phases 8–10)
 
 ### Design Goals
 
