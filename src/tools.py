@@ -6,6 +6,7 @@ import aiosqlite
 
 from src import db as db_module
 from src.config import Config
+from src.db import get_memory_items_for_project, search_memory_items_for_project
 from src.state import UserState
 
 
@@ -162,6 +163,32 @@ TOOLS = [
         },
     },
     {
+        "name": "recall_memory",
+        "description": "Показать последние записи из памяти текущего проекта. Используй когда пользователь спрашивает что последнее, что делал, напомни записи, что было по проекту, what's in my notes.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "keyword": {
+                    "type": "string",
+                    "description": "Ключевое слово для поиска. Если не указано — вернуть последние записи.",
+                },
+                "limit": {"type": "integer", "description": "Максимальное количество записей (по умолчанию 5)."},
+            },
+            "required": [],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "reflect_project",
+        "description": "Сделать рефлексию текущего проекта: где я сейчас, творческие напряжения, что делать дальше. Используй когда пользователь просит разобраться где он находится, что делать дальше, помочь с фокусом, порефлексируем.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "update_note",
         "description": "Обновить текст заметки по её ID.",
         "input_schema": {
@@ -286,6 +313,11 @@ def _format_projects(items: list[dict[str, Any]], include_archived: bool) -> str
         status_label = {"active": "активный", "archived": "архивный"}.get(status, "неизвестный")
         lines.append("{}. {} ({}) — {}".format(index, item["name"], item["slug"], status_label))
     return "\n".join(lines)
+
+
+def _memory_item_date(item: dict[str, Any]) -> str:
+    raw_value = item.get("source_created_at") or item.get("created_at") or ""
+    return str(raw_value)[:10]
 
 
 async def execute_tool(
@@ -425,6 +457,52 @@ async def execute_tool(
             "Статус системы: активных дедлайнов — {}, домашних заданий к сдаче — {}, заметок — {}, идей — {}. "
             "Запросов к ИИ сегодня: {}/{}."
         ).format(active_deadlines, pending_homework, notes, ideas, llm_calls_used, llm_calls_limit)
+
+    if tool_name == "recall_memory":
+        if user_state.active_project_id is None:
+            return "Сначала выбери проект: /project <название>"
+
+        project_id = user_state.active_project_id
+        limit = int(tool_input.get("limit", 5))
+        keyword = tool_input.get("keyword")
+        if keyword:
+            items = await search_memory_items_for_project(db, project_id, str(keyword), limit=limit)
+        else:
+            items = await get_memory_items_for_project(db, project_id, limit=limit)
+
+        if not items:
+            return "Нет записей в памяти проекта."
+
+        lines = []
+        for item in items:
+            lines.append(
+                "[{}#{}] {}\n{}".format(
+                    item["source_kind"],
+                    item["source_id"],
+                    _memory_item_date(item),
+                    str(item["content"])[:200],
+                )
+            )
+        return "\n".join(lines)
+
+    if tool_name == "reflect_project":
+        if user_state.active_project_id is None:
+            return "Сначала выбери проект: /project <название>"
+
+        today_calls = await db_module.get_llm_calls_today(db)
+        if today_calls >= config.daily_llm_call_limit:
+            return "Дневной лимит запросов исчерпан."
+
+        from src.handlers.reflect_cmd import run_project_reflect
+
+        project_id = user_state.active_project_id
+        project_name = user_state.active_project_name or f"#{project_id}"
+        result = await run_project_reflect(db, project_id, project_name, config)
+        if result is None:
+            return "Не удалось сформировать рефлексию. Попробуй ещё раз."
+
+        await db_module.log_llm_call(db, "review", "reflect_tool")
+        return result
 
     if tool_name == "update_note":
         note_id = int(tool_input["note_id"])
