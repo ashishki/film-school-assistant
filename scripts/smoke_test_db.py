@@ -42,6 +42,7 @@ from src.db import (
     list_notes,
     list_projects,
     search_ideas,
+    search_memory_items_all_projects,
     search_memory_items_for_project,
     search_notes,
     update_recurring_reminder_status,
@@ -555,6 +556,24 @@ async def run_smoke_test() -> None:
             except ValueError:
                 pass
 
+            # T-M6: cross-project search returns provenance for items from another project
+            second_project = await create_project(db, name="Second Project", slug="second-proj")
+            unique_content = "Unique cross-project memory keyword second-project-2026"
+            await upsert_memory_item(
+                db,
+                scope="project",
+                project_id=second_project["id"],
+                source_kind="note",
+                source_id=2001,
+                content=unique_content,
+            )
+            cross_project_hits = await search_memory_items_all_projects(db, "second-project-2026")
+            assert len(cross_project_hits) >= 1, "Cross-project search must return at least one hit"
+            assert all(item.get("project_name") is not None for item in cross_project_hits), \
+                "Cross-project search rows must include non-null project_name"
+            assert any(item["project_id"] == second_project["id"] for item in cross_project_hits), \
+                "Cross-project search must include the second project item"
+
         recent_events = get_recent_unconfirmed_events(DB_PATH, hours=2)
         recent_event_ids = {item["id"] for item in recent_events}
         assert recent_unconfirmed_id is not None and recent_unconfirmed_id in recent_event_ids, \
@@ -562,11 +581,11 @@ async def run_smoke_test() -> None:
         assert confirmed_event_id is not None and confirmed_event_id not in recent_event_ids, \
             "get_recent_unconfirmed_events() must exclude confirmed=1 rows"
 
-        print("PASS")
+        LOGGER.info("PASS")
         sys.exit(0)
     except Exception as exc:
         LOGGER.exception("Smoke test failed")
-        print(f"FAIL: {exc}")
+        LOGGER.error("FAIL: %s", exc)
         sys.exit(1)
     finally:
         if os.path.exists(DB_PATH):
