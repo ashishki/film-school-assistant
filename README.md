@@ -51,7 +51,8 @@ It is intentionally single-user, private, and operationally simple.
 - User context memory: Claude Haiku (bounded user profile summary from saved personal context)
 - Evidence memory: `memory_items` layer for project-first verbatim recall with provenance — notes, ideas, homework, user context entries all ingested automatically on save
 - Idea review: Claude Sonnet
-- Project reflection: Claude Sonnet (`/reflect` command)
+- Project reflection: Claude Sonnet — available via `/reflect` command and natural conversation
+- Conversational tool access: recall and reflection available without commands — user asks naturally, chat loop selects the right tool
 - Feature-feedback capture: bounded multi-step LLM flow with separate quota and structured storage
 - Automation: deterministic deadline reminders, timezone-aware recurring daily-practice prompts, and weekly summary scripts
 
@@ -59,7 +60,7 @@ See [Product Overview](docs/PRODUCT_OVERVIEW.md), [Architecture](docs/ARCHITECTU
 
 ## Current Status
 
-The system is complete through Phase 10 (ten development phases) and three audit cycles:
+The system is complete through Phase 11 (eleven development phases) and three audit cycles:
 
 **Capture and confirmation**
 - Telegram-first capture by text or voice; local Whisper transcription
@@ -96,9 +97,12 @@ The system is complete through Phase 10 (ten development phases) and three audit
 - reminder messages include an inline “Поставить на паузу” button so the user can pause a practice without typing any command
 - stored items can be edited via natural language in chat (“исправь заметку #12…”) — the assistant has update tools for notes, ideas, and deadlines
 
-**Reflection and review**
+**Reflection, review, and natural conversation**
 - idea review uses project memory when available so critique is specific to the active project
 - `/reflect` produces a structured project reflection: current state, creative tensions, and next focus
+- natural phrases like "порефлексируем" or "помоги разобраться где я" trigger reflection through the chat loop without any command
+- natural phrases like "что я последний раз делала?", "напомни записи" surface evidence recall through the chat loop
+- commands (`/recall`, `/reflect`, `/search`) remain available as direct access but are not required
 - `/get <id>` retrieves the full content of any note, idea, deadline, or homework by ID — fixes the 60–80 character truncation in `/list`
 - `/review` without arguments shows a list of recent ideas with IDs, making `/review <id>` discoverable
 

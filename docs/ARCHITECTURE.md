@@ -105,7 +105,7 @@ T2/T3 are unjustified because there is no privileged autonomous execution and no
 | `src/handlers/feature_feedback.py` | Bounded feature-request capture flow when the assistant cannot satisfy a request |
 | `src/practice_intents.py` and `src/handlers/practice_cmd.py` | Deterministic parsing and configuration of recurring daily practices |
 | `src/user_context.py` | Personal-context capture, bounded user-profile summary generation, and prompt injection for relevant assistant flows |
-| `src/tools.py` | Approved tool catalog for the bounded chat loop |
+| `src/tools.py` | Approved tool catalog for the bounded chat loop; includes `recall_memory` and `reflect_project` for conversational NL access |
 | `src/reviewer.py` | Structured idea review generation |
 | `src/transcriber.py` and `src/voice.py` | Local voice transcription pipeline |
 | `src/db.py` and `src/schema.sql` | SQLite persistence and query layer |
@@ -127,7 +127,8 @@ T2/T3 are unjustified because there is no privileged autonomous execution and no
 | Voice transcription execution | Local ML / deterministic pipeline | Audio stays local and predictable |
 | Free-text entity extraction | LLM, bounded | Natural-language inputs are variable |
 | User-context profile summarization | LLM, bounded | Compresses saved personal context into a stable working profile |
-| Conversational tool selection | LLM, bounded | Flexible requests benefit from tool-choice reasoning |
+| Conversational tool selection | LLM, bounded | Flexible requests benefit from tool-choice reasoning; includes selecting recall_memory and reflect_project tools |
+| Evidence recall (recall_memory tool) | Deterministic DB read | No LLM needed — tool fetches and formats memory_items |
 | Feature-request clarification and brief assembly | LLM, bounded | Used only when the product hits a real capability gap |
 | Idea review / reflection output | LLM, bounded | This is interpretive, not transactional |
 
