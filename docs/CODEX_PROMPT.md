@@ -8,23 +8,22 @@ Last updated: 2026-04-07
 
 - Name: Film School Assistant
 - Root: `/srv/openclaw-her/workspace/film-school-assistant`
-- Repository state: operational product; Phases 0–7 complete; Phase 8 ready for implementation planning
+- Repository state: operational product; Phases 0–8 complete; Phase 9 ready for implementation
 
 ---
 
 ## Current Phase
 
-- Phase: 8 — MVP Evidence Memory Foundation — IN PROGRESS
-- Phase entry condition: Phase 7 docs approved; human approval required before first implementation task dispatch
+- Phase: 9 — Continuity Surfaces And Evidence Use — PENDING
+- Phase entry condition: Phase 8 complete; human approval received 2026-04-08
 
 --- Fix Queue --- (empty) ---
 
---- Phase 8 Task Status ---
-[x] P8-01 — Evidence memory schema and migration
-[x] P8-02 — Deterministic memory-item ingestion from existing sources
-[x] P8-03 — Summary refresh rules v2
-[x] P8-04 — Project-first evidence retrieval helper
-[x] P8-05 — Memory observability and migration validation
+--- Phase 9 Task Status ---
+[x] P9-01 — Returning-after-gap continuity surface
+[x] P9-02 — Evidence-grounded reflection path
+[x] P9-03 — Explicit recall command or equivalent bounded tool surface
+[x] P9-04 — Continuity eval pack
 
 ---
 
@@ -102,6 +101,20 @@ Do not assume a full-project Strategist rerun is required.
 - `P3` Review history injected into /reflect as raw JSON dump rather than accumulated summary — deferred to Phase 8
 - `P3` Gap surface fires only in chat_handler_wrapper (text messages); voice messages and commands don't update last_active — deferred
 - `P3` _extract_focus finds "Фокус:" only in new structured format; users with old flat-paragraph memory see no gap surface until they regenerate with /memory — expected behavior, not a bug
+
+---
+
+## Completed Tasks — Phase 8 (MVP Evidence Memory Foundation)
+
+Phase entry: Phase 7 complete; 2026-04-08
+Phase close artifact: `docs/review/continuity_eval_p8.md`
+Also includes: R1-FIX (confirm.py inline logging), R2-FIX (dedup memory_cmd log)
+
+[x] P8-01 — Evidence memory schema: memory_items table, scope CHECK, FK, two indexes, migration file
+[x] P8-02 — Deterministic ingestion: note/idea/homework → project scope; user_context → user scope; fire-and-forget
+[x] P8-03 — Summary refresh rules v2: _check_summary_staleness (count-changed / age-exceeded), reason logging
+[x] P8-04 — Project-first retrieval: search_memory_items_for_project; /search and chat tool project-first
+[x] P8-05 — Observability: smoke tests T-M1..T-M5 (PASS), memory_path logs, continuity_eval_p8.md
 
 ---
 

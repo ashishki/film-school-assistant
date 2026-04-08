@@ -6,7 +6,7 @@ import aiosqlite
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.db import get_llm_calls_today, get_project_memory, log_llm_call
+from src.db import get_llm_calls_today, get_memory_items_for_project, get_project_memory, log_llm_call
 from src.handlers.common import reply_text
 from src.openclaw_client import LLMError, complete_json
 from src.state import get_state
@@ -89,29 +89,34 @@ def _build_input_text(
     next_steps: list[str],
     deadlines: list[dict],
     user_context_text: str | None,
+    evidence_snippets: list[dict] | None = None,
 ) -> str:
-    return (
-        (
-            f"{user_context_text}\n\n"
-            if user_context_text
-            else ""
-        )
-        + f"Проект: {project_name}\n\n"
-        f"Текущее состояние (из памяти проекта):\n{summary_text}\n\n"
-        + (
+    parts: list[str] = []
+    if user_context_text:
+        parts.append(user_context_text)
+    parts.append(f"Проект: {project_name}")
+    parts.append(f"Текущее состояние (из памяти проекта):\n{summary_text}")
+    if evidence_snippets:
+        lines = ["Verbatim evidence (последние записи с провенансом):"]
+        for item in evidence_snippets:
+            kind = item.get("source_kind", "запись")
+            src_id = item.get("source_id", "?")
+            text = str(item.get("content", "")).strip()
+            if len(text) > 200:
+                text = text[:200].rstrip() + "..."
+            lines.append(f"[{kind}#{src_id}] {text}")
+        parts.append("\n".join(lines))
+    if next_steps:
+        parts.append(
             "Рекомендации из последних разборов идей:\n"
             + "\n".join(f"- {step}" for step in next_steps)
-            + "\n\n"
-            if next_steps
-            else ""
         )
-        + (
+    if deadlines:
+        parts.append(
             "Активные дедлайны:\n"
-            + "\n".join(f"- {deadline['title']} (срок: {deadline['due_date'] or 'не указан'})" for deadline in deadlines)
-            if deadlines
-            else ""
+            + "\n".join(f"- {d['title']} (срок: {d['due_date'] or 'не указан'})" for d in deadlines)
         )
-    )
+    return "\n\n".join(parts)
 
 
 def _format_reflection(response: dict) -> str:
@@ -159,6 +164,11 @@ async def reflect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 except Exception:
                     LOGGER.warning("Failed to fetch user context for /reflect project_id=%s", project_id)
                     user_context_text = None
+                try:
+                    evidence_snippets = await get_memory_items_for_project(db, project_id, limit=5)
+                except Exception:
+                    LOGGER.warning("Failed to fetch evidence snippets for /reflect project_id=%s", project_id)
+                    evidence_snippets = []
 
                 daily_llm_call_limit = context.bot_data["config"].daily_llm_call_limit
                 today_calls = await get_llm_calls_today(db)
@@ -172,6 +182,7 @@ async def reflect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     next_steps,
                     deadlines,
                     user_context_text,
+                    evidence_snippets=evidence_snippets or None,
                 )
 
                 try:

@@ -33,6 +33,7 @@ from src.db import (
     create_parsed_event,
     create_transcript,
     create_voice_input,
+    get_memory_items_for_project,
     get_project_memory,
     get_recent_unconfirmed_events,
     init_db,
@@ -80,6 +81,7 @@ from src.handlers.practice_cmd import (
 )
 from src.practice_intents import build_practice_time_question, parse_practice_intent, parse_practice_times
 from src.handlers.projects import archive_project_command, new_project_command, project_command, projects_command
+from src.handlers.recall_cmd import recall_command
 from src.handlers.reflect_cmd import reflect_command
 from src.handlers.get_cmd import get_command
 from src.handlers.review import review_handler
@@ -333,13 +335,24 @@ async def chat_handler_wrapper(update: Update, context: ContextTypes.DEFAULT_TYP
                 async with aiosqlite.connect(context.bot_data["db_path"]) as db:
                     db.row_factory = aiosqlite.Row
                     memory = await get_project_memory(db, state.active_project_id)
+                    recent_items = await get_memory_items_for_project(
+                        db, state.active_project_id, limit=3
+                    )
                 if memory is not None:
                     focus = _extract_focus(memory["summary_text"] or "")
                     if focus:
                         project_name = state.active_project_name or f"#{state.active_project_id}"
-                        await message.reply_text(
-                            f"Последний раз ты работала над «{project_name}»: {focus}"
-                        )
+                        lines = [f"Последний раз ты работала над «{project_name}»: {focus}"]
+                        if recent_items:
+                            lines.append("")
+                            lines.append("Последние материалы:")
+                            for item in recent_items:
+                                kind = item.get("source_kind", "запись")
+                                text = str(item.get("content", "")).strip()
+                                if len(text) > 120:
+                                    text = text[:120].rstrip() + "..."
+                                lines.append(f"— [{kind}] {text}")
+                        await message.reply_text("\n".join(lines))
             except aiosqlite.Error:
                 LOGGER.exception("Failed to surface gap context for chat_id=%s", chat.id)
     state.last_active = now
@@ -754,6 +767,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("review", review_handler))
     application.add_handler(CommandHandler("get", get_command))
     application.add_handler(CommandHandler("memory", memory_command))
+    application.add_handler(CommandHandler("recall", recall_command))
     application.add_handler(CommandHandler("reflect", reflect_command))
     application.add_handler(CommandHandler("confirm", confirm_command))
     application.add_handler(CommandHandler("edit", edit_command))
