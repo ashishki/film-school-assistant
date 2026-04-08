@@ -14,16 +14,16 @@ Last updated: 2026-04-08
 
 ## Current Phase
 
-- Phase: 10 — Explicit Cross-Project Recall — CLOSED
-- Phase entry condition: Phase 9 complete; human approval received 2026-04-08
-- Phase close artifact: `docs/review/cross_project_eval_p10.md`
+- Phase: 11 — Natural Language Access to Memory and Reflection — ACTIVE
+- Phase entry condition: Phase 10 complete; Audit Cycle 3 complete; human approval received 2026-04-08
 
---- Fix Queue --- (empty — AC3 fixes resolved) ---
+--- Fix Queue --- (empty) ---
 
-[x] FIX-AC3-1 — reflect_cmd: log_llm_call wrapped in own try/except; no longer swallows reflection on DB error
-[x] FIX-AC3-2 — smoke_test T-M6 added for search_memory_items_all_projects; smoke_test PASS
-
---- No active phase. Awaiting Phase 11 definition or human direction. ---
+--- Phase 11 Task Status ---
+[x] P11-01 — Extract shared reflect logic: run_project_reflect in reflect_cmd.py
+[x] P11-02 — Add recall_memory tool to TOOLS catalog and execute_tool
+[x] P11-03 — Add reflect_project tool to TOOLS catalog and execute_tool
+[x] P11-04 — Phase 11 eval pack
 
 ---
 

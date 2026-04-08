@@ -1753,3 +1753,140 @@ Acceptance-Criteria:
     description: "Eval pack references real implemented code, not aspirational behavior."
     test: "doc review"
 Review-Mode: deep
+
+---
+
+## Phase 11 — Natural Language Access to Memory and Reflection
+
+Goal:
+- user can ask naturally by text or voice what they need — recall, reflect, search — without knowing commands
+- commands remain as direct access but are not required for conversational use
+- chat tool loop handles recall and reflection the same way it handles save/list/search
+
+Exit criteria:
+- `recall_memory` and `reflect_project` tools exist in TOOLS catalog and execute_tool
+- user phrases like "что я последний раз делала?", "порефлексируем" route to chat_handler and trigger the tools
+- reflect logic is extracted into a shared function callable from both the command and the tool
+- eval pack confirms representative NL phrases produce correct tool selection
+
+---
+
+[ ] P11-01 — Extract shared reflect logic from reflect_cmd.py
+Owner: codex
+Phase: 11
+Type: implementation
+Depends-On: none
+Objective: |
+  Extract the core reflect computation from reflect_cmd.reflect_command into a standalone
+  async function `run_project_reflect(db, project_id, project_name, config) -> str | None`
+  inside src/handlers/reflect_cmd.py.
+  The command handler calls this function instead of inline logic.
+  This makes the reflect logic reusable by the tool in P11-03.
+File-Scope:
+  - src/handlers/reflect_cmd.py
+Acceptance-Criteria:
+  - id: AC-1
+    description: "run_project_reflect exists as an async function in reflect_cmd.py."
+    test: "code review"
+  - id: AC-2
+    description: "reflect_command calls run_project_reflect and sends its return value."
+    test: "code review"
+  - id: AC-3
+    description: "Behavior of /reflect command is unchanged end-to-end."
+    test: "code review"
+  - id: AC-4
+    description: "run_project_reflect handles missing project memory by returning None or a clear string."
+    test: "code review"
+Review-Mode: light
+
+---
+
+[ ] P11-02 — Add recall_memory tool to TOOLS catalog
+Owner: codex
+Phase: 11
+Type: implementation
+Depends-On: none
+Objective: |
+  Add `recall_memory` to the TOOLS list and execute_tool in src/tools.py.
+  Tool description (in Russian) must make clear when to use it:
+  recall intents, "что последнее", "напомни", "что я делала".
+  If keyword provided: calls search_memory_items_for_project.
+  If no keyword: calls get_memory_items_for_project with limit=5.
+  Returns formatted evidence with [source_kind#id] date / text provenance.
+  If no active project: returns a clear message.
+  If no items found: returns "Нет записей в памяти проекта."
+File-Scope:
+  - src/tools.py
+  - src/db.py (import only — functions already exist)
+Acceptance-Criteria:
+  - id: AC-1
+    description: "recall_memory present in TOOLS list with Russian description and correct input_schema."
+    test: "code review"
+  - id: AC-2
+    description: "execute_tool handles recall_memory: no keyword → list, keyword → search."
+    test: "code review"
+  - id: AC-3
+    description: "Output includes source provenance per item."
+    test: "code review"
+  - id: AC-4
+    description: "No active project returns a user-readable error, not an exception."
+    test: "code review"
+Review-Mode: light
+
+---
+
+[ ] P11-03 — Add reflect_project tool to TOOLS catalog
+Owner: codex
+Phase: 11
+Type: implementation
+Depends-On: P11-01
+Objective: |
+  Add `reflect_project` to the TOOLS list and execute_tool in src/tools.py.
+  Tool description (in Russian) must make clear when to use it:
+  "разобраться где я", "что делать дальше", "помоги с фокусом", "порефлексируем".
+  execute_tool calls run_project_reflect (from P11-01) and returns its result.
+  Must check quota (get_llm_calls_today vs config.daily_llm_call_limit) before LLM call.
+  Must call log_llm_call after successful LLM call.
+  If no active project or no memory: return clear user-readable message.
+File-Scope:
+  - src/tools.py
+  - src/handlers/reflect_cmd.py (import run_project_reflect)
+Acceptance-Criteria:
+  - id: AC-1
+    description: "reflect_project present in TOOLS list with Russian description and empty input_schema."
+    test: "code review"
+  - id: AC-2
+    description: "execute_tool calls run_project_reflect and returns formatted reflection string."
+    test: "code review"
+  - id: AC-3
+    description: "Quota check fires before LLM call; log_llm_call fires after success."
+    test: "code review"
+  - id: AC-4
+    description: "No active project or no memory returns user-readable message without exception."
+    test: "code review"
+Review-Mode: light
+
+---
+
+[ ] P11-04 — Phase 11 eval pack
+Owner: claude
+Phase: 11
+Type: documentation / eval
+Depends-On: P11-01, P11-02, P11-03
+Objective: |
+  Evaluate Phase 11: confirm natural phrases route to chat_handler and trigger correct tools.
+  Confirm commands (/recall, /reflect) still work as before.
+  Confirm no NL capture markers intercept recall/reflect intents.
+File-Scope:
+  - docs/review/nl_access_eval_p11.md
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Representative phrases ('что я делала', 'порефлексируем', 'напомни записи') confirmed to route to chat_handler, not nl_handler."
+    test: "code review of should_try_nl_capture and NL_CAPTURE_MARKERS"
+  - id: AC-2
+    description: "recall_memory and reflect_project tools return correct output in code review."
+    test: "code review"
+  - id: AC-3
+    description: "/recall and /reflect commands unchanged."
+    test: "code review"
+Review-Mode: deep
