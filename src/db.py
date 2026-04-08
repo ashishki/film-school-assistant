@@ -727,6 +727,31 @@ async def search_memory_items_for_project(
     )
 
 
+async def search_memory_items_all_projects(
+    db: aiosqlite.Connection,
+    keyword: str,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    """Search memory_items across all projects. Returns project_id per item for provenance.
+
+    This is an explicit opt-in function. Never call it as a default path.
+    """
+    return await _fetch_all_dicts(
+        db,
+        """
+        SELECT mi.id, mi.scope, mi.source_kind, mi.source_id, mi.content,
+               mi.created_at, mi.source_created_at, mi.project_id,
+               p.name AS project_name
+        FROM memory_items mi
+        LEFT JOIN projects p ON p.id = mi.project_id
+        WHERE mi.scope = 'project' AND mi.content LIKE ?
+        ORDER BY COALESCE(mi.source_created_at, mi.created_at) DESC, mi.id DESC
+        LIMIT ?
+        """,
+        (f"%{keyword}%", limit),
+    )
+
+
 async def get_project_item_count(db: aiosqlite.Connection, project_id: int) -> int:
     cursor = await db.execute(
         """

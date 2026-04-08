@@ -1629,3 +1629,127 @@ Objective: |
   Evaluate whether the new memory stack materially improves continuity without increasing
   false recall, scope leakage, or debugging difficulty.
 Review-Mode: deep
+Review-Mode: deep
+
+---
+
+## Phase 10 — Explicit Cross-Project Recall
+
+Goal:
+- add explicit, limited cross-project recall only after project-first memory is stable
+
+Entry condition:
+- Phase 9 complete
+
+Exit criteria:
+- named-project recall exists and is provenance-labeled
+- all-project search mode exists but is explicitly opt-in, not default
+- cross-project results include project name in provenance
+- eval pack confirms no implicit cross-project leakage
+
+---
+
+[ ] P10-01 — All-project memory search helper and /search all: mode
+Owner: codex
+Phase: 10
+Type: implementation
+Depends-On: P9-03
+Objective: |
+  Add search_memory_items_all_projects() to db.py and wire it into /search
+  when the query starts with "all:" prefix. Default /search behavior unchanged.
+File-Scope:
+  - src/db.py
+  - src/handlers/search_cmd.py
+Deterministic-Owned:
+  - all-project scope gating (opt-in prefix only)
+  - provenance: each result includes project_id
+Acceptance-Criteria:
+  - id: AC-1
+    description: "search_memory_items_all_projects() searches across all projects, returns project_id per item."
+    test: "code review"
+  - id: AC-2
+    description: "/search keyword → project-first (unchanged). /search all:keyword → all-project mode."
+    test: "code review"
+  - id: AC-3
+    description: "All-project results label each item with its project_id."
+    test: "code review"
+Review-Mode: light
+
+---
+
+[ ] P10-02 — Named-project recall in /recall
+Owner: codex
+Phase: 10
+Type: implementation
+Depends-On: P9-03
+Objective: |
+  Extend /recall to accept a project slug argument: /recall <slug> fetches memory_items
+  for the named project (not just the active one). Results include project name in label.
+File-Scope:
+  - src/handlers/recall_cmd.py
+  - src/db.py (add get_project_by_slug if not accessible)
+Deterministic-Owned:
+  - slug resolution to project_id
+  - cross-project access requires explicit slug
+Acceptance-Criteria:
+  - id: AC-1
+    description: "/recall <slug> fetches memory_items for the named project with project name in output."
+    test: "code review"
+  - id: AC-2
+    description: "/recall without args still defaults to active project (unchanged behavior)."
+    test: "code review"
+  - id: AC-3
+    description: "Unknown slug returns a clear error message."
+    test: "code review"
+Review-Mode: light
+
+---
+
+[ ] P10-03 — Provenance labeling with project name in cross-project results
+Owner: codex
+Phase: 10
+Type: implementation
+Depends-On: P10-01, P10-02
+Objective: |
+  Ensure all cross-project results (all-project /search, named /recall) include the
+  project name (not just project_id) in formatted output. Add a db helper that joins
+  memory_items with projects to enrich results with project_name.
+File-Scope:
+  - src/db.py
+  - src/handlers/search_cmd.py
+  - src/handlers/recall_cmd.py
+Deterministic-Owned:
+  - provenance join
+  - formatting: [project_name / source_kind#source_id]
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Cross-project results show project name, not just project_id, in formatted output."
+    test: "code review"
+  - id: AC-2
+    description: "Project-first (single-project) results are unchanged."
+    test: "code review"
+Review-Mode: light
+
+---
+
+[ ] P10-04 — Phase 10 cross-project eval pack
+Owner: claude
+Phase: 10
+Type: documentation / eval
+Depends-On: P10-01, P10-02, P10-03
+Objective: |
+  Evaluate Phase 10: confirm opt-in gating, provenance accuracy,
+  and absence of implicit cross-project leakage in default paths.
+File-Scope:
+  - docs/review/cross_project_eval_p10.md
+Acceptance-Criteria:
+  - id: AC-1
+    description: "Default /search and /recall remain project-first — confirmed by code review."
+    test: "code review"
+  - id: AC-2
+    description: "Cross-project mode only activates via explicit user action."
+    test: "code review"
+  - id: AC-3
+    description: "Eval pack references real implemented code, not aspirational behavior."
+    test: "doc review"
+Review-Mode: deep

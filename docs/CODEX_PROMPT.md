@@ -14,16 +14,16 @@ Last updated: 2026-04-07
 
 ## Current Phase
 
-- Phase: 9 — Continuity Surfaces And Evidence Use — PENDING
-- Phase entry condition: Phase 8 complete; human approval received 2026-04-08
+- Phase: 10 — Explicit Cross-Project Recall — PENDING
+- Phase entry condition: Phase 9 complete; human approval received 2026-04-08
 
 --- Fix Queue --- (empty) ---
 
---- Phase 9 Task Status ---
-[x] P9-01 — Returning-after-gap continuity surface
-[x] P9-02 — Evidence-grounded reflection path
-[x] P9-03 — Explicit recall command or equivalent bounded tool surface
-[x] P9-04 — Continuity eval pack
+--- Phase 10 Task Status ---
+[x] P10-01 — All-project memory search helper and /search all: mode
+[x] P10-02 — Named-project recall in /recall
+[x] P10-03 — Provenance labeling with project name in cross-project results
+[x] P10-04 — Phase 10 cross-project eval pack
 
 ---
 
