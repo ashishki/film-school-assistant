@@ -6,6 +6,7 @@ import aiosqlite
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from src.config import Config
 from src.db import get_llm_calls_today, get_memory_items_for_project, get_project_memory, log_llm_call
 from src.handlers.common import reply_text
 from src.openclaw_client import LLMError, complete_json
@@ -130,6 +131,61 @@ def _format_reflection(response: dict) -> str:
     )
 
 
+async def run_project_reflect(
+    db: aiosqlite.Connection,
+    project_id: int,
+    project_name: str,
+    config: Config,
+) -> str | None:
+    memory_row = await get_project_memory(db, project_id)
+    if memory_row is None:
+        LOGGER.info("No project memory found for reflection project_id=%s", project_id)
+        return None
+
+    try:
+        evidence_snippets = await get_memory_items_for_project(db, project_id, limit=5)
+    except Exception:
+        LOGGER.warning("Failed to fetch evidence snippets for project reflection project_id=%s", project_id)
+        evidence_snippets = []
+
+    review_rows = await _fetch_recent_review_rows(db, project_id)
+    next_steps = _extract_next_steps(review_rows)
+    deadlines = await _fetch_active_deadlines(db, project_id)
+
+    try:
+        await refresh_user_context_summary(db, config.daily_llm_call_limit)
+        user_context_text = await get_user_context_prompt_text(db)
+    except Exception:
+        LOGGER.warning("Failed to fetch user context for project reflection project_id=%s", project_id)
+        user_context_text = None
+
+    input_text = _build_input_text(
+        project_name,
+        memory_row["summary_text"],
+        next_steps,
+        deadlines,
+        user_context_text,
+        evidence_snippets=evidence_snippets or None,
+    )
+
+    try:
+        response = await asyncio.to_thread(
+            complete_json,
+            input_text,
+            REFLECT_SYSTEM_PROMPT,
+            "review",
+        )
+    except LLMError:
+        LOGGER.exception("Failed to generate reflection for project_id=%s", project_id)
+        return None
+
+    if not isinstance(response, dict):
+        LOGGER.warning("Reflection response was not a JSON object for project_id=%s", project_id)
+        return None
+
+    return _format_reflection(response)
+
+
 async def reflect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         chat = update.effective_chat
@@ -150,55 +206,19 @@ async def reflect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             async with aiosqlite.connect(context.bot_data["db_path"]) as db:
                 db.row_factory = aiosqlite.Row
 
-                memory_row = await get_project_memory(db, project_id)
-                if memory_row is None:
-                    await reply_text(update, context, "Нет памяти для этого проекта. Сначала выполни /memory.")
-                    return
-
-                review_rows = await _fetch_recent_review_rows(db, project_id)
-                next_steps = _extract_next_steps(review_rows)
-                deadlines = await _fetch_active_deadlines(db, project_id)
-                try:
-                    await refresh_user_context_summary(db, context.bot_data["config"].daily_llm_call_limit)
-                    user_context_text = await get_user_context_prompt_text(db)
-                except Exception:
-                    LOGGER.warning("Failed to fetch user context for /reflect project_id=%s", project_id)
-                    user_context_text = None
-                try:
-                    evidence_snippets = await get_memory_items_for_project(db, project_id, limit=5)
-                except Exception:
-                    LOGGER.warning("Failed to fetch evidence snippets for /reflect project_id=%s", project_id)
-                    evidence_snippets = []
-
                 daily_llm_call_limit = context.bot_data["config"].daily_llm_call_limit
                 today_calls = await get_llm_calls_today(db)
                 if today_calls >= daily_llm_call_limit:
                     await reply_text(update, context, "Дневной лимит запросов исчерпан. Попробуй завтра.")
                     return
 
-                input_text = _build_input_text(
+                result = await run_project_reflect(
+                    db,
+                    project_id,
                     project_name,
-                    memory_row["summary_text"],
-                    next_steps,
-                    deadlines,
-                    user_context_text,
-                    evidence_snippets=evidence_snippets or None,
+                    context.bot_data["config"],
                 )
-
-                try:
-                    response = await asyncio.to_thread(
-                        complete_json,
-                        input_text,
-                        REFLECT_SYSTEM_PROMPT,
-                        "review",
-                    )
-                except LLMError:
-                    LOGGER.exception("Failed to generate reflection for project_id=%s", project_id)
-                    await reply_text(update, context, "Не удалось сформировать рефлексию. Попробуй ещё раз.")
-                    return
-
-                if not isinstance(response, dict):
-                    LOGGER.warning("Reflection response was not a JSON object for project_id=%s", project_id)
+                if result is None:
                     await reply_text(update, context, "Не удалось сформировать рефлексию. Попробуй ещё раз.")
                     return
 
@@ -216,7 +236,7 @@ async def reflect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await reply_text(update, context, "Не удалось сохранить. Попробуй ещё раз. (ERR:DB)")
             return
 
-        await reply_text(update, context, _format_reflection(response))
+        await reply_text(update, context, result)
         LOGGER.info("Completed /reflect for project_id=%s", project_id)
     except Exception:
         LOGGER.exception("Unhandled reflect command failure")
