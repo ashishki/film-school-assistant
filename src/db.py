@@ -76,7 +76,7 @@ _ALLOWED_TABLES = frozenset({
     "voice_inputs", "transcripts", "parsed_events",
     "reminder_log", "review_history", "weekly_reports",
     "recurring_reminders", "recurring_reminder_log",
-    "project_memory", "user_feedback", "feature_feedback",
+    "project_memory", "memory_items", "user_feedback", "feature_feedback",
     "user_context_entries", "user_context_summary",
 })
 
@@ -607,6 +607,123 @@ async def upsert_project_memory(
 async def get_project_memory(db: aiosqlite.Connection, project_id: int) -> dict[str, Any] | None:
     return await _fetch_one_dict(
         db, "SELECT * FROM project_memory WHERE project_id = ?", (project_id,)
+    )
+
+
+async def upsert_memory_item(
+    db: aiosqlite.Connection,
+    scope: str,
+    project_id: int | None,
+    source_kind: str,
+    source_id: int,
+    content: str,
+    source_created_at: str | None = None,
+) -> dict[str, Any]:
+    if scope == "project" and project_id is None:
+        raise ValueError("project-scoped memory items require project_id")
+    if scope == "user" and project_id is not None:
+        raise ValueError("user-scoped memory items must not have project_id")
+    if scope not in {"project", "user"}:
+        raise ValueError(f"Invalid scope: {scope!r}")
+
+    existing = await _fetch_one_dict(
+        db,
+        "SELECT id FROM memory_items WHERE source_kind = ? AND source_id = ?",
+        (source_kind, source_id),
+    )
+    if existing is not None:
+        await db.execute(
+            """
+            UPDATE memory_items
+            SET scope = ?, project_id = ?, content = ?, source_created_at = ?
+            WHERE id = ?
+            """,
+            (scope, project_id, content, source_created_at, int(existing["id"])),
+        )
+        await db.commit()
+        result = await _fetch_one_dict(db, "SELECT * FROM memory_items WHERE id = ?", (int(existing["id"]),))
+        if result is None:
+            raise RuntimeError(f"Failed to fetch memory_items row for id={existing['id']}")
+        return result
+
+    return await _insert_and_fetch(
+        db,
+        """
+        INSERT INTO memory_items (
+            scope, project_id, source_kind, source_id, content, created_at, source_created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (scope, project_id, source_kind, source_id, content, _utcnow_iso(), source_created_at),
+        "memory_items",
+    )
+
+
+async def get_memory_items_for_project(
+    db: aiosqlite.Connection,
+    project_id: int,
+    source_kind: str | None = None,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    if source_kind is None:
+        return await _fetch_all_dicts(
+            db,
+            """
+            SELECT *
+            FROM memory_items
+            WHERE project_id = ? AND scope = 'project'
+            ORDER BY COALESCE(source_created_at, created_at) DESC, id DESC
+            LIMIT ?
+            """,
+            (project_id, limit),
+        )
+    return await _fetch_all_dicts(
+        db,
+        """
+        SELECT *
+        FROM memory_items
+        WHERE project_id = ? AND scope = 'project' AND source_kind = ?
+        ORDER BY COALESCE(source_created_at, created_at) DESC, id DESC
+        LIMIT ?
+        """,
+        (project_id, source_kind, limit),
+    )
+
+
+async def get_memory_items_for_user(
+    db: aiosqlite.Connection,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    return await _fetch_all_dicts(
+        db,
+        """
+        SELECT *
+        FROM memory_items
+        WHERE scope = 'user' AND project_id IS NULL
+        ORDER BY COALESCE(source_created_at, created_at) DESC, id DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+
+
+async def search_memory_items_for_project(
+    db: aiosqlite.Connection,
+    project_id: int,
+    keyword: str,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    """Search memory_items for the active project by keyword. Never crosses project boundaries."""
+    return await _fetch_all_dicts(
+        db,
+        """
+        SELECT id, scope, source_kind, source_id, content, created_at, source_created_at
+        FROM memory_items
+        WHERE project_id = ? AND scope = 'project' AND content LIKE ?
+        ORDER BY COALESCE(source_created_at, created_at) DESC, id DESC
+        LIMIT ?
+        """,
+        (project_id, f"%{keyword}%", limit),
     )
 
 

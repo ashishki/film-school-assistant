@@ -23,6 +23,8 @@ from src.db import (
     get_deadline,
     get_idea,
     get_llm_calls_today,
+    get_memory_items_for_project,
+    get_memory_items_for_user,
     get_note,
     get_project_item_count,
     get_project_by_slug,
@@ -40,10 +42,12 @@ from src.db import (
     list_notes,
     list_projects,
     search_ideas,
+    search_memory_items_for_project,
     search_notes,
     update_recurring_reminder_status,
     update_recurring_reminder_timezone,
     upsert_recurring_reminder,
+    upsert_memory_item,
     upsert_project_memory,
     update_deadline_due_date,
     update_deadline_status,
@@ -82,6 +86,7 @@ EXPECTED_TABLES = {
     "recurring_reminders",
     "recurring_reminder_log",
     "project_memory",
+    "memory_items",
     "llm_call_log",
     "user_feedback",
     "user_context_entries",
@@ -471,6 +476,84 @@ async def run_smoke_test() -> None:
             assert confirmed_homework_event["entity_id"] == 1, "confirmed parsed_event must set entity_id=1"
             assert confirmed_homework_event["entity_table"] == "homework", \
                 "confirmed parsed_event must set entity_table='homework'"
+
+            # --- memory_items smoke tests ---
+            # T-M1: project-scoped memory item round-trip
+            project = await create_project(db, name="Test Memory Project", slug="test-mem")
+            note = await create_note(db, content="Test memory note", project_id=project["id"], source="text")
+            await upsert_memory_item(
+                db,
+                scope="project",
+                project_id=project["id"],
+                source_kind="note",
+                source_id=note["id"],
+                content=note["content"],
+                source_created_at=note["created_at"],
+            )
+            items = await get_memory_items_for_project(db, project["id"])
+            assert len(items) == 1, f"Expected 1 memory item, got {len(items)}"
+            assert items[0]["source_kind"] == "note", "source_kind must be 'note'"
+            assert items[0]["source_id"] == note["id"], "source_id must match note id"
+            assert items[0]["content"] == note["content"], "content must match note content"
+
+            # T-M2: upsert idempotency — second upsert for same source updates content, does not duplicate
+            await upsert_memory_item(
+                db,
+                scope="project",
+                project_id=project["id"],
+                source_kind="note",
+                source_id=note["id"],
+                content="Updated memory note",
+                source_created_at=note["created_at"],
+            )
+            items_after = await get_memory_items_for_project(db, project["id"])
+            assert len(items_after) == 1, f"Upsert must not duplicate: got {len(items_after)}"
+            assert items_after[0]["content"] == "Updated memory note", "Upsert must update content"
+
+            # T-M3: user-scoped memory item
+            await upsert_memory_item(
+                db,
+                scope="user",
+                project_id=None,
+                source_kind="user_context",
+                source_id=1,
+                content="User context memory",
+            )
+            user_items = await get_memory_items_for_user(db)
+            assert len(user_items) == 1, f"Expected 1 user-scoped item, got {len(user_items)}"
+            assert user_items[0]["scope"] == "user", "scope must be 'user'"
+            assert user_items[0]["project_id"] is None, "project_id must be None for user scope"
+
+            # T-M4: project-first search — only returns items from the target project
+            search_hits = await search_memory_items_for_project(db, project["id"], "Updated memory")
+            assert len(search_hits) >= 1, "Search must find the updated memory item"
+            assert all(h["source_kind"] is not None for h in search_hits), "All hits must have source_kind"
+
+            # T-M5: scope enforcement — ValueError on invalid scope combinations
+            try:
+                await upsert_memory_item(
+                    db,
+                    scope="project",
+                    project_id=None,
+                    source_kind="note",
+                    source_id=99,
+                    content="bad",
+                )
+                assert False, "Should raise ValueError for project scope with no project_id"
+            except ValueError:
+                pass
+            try:
+                await upsert_memory_item(
+                    db,
+                    scope="user",
+                    project_id=project["id"],
+                    source_kind="user_context",
+                    source_id=99,
+                    content="bad",
+                )
+                assert False, "Should raise ValueError for user scope with project_id set"
+            except ValueError:
+                pass
 
         recent_events = get_recent_unconfirmed_events(DB_PATH, hours=2)
         recent_event_ids = {item["id"] for item in recent_events}

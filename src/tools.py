@@ -379,7 +379,16 @@ async def execute_tool(
             note_results = [("notes", item) for item in await db_module.search_notes(db, query)]
             idea_results = [("ideas", item) for item in await db_module.search_ideas(db, query)]
             results = note_results + idea_results
-        return _format_search_results(results, query)
+        if user_state.active_project_id is not None:
+            memory_hits = await db_module.search_memory_items_for_project(db, user_state.active_project_id, query)
+        else:
+            memory_hits = []
+        formatted = _format_search_results(results, query)
+        if memory_hits:
+            evidence_lines = [f"[{item['source_kind']}#{item['source_id']}] {item['content'][:200]}" for item in memory_hits]
+            evidence_block = "Из памяти проекта:\n" + "\n".join(evidence_lines)
+            return evidence_block + "\n\n" + formatted
+        return formatted
 
     if tool_name == "create_project":
         name = str(tool_input["name"])

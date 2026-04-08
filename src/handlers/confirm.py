@@ -12,6 +12,7 @@ from src.db import (
     create_note,
     create_user_context_entry,
     create_user_feedback,
+    upsert_memory_item,
 )
 from src.handlers.common import reply_text, validate_and_parse_date
 from src.state import UserState, clear_pending, get_state
@@ -252,6 +253,23 @@ async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pendi
             raw_transcript=pending.get("raw_transcript"),
             source=pending.get("source", "voice"),
         )
+        if saved.get("project_id"):
+            try:
+                await upsert_memory_item(
+                    db,
+                    scope="project",
+                    project_id=saved["project_id"],
+                    source_kind="note",
+                    source_id=saved["id"],
+                    content=saved["content"],
+                    source_created_at=saved.get("created_at"),
+                )
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "upsert_memory_item failed for note %s",
+                    saved["id"],
+                    exc_info=True,
+                )
         return entity_type, saved
 
     if entity_type == "idea":
@@ -262,6 +280,23 @@ async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pendi
             raw_transcript=pending.get("raw_transcript"),
             source=pending.get("source", "voice"),
         )
+        if saved.get("project_id"):
+            try:
+                await upsert_memory_item(
+                    db,
+                    scope="project",
+                    project_id=saved["project_id"],
+                    source_kind="idea",
+                    source_id=saved["id"],
+                    content=saved["content"],
+                    source_created_at=saved.get("created_at"),
+                )
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "upsert_memory_item failed for idea %s",
+                    saved["id"],
+                    exc_info=True,
+                )
         return entity_type, saved
 
     if entity_type == "deadline":
@@ -284,6 +319,26 @@ async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pendi
             description=pending.get("description"),
             source=pending.get("source", "voice"),
         )
+        if saved.get("project_id"):
+            content = saved["title"]
+            if saved.get("description"):
+                content = f"{saved['title']}: {saved['description']}"
+            try:
+                await upsert_memory_item(
+                    db,
+                    scope="project",
+                    project_id=saved["project_id"],
+                    source_kind="homework",
+                    source_id=saved["id"],
+                    content=content,
+                    source_created_at=saved.get("created_at"),
+                )
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "upsert_memory_item failed for homework %s",
+                    saved["id"],
+                    exc_info=True,
+                )
         return entity_type, saved
 
     if entity_type == "feedback":
@@ -302,6 +357,22 @@ async def _save_pending_entity(db: aiosqlite.Connection, entity_type: str, pendi
             raw_transcript=pending.get("raw_transcript"),
             source=pending.get("source", "text"),
         )
+        try:
+            await upsert_memory_item(
+                db,
+                scope="user",
+                project_id=None,
+                source_kind="user_context",
+                source_id=saved["id"],
+                content=saved["content"],
+                source_created_at=saved.get("created_at"),
+            )
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "upsert_memory_item failed for user_context %s",
+                saved["id"],
+                exc_info=True,
+            )
         return entity_type, saved
 
     raise ValueError(f"Unsupported pending entity type: {entity_type}")

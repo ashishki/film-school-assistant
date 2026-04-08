@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+
 import aiosqlite
 
 from src.db import (
+    create_user_context_entry,
     get_llm_calls_today,
     get_user_context_entry_count,
     get_user_context_summary,
     list_user_context_entries,
     log_llm_call,
+    upsert_memory_item,
     upsert_user_context_summary,
 )
 from src.openclaw_client import LLMError, complete
@@ -45,6 +49,8 @@ USER_CONTEXT_SUMMARY_SYSTEM_PROMPT = (
     "Нужные зоны: роль и этап, учебный контекст, творческие интересы, рабочий стиль, текущие блокировки, ближайший проект, предпочтительный тип помощи.\n"
     "Без выдумки, без советов, без повторов."
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _normalize(text: str) -> str:
@@ -96,6 +102,34 @@ def build_user_context_pending_entity(text: str, source: str = "text") -> dict[s
         "raw_transcript": text,
         "source": source,
     }
+
+
+async def save_user_context_entry(
+    db: aiosqlite.Connection,
+    *,
+    content: str,
+    raw_transcript: str | None = None,
+    source: str = "text",
+) -> dict[str, object]:
+    saved = await create_user_context_entry(
+        db,
+        content=content,
+        raw_transcript=raw_transcript,
+        source=source,
+    )
+    try:
+        await upsert_memory_item(
+            db,
+            scope="user",
+            project_id=None,
+            source_kind="user_context",
+            source_id=saved["id"],
+            content=saved["content"],
+            source_created_at=saved.get("created_at"),
+        )
+    except Exception:
+        LOGGER.warning("upsert_memory_item failed for user_context %s", saved["id"], exc_info=True)
+    return saved
 
 
 def _truncate_text(value: str, limit: int = 320) -> str:

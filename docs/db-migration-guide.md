@@ -102,3 +102,13 @@ If not wal, enable: `sqlite3 /srv/.../data/assistant.db "PRAGMA journal_mode=WAL
 - All foreign keys reference INTEGER primary keys
 - created_at uses ISO 8601 UTC strings (TEXT)
 - Status fields use CHECK constraints — add new values via ALTER TABLE or migration
+
+---
+
+## Phase 8 — Evidence Memory Foundation
+
+- `memory_items` is a new table for project-first evidence recall with source provenance.
+- New databases get it automatically through `src/db.py:init_db()` because `src/schema.sql` uses `CREATE TABLE IF NOT EXISTS`.
+- Existing databases still need the manual migration applied. Follow the same Step 1–4 process above using `migrations/20260408_add_memory_items.sql`.
+- Rollback is straightforward: `DROP TABLE memory_items;`
+- No other table has a foreign key that depends on `memory_items`, so dropping it does not require dependent-table cleanup.

@@ -14,17 +14,17 @@ Last updated: 2026-04-07
 
 ## Current Phase
 
-- Phase: 8 — MVP Evidence Memory Foundation — PENDING
+- Phase: 8 — MVP Evidence Memory Foundation — IN PROGRESS
 - Phase entry condition: Phase 7 docs approved; human approval required before first implementation task dispatch
 
 --- Fix Queue --- (empty) ---
 
 --- Phase 8 Task Status ---
-[ ] P8-01 — Evidence memory schema and migration
-[ ] P8-02 — Deterministic memory-item ingestion from existing sources
-[ ] P8-03 — Summary refresh rules v2
-[ ] P8-04 — Project-first evidence retrieval helper
-[ ] P8-05 — Memory observability and migration validation
+[x] P8-01 — Evidence memory schema and migration
+[x] P8-02 — Deterministic memory-item ingestion from existing sources
+[x] P8-03 — Summary refresh rules v2
+[x] P8-04 — Project-first evidence retrieval helper
+[x] P8-05 — Memory observability and migration validation
 
 ---
 

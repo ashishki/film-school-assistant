@@ -140,6 +140,28 @@ def _build_input_text(
     )
 
 
+def _check_summary_staleness(
+    existing_memory: dict | None,
+    current_count: int,
+    staleness_days: int,
+) -> tuple[bool, str]:
+    """Return (is_stale, reason). reason is logged and shown in debug output."""
+    if existing_memory is None:
+        return True, "no_summary_exists"
+    if existing_memory["item_count_snapshot"] != current_count:
+        return True, f"item_count_changed:{existing_memory['item_count_snapshot']}->{current_count}"
+    try:
+        generated_at = datetime.fromisoformat(existing_memory["generated_at"].replace("Z", "+00:00"))
+        if generated_at.tzinfo is None:
+            generated_at = generated_at.replace(tzinfo=timezone.utc)
+        age_days = (datetime.now(timezone.utc) - generated_at).days
+    except (ValueError, TypeError):
+        return True, "generated_at_parse_error"
+    if age_days >= staleness_days:
+        return True, f"age_exceeded:{age_days}d>={staleness_days}d"
+    return False, f"fresh:age={age_days}d,count={current_count}"
+
+
 async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         chat = update.effective_chat
@@ -162,23 +184,27 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
                 current_count = await get_project_item_count(db, project_id)
                 existing_memory = await get_project_memory(db, project_id)
+                staleness_days = context.bot_data["config"].memory_staleness_days
+                is_stale, stale_reason = _check_summary_staleness(
+                    existing_memory,
+                    current_count,
+                    staleness_days,
+                )
+                LOGGER.info(
+                    "summary staleness check project_id=%s: stale=%s reason=%s",
+                    project_id,
+                    is_stale,
+                    stale_reason,
+                )
 
-                if existing_memory is not None and existing_memory["item_count_snapshot"] == current_count:
-                    staleness_days = context.bot_data["config"].memory_staleness_days
-                    try:
-                        generated_at = datetime.fromisoformat(existing_memory["generated_at"].replace("Z", "+00:00"))
-                        if generated_at.tzinfo is None:
-                            generated_at = generated_at.replace(tzinfo=timezone.utc)
-                        age_days = (datetime.now(timezone.utc) - generated_at).days
-                    except (ValueError, TypeError):
-                        age_days = staleness_days + 1
-                    if age_days < staleness_days:
-                        await reply_text(
-                            update,
-                            context,
-                            f"Память проекта «{project_name}»:\n\n{existing_memory['summary_text']}\n\n_(актуально, обновлено: {existing_memory['generated_at'][:10]})_",
-                        )
-                        return
+                if not is_stale and existing_memory is not None:
+                    await reply_text(
+                        update,
+                        context,
+                        f"Память проекта «{project_name}»:\n\n{existing_memory['summary_text']}\n\n_(актуально, обновлено: {existing_memory['generated_at'][:10]})_",
+                    )
+                    LOGGER.info("memory_path=summary_cached project_id=%s reason=%s", project_id, stale_reason)
+                    return
 
                 if current_count == 0:
                     await reply_text(
@@ -216,6 +242,8 @@ async def memory_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
                 model_name = os.environ.get("LLM_MODEL_INTENT", "claude-haiku-4-5")
                 await upsert_project_memory(db, project_id, summary_text, current_count, model_name)
+                LOGGER.info("summary refreshed project_id=%s reason=%s", project_id, stale_reason)
+                LOGGER.info("memory_path=summary_refreshed project_id=%s reason=%s", project_id, stale_reason)
 
         except aiosqlite.Error:
             LOGGER.exception("Database failure during /memory for project_id=%s", project_id)
