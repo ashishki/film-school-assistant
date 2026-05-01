@@ -4,7 +4,7 @@
 
 ### Decision
 
-The product remains Telegram-first in the current phase.
+The product remains Telegram-first for the current maintenance model.
 
 ### Why this is valid
 
@@ -144,12 +144,12 @@ The following documents are source-of-truth for implementation planning:
 - `docs/MEMORY_ARCHITECTURE.md`
 - `docs/WORKFLOW_BOUNDARIES.md`
 - `docs/spec.md`
-- `docs/PHASE_PLAN.md`
 - `docs/tasks.md`
 - `docs/IMPLEMENTATION_CONTRACT.md`
 - `docs/CODEX_PROMPT.md`
 
 Implementation should not proceed against informal chat intent when these artifacts disagree.
+Historical phase plans and audits are archived under `docs/archive/` and are not active execution instructions.
 
 ## 10. Recurring practices are part of the workflow
 

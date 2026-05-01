@@ -189,7 +189,7 @@ See `docs/MEMORY_ARCHITECTURE.md` for the full target design and rollout plan.
 
 ## 9. Telegram as Interface Layer
 
-Telegram is still the correct primary surface for the current phase because:
+Telegram is still the correct primary surface for the current product model because:
 - the product’s strongest behavior is fast capture
 - voice and text entry are the highest-frequency interactions
 - private single-user deployment lowers packaging complexity
@@ -205,7 +205,7 @@ Telegram should be described as the interface layer, not the identity of the pro
 - SQLite as system of record
 - local Whisper transcription
 - Anthropic models for bounded language work only
-- no web layer required in the current phase
+- no web layer required in the current product model
 - no multi-user, team, SaaS, or shared workspace scope
 - no RAG or external knowledge base
 

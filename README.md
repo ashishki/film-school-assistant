@@ -1,135 +1,87 @@
 # Film School Assistant
 
-Film School Assistant is a Telegram-first AI assistant for directors and creative thinkers that helps capture ideas, reduce workflow chaos, and maintain continuity across projects, deadlines, reflections, and recurring creative practices.
+Telegram-first private assistant for film-school and director workflow: capture scattered ideas, voice notes, homework, deadlines, project context, and reflections, then turn them into a steadier creative working rhythm.
 
-It is not positioned as "a Telegram bot for notes." Telegram is the current interface layer. The product is a private creative workflow assistant: a system for turning scattered voice notes, loose ideas, deadlines, and homework into a structured working rhythm.
+It is not a public SaaS product or a generic notes bot. Telegram is the current interface; the product is a single-user continuity assistant for creative projects.
 
-## What Problem It Solves
+## What It Does
 
-Creative work often breaks down in the gaps between thinking and execution:
-- ideas arrive in fragments
-- deadlines drift out of context
-- notes become piles instead of momentum
-- projects lose continuity between sessions
+1. Captures text and voice input in Telegram.
+2. Extracts structured entities: notes, ideas, homework, deadlines, and user context.
+3. Confirms each entity before saving.
+4. Keeps entries attached to active projects.
+5. Supports review, search, edit, recall, archive, and project reflection.
+6. Sends deadline reminders, recurring practice prompts, and weekly summaries.
+7. Maintains bounded memory:
+   - structured SQLite state as source of truth
+   - project summaries for fast context
+   - verbatim `memory_items` evidence for recall and reflection
+   - user context summary for personal grounding
 
-This project is designed to reduce that chaos for a solo director or film student by combining fast capture, structured storage, reminders, recurring practice prompts, and bounded AI assistance.
+## Current Capabilities
 
-## Who It Is For
+- Telegram bot with single authorized user guard.
+- Text and voice capture with local Whisper transcription.
+- Multi-entity natural-language extraction.
+- Confirmation queue with save/discard/rewrite.
+- Project-aware notes, ideas, homework, and deadlines.
+- `/memory`, `/recall`, `/reflect`, `/search`, `/review`, `/get`, `/list`, and edit flows.
+- Natural chat access to recall and reflection tools.
+- Recurring daily practices with timezone-aware reminders.
+- Feature-feedback capture for unsupported requests.
+- SQLite persistence and private VPS deployment through `systemd`.
 
-Right now, the product is built for a single primary user:
-- a director in training
-- a film student
-- a solo creative thinker managing multiple active projects
+## Architecture Snapshot
 
-It is intentionally single-user, private, and operationally simple.
+| Area | Current choice |
+|---|---|
+| Interface | Telegram-first |
+| Runtime | Python service on private VPS |
+| Storage | SQLite |
+| Voice | local Whisper |
+| LLM usage | bounded extraction, review, reflection, summaries |
+| Memory | structured state + bounded summaries + provenance evidence |
+| Deployment | private single-user `systemd` service |
 
-## Core Workflow
+Deterministic code owns auth, persistence, reminders, scheduling, search scope, and confirmation. LLMs are used only for bounded interpretation and generation tasks.
 
-1. Capture thoughts quickly by text or voice in Telegram — one message can contain multiple items at once.
-2. Convert messy input into structured entities: notes, ideas, deadlines, homework — each confirmed individually.
-3. Attach entries to projects so work stays contextual, not flat.
-4. Review, search, edit, archive, and revisit work without losing continuity.
-5. Receive deadline reminders, recurring daily practice prompts, and a weekly digest that turn stored material into forward motion.
-6. Run `/memory` to generate a bounded summary of the current project state.
-7. Run `/reflect` to get a grounded orientation: where the project stands, what tensions are active, and what to focus on next.
-8. Turn missing-feature requests into stored developer feedback, either as raw feedback or as a short structured feature brief.
+## Main Docs
 
-## Why It Is Not Just Notes, ChatGPT, or Telegram
+- [docs/README.md](docs/README.md) — documentation map
+- [docs/PRODUCT_OVERVIEW.md](docs/PRODUCT_OVERVIEW.md) — product definition and boundaries
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system architecture
+- [docs/MEMORY_ARCHITECTURE.md](docs/MEMORY_ARCHITECTURE.md) — memory model
+- [docs/WORKFLOW_BOUNDARIES.md](docs/WORKFLOW_BOUNDARIES.md) — deterministic vs LLM ownership
+- [docs/DEPLOY.md](docs/DEPLOY.md) — VPS deployment
+- [docs/tasks.md](docs/tasks.md) — current maintenance backlog
 
-- Not just notes: it adds structure, projects, reminders, review flows, and continuity.
-- Not just ChatGPT: LLM use is bounded to specific jobs, while state, scheduling, and storage stay deterministic.
-- Not just Telegram: Telegram is only the current interaction surface for a broader creative workflow system.
-
-## Current Architecture Snapshot
-
-- Interface: Telegram-first, single authorized user
-- Runtime: Python service on a private VPS with `systemd`
-- Storage: local SQLite
-- Voice transcription: local Whisper
-- Intent extraction: Claude Haiku — multi-entity, context-aware, with targeted error recovery
-- Project memory: Claude Haiku (bounded summary, structured 4-field format per project)
-- User context memory: Claude Haiku (bounded user profile summary from saved personal context)
-- Evidence memory: `memory_items` layer for project-first verbatim recall with provenance — notes, ideas, homework, user context entries all ingested automatically on save
-- Idea review: Claude Sonnet
-- Project reflection: Claude Sonnet — available via `/reflect` command and natural conversation
-- Conversational tool access: recall and reflection available without commands — user asks naturally, chat loop selects the right tool
-- Feature-feedback capture: bounded multi-step LLM flow with separate quota and structured storage
-- Automation: deterministic deadline reminders, timezone-aware recurring daily-practice prompts, and weekly summary scripts
-
-See [Product Overview](docs/PRODUCT_OVERVIEW.md), [Architecture](docs/ARCHITECTURE.md), and [Phase Plan](docs/PHASE_PLAN.md).
-
-## Current Status
-
-The system is complete through Phase 11 (eleven development phases) and three audit cycles:
-
-**Capture and confirmation**
-- Telegram-first capture by text or voice; local Whisper transcription
-- NL capture markers cover natural phrasings — users never need command syntax; recognized triggers include «хочу записать», «не забыть», «мысль», «нужно зафиксировать», and standard terms like «идея», «дедлайн», «заметка»
-- entity type (note / idea / homework / deadline) is inferred from context and content — no template required; the extraction prompt includes descriptions and examples for each type in film-school context
-- one free-text message can contain multiple entities — when multiple are found, the assistant announces the count ("Нашёл 3 записи — разберём по одной.") and shows queue progress as each is confirmed
-- if a message contains both a practice intent and NL save content, both are handled — practice is processed first, then NL capture runs on the remainder
-- confirmation keyboard has three options: save, discard, or rewrite (✏️ Уточнить — re-runs extraction on next message)
-- when extraction fails, the assistant shows a concrete example instead of a generic error
-- NL handler uses the last five messages as context so back-references ("а ещё добавь дедлайн") resolve correctly
-
-**Project continuity and evidence memory**
-- confirmation and edit replies are project-aware and include the project name
-- the weekly digest is framed in Russian with project-level next-step pointers
-- `/memory` generates a bounded project-state summary in structured format (Фокус / Открытые вопросы / Последнее / Следующий шаг); re-generates when item count changes or summary exceeds the staleness window
-- stored project memory is injected into chat context so the assistant retains project state without re-explanation
-- every confirmed note, idea, homework, and user context entry is automatically ingested into `memory_items` — a verbatim evidence layer with source provenance
-- `/recall` browses recent project-scoped evidence; `/recall user` for user-scoped; `/recall <slug>` for any named project
-- `/search all:<keyword>` searches evidence across all projects explicitly — default search remains project-first
-- on re-entry after a gap, the assistant surfaces the last known project focus and the most recent evidence items
-- `/reflect` is evidence-grounded: recent `memory_items` are injected as verbatim context alongside the summary
-- personal context about the user can be saved separately from project notes and condensed into a short working profile
-- the saved user profile is injected into relevant assistant flows so review, reflection, and chat help stay grounded in the person, not only the project
-
-**Feedback and practices**
-- when the assistant cannot do something yet, it can offer to turn that gap into a developer-facing feature request
-- feature requests can be captured as short structured briefs and stored separately from raw user feedback
-- the bot supports recurring daily practices such as morning pages and end-of-day reflection prompts
-- these practices can be configured by command or natural language, including text and voice requests
-- recurring practices support explicit timezone capture; when no timezone is given, the existing practice timezone is inherited so reminders do not silently reset to a default
-- correction-style replies like “нет, только утренние страницы в 10:00” are handled as updates to the existing practice setup instead of generic chat
-- `/practices` shows the next scheduled fire time (“сегодня в 20:00”) so the user can verify reminders will fire at the expected local time
-- practice completions are tracked (streak and weekly count visible in `/practices` and the weekly summary)
-- reminder messages include an inline “Поставить на паузу” button so the user can pause a practice without typing any command
-- stored items can be edited via natural language in chat (“исправь заметку #12…”) — the assistant has update tools for notes, ideas, and deadlines
-
-**Reflection, review, and natural conversation**
-- idea review uses project memory when available so critique is specific to the active project
-- `/reflect` produces a structured project reflection: current state, creative tensions, and next focus
-- natural phrases like "порефлексируем" or "помоги разобраться где я" trigger reflection through the chat loop without any command
-- natural phrases like "что я последний раз делала?", "напомни записи" surface evidence recall through the chat loop
-- commands (`/recall`, `/reflect`, `/search`) remain available as direct access but are not required
-- `/get <id>` retrieves the full content of any note, idea, deadline, or homework by ID — fixes the 60–80 character truncation in `/list`
-- `/review` without arguments shows a list of recent ideas with IDs, making `/review <id>` discoverable
-
-**Deployment**
-- deployment is documented for VPS setup with `.env.example`, `docs/DEPLOY.md`, and corrected `systemd` service files
-
-## Documentation Map
-
-- [Product Overview](docs/PRODUCT_OVERVIEW.md): product category, user, boundaries, differentiation
-- [Architecture](docs/ARCHITECTURE.md): system shape, governance, runtime, ownership boundaries
-- [Memory Architecture](docs/MEMORY_ARCHITECTURE.md): current memory model, MemPalace extraction, target memory tiers, and rollout plan
-- [Workflow Boundaries](docs/WORKFLOW_BOUNDARIES.md): deterministic vs LLM rules and approval gates
-- [User Experience](docs/USER_EXPERIENCE.md): UX principles for a creative assistant
-- [Phase Plan](docs/PHASE_PLAN.md): build phases, shipped scope, and deferred work
-- [Decisions](docs/DECISIONS.md): key architectural and product decisions
-- [Setup Spec](docs/spec.md): implementation-facing product contract
-- [Deployment Guide](docs/DEPLOY.md): step-by-step VPS deployment instructions
-- [Audit Review Report](docs/audit/REVIEW_REPORT.md): audit cycle findings and follow-up priorities
-- [Task Graph](docs/tasks.md): playbook-compatible execution backlog
-- [Engineering Patterns](docs/PATTERNS.md): three non-obvious implementation decisions — timezone-aware dedup, false-positive filtering, and streak calculation
+Historical phase plans, audit cycles, eval packs, and old review reports live under [docs/archive/](docs/archive/README.md).
 
 ## Setup
 
-Start with the implementation-facing setup and runtime details already in the repo:
-- [Product Spec](docs/spec.md)
-- [Ops / Security](docs/ops-security.md)
+Install dependencies:
 
-See [docs/DEPLOY.md](docs/DEPLOY.md) for step-by-step VPS deployment instructions.
+```bash
+pip install -r requirements.txt
+```
 
-The repository remains intentionally private-deployment-first. A public SaaS posture is not the current target.
+Initialize the database:
+
+```bash
+./scripts/init_db.sh
+```
+
+Copy and fill environment variables:
+
+```bash
+cp .env.example .env
+```
+
+Useful checks:
+
+```bash
+python3 scripts/smoke_test_db.py
+python3 scripts/test_voice_pipeline.py
+```
+
+See [docs/DEPLOY.md](docs/DEPLOY.md) for production service setup.

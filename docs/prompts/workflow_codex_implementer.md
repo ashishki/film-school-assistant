@@ -1,62 +1,44 @@
-# Codex Implementer — Manual Use Template
+# Codex Implementer Template
 
-Use this file only for manual debugging or ad-hoc re-runs outside the active Orchestrator loop.
+Use for one bounded maintenance item.
 
-The active orchestration entry point is:
-- `docs/prompts/ORCHESTRATOR.md`
+## Required Inputs
 
----
-
-## How to use
-
-```bash
-cat > /tmp/codex_phase_prompt.txt << 'ENDOFPROMPT'
-[paste filled prompt below]
-ENDOFPROMPT
-PROMPT=$(cat /tmp/codex_phase_prompt.txt)
-codex exec -s workspace-write "$PROMPT"
-```
-
----
+- work item id and title
+- allowed scope
+- non-goals
+- files likely to change
+- validation steps
 
 ## Prompt Template
 
-```
-You are Codex, the implementation agent for the Film School Assistant project.
+```text
+You are Codex, the implementation agent for Film School Assistant.
 Project root: /home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant
 
-Your assignment: Phase [N] — [Phase Name]
+Work item:
+[paste item]
 
-Read these files before writing any code:
+Read first:
 - docs/CODEX_PROMPT.md
+- docs/tasks.md
 - docs/ARCHITECTURE.md
-- docs/MEMORY_ARCHITECTURE.md (required for memory, retrieval, continuity, or search-related tasks)
-- docs/spec.md
-- docs/tasks.md (Phase [N] section only)
 - docs/WORKFLOW_BOUNDARIES.md
 - docs/IMPLEMENTATION_CONTRACT.md
+- docs/MEMORY_ARCHITECTURE.md if the task touches memory, recall, search, reflection, or continuity
 
-Tasks to implement (in order):
-[paste task rows from tasks.md for this phase — ID, description, Depends On]
+Constraints:
+- keep structured SQLite state canonical
+- keep retrieval project-first by default
+- do not add web, multi-user, vector search, external calendar, or broad RAG behavior
+- do not treat docs/archive as active execution state
+- keep the change reviewable
 
-Hard constraints — violating any of these will fail review:
-- NEVER hardcode secrets, tokens, or API keys — read from os.environ only
-- NEVER transmit audio files to external services
-- preserve the declared solution shape, governance level, and runtime tier
-- do not expand into web-primary, multi-user, or speculative memory scope unless the task explicitly says so
-- keep structured state as source of truth; do not replace it with summary-only or generic memory abstractions
-- keep retrieval project-first by default unless the task explicitly authorizes broader scope
-- preserve provenance when implementing recall or memory retrieval behavior
-- Use logging module, not print() for status/debug output
+Validation:
+[paste commands/checks]
 
-When all tasks are done:
-1. Verify each file exists and is syntactically valid
-2. Update `docs/tasks.md` and `docs/CODEX_PROMPT.md` only if the task or orchestrator explicitly requires it
-3. Return a completion report listing every file created or modified with its path
+Return:
+- files changed
+- validation run
+- assumptions or blockers
 ```
-
----
-
-## Note
-
-Prefer the active Orchestrator loop over manual use of this template.
