@@ -16,6 +16,8 @@ live under `docs/archive/`.
 | `DECISIONS.md` | Current architectural and product decisions |
 | `IMPLEMENTATION_CONTRACT.md` | Engineering constraints for future changes |
 | `PATTERNS.md` | Non-obvious implementation patterns |
+| `COGNITION_MANIFEST.md` | Repo-local cognition map and source-of-truth rules |
+| `VPS_COGNITION_VAULT.md` | Shared VPS vault location and sync policy |
 
 ## Active Operations Docs
 

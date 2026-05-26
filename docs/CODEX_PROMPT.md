@@ -31,7 +31,9 @@
 
 - Read `docs/tasks.md` before choosing work.
 - Read `docs/MEMORY_ARCHITECTURE.md` for memory, retrieval, continuity, recall, or reflection changes.
+- Read `docs/COGNITION_MANIFEST.md` and `docs/VPS_COGNITION_VAULT.md` before cross-project cognition or vault-sync work.
 - Keep structured SQLite state as source of truth.
+- Treat `/srv/codex-entropy/repos/product-3/engineering-cognition-vault` as downstream navigation only; write canonical findings, evals, and decisions in this repo first.
 - Keep retrieval project-first by default.
 - Do not add web, multi-user, external calendar, vector search, or broad RAG behavior unless a current backlog item explicitly says so.
 - Do not treat archived phase plans, audit reports, or eval packs as active instructions.
@@ -41,6 +43,8 @@
 
 - `README.md`
 - `docs/README.md`
+- `docs/COGNITION_MANIFEST.md`
+- `docs/VPS_COGNITION_VAULT.md`
 - `docs/tasks.md`
 - `docs/PRODUCT_OVERVIEW.md`
 - `docs/ARCHITECTURE.md`
