@@ -2,6 +2,8 @@
 
 Telegram-first private assistant for film-school and director workflow: capture scattered ideas, voice notes, homework, deadlines, project context, and reflections, then turn them into a steadier creative working rhythm.
 
+Status: paused creative portfolio case. The product is not in active feature development; roadmap and pause rules are in `docs/PROJECT_PLAN.md`.
+
 It is not a public SaaS product or a generic notes bot. Telegram is the current interface; the product is a single-user continuity assistant for creative projects.
 
 ## What It Does

@@ -1,11 +1,12 @@
 # Film School Assistant — Codex Session State
 
-**Last updated:** 2026-05-01
+**Last updated:** 2026-05-29
 
 ## Project
 
 - Root: `/home/ashishki/Documents/dev/ai-stack/projects/film-school-assistant`
-- Product state: operational private Telegram assistant
+- Product state: operational private Telegram assistant; paused as an active
+  product and maintained as a creative-professions portfolio case
 - Historical roadmap: Phase 0-11 complete and archived
 - Current execution model: maintenance backlog in `docs/tasks.md`
 
@@ -21,10 +22,10 @@
 
 ## Current Priorities
 
-1. Keep docs aligned with runtime behavior.
+1. Keep README and case-study framing aligned with runtime behavior.
 2. Preserve privacy and inspectability.
-3. Improve continuity quality without building a generic memory platform.
-4. Add focused tests for recall/reflection and production-critical paths.
+3. Do not add new product scope while usage is paused.
+4. Run production smoke checks only when docs/deploy/runtime changes are made.
 5. Convert still-relevant archived audit findings into explicit backlog items before implementation.
 
 ## Rules For Future Work
@@ -36,6 +37,7 @@
 - Treat `/srv/codex-entropy/repos/product-3/engineering-cognition-vault` as downstream navigation only; write canonical findings, evals, and decisions in this repo first.
 - Keep retrieval project-first by default.
 - Do not add web, multi-user, external calendar, vector search, or broad RAG behavior unless a current backlog item explicitly says so.
+- Do not resume feature development unless `docs/tasks.md` resume criteria are met.
 - Do not treat archived phase plans, audit reports, or eval packs as active instructions.
 - Do not claim checks that were not run.
 
